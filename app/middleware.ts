@@ -13,8 +13,7 @@ const publicPaths = new Set(["/", "/pending"]);
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  let pathname = req.nextUrl.pathname.replace(/\/+$/, "") || "/";
-
+  const pathname = req.nextUrl.pathname.replace(/\/+$/, "") || "/";
 
   if (
     publicPaths.has(pathname) ||
@@ -25,11 +24,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-
   if (!token) {
     return NextResponse.redirect(new URL("/", req.url));
   }
-
 
   const role = token.role?.toUpperCase() ?? "PENDING";
 
@@ -40,18 +37,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-
   if (role !== "PENDING" && pathname === "/pending") {
     return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, req.url));
   }
-
 
   for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
     if (
       (pathname === route || pathname.startsWith(`${route}/`)) &&
       !allowedRoles.includes(role)
     ) {
-    
       return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, req.url));
     }
   }
