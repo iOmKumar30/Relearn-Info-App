@@ -3,11 +3,7 @@
 import { ClipLoader } from "react-spinners";
 import { useRBAC } from "../hooks/useRBAC";
 
-export default function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const { status, hasAccess } = useRBAC(["ROLE2", "ADMIN", "SUPERADMIN"]);
 
   if (status === "loading" || !hasAccess) {

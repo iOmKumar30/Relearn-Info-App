@@ -1,5 +1,5 @@
+import LogoutButton from "@/components/LogoutButton";
 import type { Metadata } from "next";
-
 import AuthContext from "./context/AuthContext";
 import "./globals.css";
 
@@ -16,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthContext>{children}</AuthContext>
+        <AuthContext>
+          <LogoutButton />
+          {children}
+        </AuthContext>
       </body>
     </html>
   );
