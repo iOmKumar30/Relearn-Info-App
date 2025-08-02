@@ -26,7 +26,9 @@ export async function POST(req: Request) {
         name,
         email,
         hashedPassword,
-        role: Role.PENDING,
+        roles: {
+          create: [{ role: Role.PENDING }],
+        },
       },
     });
 

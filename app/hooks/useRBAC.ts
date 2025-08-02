@@ -1,20 +1,22 @@
-
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 function userHasAccess(
-  userRole: string | undefined,
+  userRoles: string[] | undefined,
   allowedRoles: string[]
 ): boolean {
-  if (!userRole) return false;
-  return allowedRoles.includes(userRole.toUpperCase());
+  if (!userRoles || userRoles.length === 0) return false;
+  return userRoles.some((role) => allowedRoles.includes(role.toUpperCase())); // atleast one role match
 }
 
 export function useRBAC(allowedRoles: string[]) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const hasAccess = userHasAccess(session?.user?.role, allowedRoles);
+
+  const userRoles = session?.user?.roles?.map((r) => r.toUpperCase()) ?? [];
+  const hasAccess = userHasAccess(userRoles, allowedRoles);
+
   useEffect(() => {
     if (status === "loading") return;
 
@@ -23,13 +25,13 @@ export function useRBAC(allowedRoles: string[]) {
       return;
     }
 
-    if (!userHasAccess(session?.user?.role, allowedRoles)) {
-      const role = session?.user?.role?.toUpperCase() || "PENDING";
-      const redirectPath =
-        role === "PENDING" ? "/pending" : `/${role.toLowerCase()}`;
+    if (!hasAccess) {
+      // first non-pending role
+      const fallback = userRoles.find((r) => r !== "PENDING");
+      const redirectPath = fallback ? `/${fallback.toLowerCase()}` : "/pending";
       router.replace(redirectPath);
     }
-  }, [status, session, router, allowedRoles]);
+  }, [status, hasAccess, router, userRoles]);
 
   return { session, status, hasAccess };
 }

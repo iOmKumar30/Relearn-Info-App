@@ -1,9 +1,9 @@
+import prisma from "@/libs/prismadb";
+import { Role } from "@prisma/client";
+import bcrypt from "bcrypt";
 import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import bcrypt from "bcrypt";
-import prisma from "@/libs/prismadb";
-import { Role } from "@prisma/client";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -19,12 +19,21 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+          include: { roles: true },
+        });
         if (!user || !user.hashedPassword) return null;
 
-        const isCorrectPassword = await bcrypt.compare(credentials.password, user.hashedPassword);
+        const isCorrectPassword = await bcrypt.compare(
+          credentials.password,
+          user.hashedPassword
+        );
         if (!isCorrectPassword) return null;
-        return user;
+        return {
+          ...user,
+          roles: user.roles.map((r) => r.role), 
+        };
       },
     }),
   ],
@@ -41,21 +50,30 @@ export const authOptions: AuthOptions = {
             email: user.email!,
             name: user.name,
             image: user.image,
-            role: Role.PENDING,
+            roles: {
+              create: [{ role: Role.PENDING }],
+            },
           },
         });
       }
       return true;
     },
     async jwt({ token, user }) {
-      if (user && !token.role) {
-        const dbUser = await prisma.user.findUnique({ where: { email: user.email! } });
-        if (dbUser) token.role = dbUser.role;
+      if (user && !token.roles) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+          include: { roles: true },
+        });
+        if (dbUser) {
+          token.roles = dbUser.roles.map((r) => r.role) || [];
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      if (session?.user) session.user.role = token.role;
+      if (session?.user && token.roles) {
+        session.user.roles = token.roles as string[] || [];
+      }
       return session;
     },
   },

@@ -8,7 +8,7 @@ const protectedRoutes: Record<string, string[]> = {
   "/superadmin": ["SUPERADMIN"],
 };
 
-const publicPaths = new Set(["/", "/pending"]);
+const publicPaths = new Set(["/"]);
 
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -24,32 +24,42 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!token) {
+  if (!token || !Array.isArray(token.roles)) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  const role = token.role?.toUpperCase() ?? "PENDING";
-
-  if (role === "PENDING") {
+  const roles = token.roles.map((r) => r.toUpperCase());
+  console.log("roles", roles);
+  // handle pending users
+  if (roles.includes("PENDING")) {
     if (pathname !== "/pending") {
       return NextResponse.redirect(new URL("/pending", req.url));
     }
     return NextResponse.next();
   }
 
-  if (role !== "PENDING" && pathname === "/pending") {
-    return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, req.url));
+  // don't allow non-pending users to access pending route
+  if (!roles.includes("PENDING") && pathname === "/pending") {
+    const firstRole = roles[0]?.toLowerCase() ?? "role1";
+    return NextResponse.redirect(new URL(`/${firstRole}`, req.url));
   }
 
+  // RBAC logic
   for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
-    if (
-      (pathname === route || pathname.startsWith(`${route}/`)) &&
-      !allowedRoles.includes(role)
-    ) {
-      return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, req.url));
+    if (pathname === route || pathname.startsWith(`${route}/`)) {
+      const hasAccess = roles.some((r) => allowedRoles.includes(r));
+      if (!hasAccess) {
+        // redirect to the first matching role page (fallback to / if nothing matches)
+        const fallback = roles.find((r) =>
+          Object.entries(protectedRoutes).some(([_, allowed]) =>
+            allowed.includes(r)
+          )
+        );
+        const fallbackPath = fallback ? `/${fallback.toLowerCase()}` : "/";
+        return NextResponse.redirect(new URL(fallbackPath, req.url));
+      }
     }
   }
-
   return NextResponse.next();
 }
 

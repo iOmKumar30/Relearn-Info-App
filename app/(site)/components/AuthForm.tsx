@@ -8,25 +8,32 @@ import Button from "@/components/Button";
 import Input from "@/components/Inputs/Input";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import AuthSocialButton from "./AuthSocialButton";
-import { useForm, FieldValues, SubmitHandler } from "react-hook-form";
 
 type Variant = "LOGIN" | "REGISTER";
 
 export function AuthForm() {
-  
   const { data: session, status } = useSession();
   const router = useRouter();
 
   // redirect to the right page based on session role
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.role) {
-      if (session?.user?.role === "PENDING") {
+    if (status === "authenticated" && session?.user?.roles) {
+      const roles = session.user.roles;
+
+      if (roles.includes("PENDING")) {
         router.push("/pending");
       } else {
-        // respective role page like `/dashboard` or `/dashboard/${session.user.role}` etc.
-        router.push(`/${session.user.role.toLowerCase()}`);
+  
+        const rolePath = roles
+          .find((r: string) => r !== "PENDING")
+          ?.toLowerCase();
+        
+        if (rolePath) {
+          router.push(`/${rolePath}`);
+        }
       }
     }
   }, [status, session, router]);

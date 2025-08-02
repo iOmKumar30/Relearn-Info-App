@@ -29,5 +29,6 @@
     ".next/types/**/*.ts",
     "types/next-auth.d.ts"
   ],
+  "typeRoots": ["./types", "./node_modules/@types"],
   "exclude": ["node_modules"]
 }
