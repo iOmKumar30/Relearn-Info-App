@@ -8,31 +8,394 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
+enum CentreStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ClassroomStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SectionCode {
+  JR
+  SR
+}
+
+enum ClassTiming {
+  MORNING
+  EVENING
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  LEFT
+}
+
+enum Gender {
+  M
+  F
+  O
+}
+
+// will change as per the needs
+enum RoleName {
   PENDING
-  ROLE1
-  ROLE2
-  ROLE3
   ADMIN
-  SUPERADMIN
+  TUTOR
+  FACILITATOR
+  RELF_EMPLOYEE
+}
+
+enum OnboardingStatus {
+  PENDING_PROFILE // signed in but has not submitted profile details
+  SUBMITTED_PROFILE // submitted profile for review
+  PENDING_ROLE // waiting for admin role assignment
+  ACTIVE // roles assigned; normal access
+  REJECTED // optional: profile/role request rejected
+}
+
+// ---------------------------------------------------------
+// Core: Centre and Classroom
+// ---------------------------------------------------------
+model Centre {
+  id             String       @id @default(uuid())
+  // custom code like "SP01", "SP02"
+  code           String       @unique @db.VarChar(12)
+  name           String
+  streetAddress  String       @map("street_address")
+  city           String? // nullable
+  district       String? // nullable
+  state          String
+  pincode        String       @db.VarChar(10)
+  status         CentreStatus @default(ACTIVE)
+  dateAssociated DateTime     @map("date_associated")
+  dateLeft       DateTime?    @map("date_left")
+
+  classrooms       Classroom[]
+  facilitatorLinks FacilitatorAssignment[]
+
+  // soft audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city, state])
+  @@index([status])
+}
+
+model Classroom {
+  id               String          @id @default(uuid())
+  //  J1-JR-001
+  code             String          @unique @db.VarChar(24)
+  centreId         String          @map("centre_id")
+  centre           Centre          @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  section          SectionCode     @map("section_code")
+  timing           ClassTiming
+  monthlyAllowance Int             @map("monthly_allowance")
+  status           ClassroomStatus @default(ACTIVE)
+  dateCreated      DateTime        @map("date_created")
+  dateClosed       DateTime?       @map("date_closed")
+
+  tutorAssignments  TutorAssignment[]
+  studentHistory    StudentClassroomAssignment[]
+  monthlyAttendance MonthlyClassroomAttendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([centreId])
+  @@index([status, section, timing])
 }
 
 model User {
-  id             String     @id @default(cuid())
-  name           String?
-  email          String     @unique
-  hashedPassword String?
-  image          String?
-  roles          UserRole[] 
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id      String     @id @default(uuid())
+  name    String?
+  email   String     @unique
+  phone   String?
+  address String?
+  status  UserStatus @default(ACTIVE)
+
+  // Onboarding
+  onboardingStatus   OnboardingStatus @default(PENDING_PROFILE)
+  profileSubmittedAt DateTime?
+  roleRequestedAt    DateTime?
+  activatedAt        DateTime? // when onboarding finished (roles assigned)
+
+  // Relations
+  roleHistory            UserRoleHistory[]
+  employee               Employee?
+  tutorAssignments       TutorAssignment[]
+  facilitatorAssignments FacilitatorAssignment[]
+  attendanceEntered      MonthlyClassroomAttendance[] @relation("AttendanceEnteredBy")
+
+  // Auth
+  emailCredential EmailCredential?
+  accounts        Account[]
+  sessions        Session[] // optional if you use DB sessions
+
+  // Requests / links
+  roleRequests             RoleRequest[]
+  facilitatorEmployeeLinks FacilitatorEmployee[] @relation("FacilitatorToEmployee")
+  employeeFacilitatorLinks FacilitatorEmployee[] @relation("EmployeeToFacilitator")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([onboardingStatus])
 }
 
-model UserRole {
-  id     String @id @default(cuid())
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
-  role   Role
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
 
-  @@unique([userId, role]) // a user shouldn't have same role twice
+  userHistory UserRoleHistory[]
 }
+
+model UserRoleHistory {
+  id        String    @id @default(uuid())
+  userId    String
+  roleId    String
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  // Note: To prevent multiple concurrent active rows for the same (userId, roleId),
+  // add a PostgreSQL partial unique index in a migration:
+  // CREATE UNIQUE INDEX "user_role_active_unique"
+  // ON "UserRoleHistory"("userId","roleId")
+  // WHERE "endDate" IS NULL;
+
+  // Helpful indexes for profile pages and admin queries
+  @@index([userId, startDate])
+  @@index([userId, endDate])
+  @@index([roleId])
+}
+
+// Email/password credentials (local auth)
+model EmailCredential {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  email        String    @unique // normalized login email; may mirror User.email
+  passwordHash String // argon2/bcrypt hash only (never plaintext)
+  passwordSalt String? // if your hash requires storing salt
+  lastLoginAt  DateTime?
+  failedCount  Int       @default(0)
+  lockedUntil  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// OAuth/OIDC (Google and future providers)
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  provider          String // e.g., "google"
+  providerAccountId String // external subject / user id
+  providerEmail     String?
+  accessToken       String?
+  refreshToken      String?
+  tokenType         String?
+  scope             String?
+  expiresAt         Int?
+  idToken           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Optional DB-backed sessions (useful if not using stateless JWT only)
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  sessionToken String   @unique
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Role request workflow (auditable)
+model RoleRequest {
+  id             String    @id @default(uuid())
+  userId         String
+  // requested roles stored as CSV or JSON string of RoleName values
+  requestedRoles String
+  message        String?
+  status         String    @default("PENDING") // PENDING / APPROVED / REJECTED
+  reviewedBy     String? // admin user id
+  reviewedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+}
+
+// Facilitator manages centres (historical)
+model FacilitatorAssignment {
+  id        String    @id @default(uuid())
+  userId    String // must be a User with FACILITATOR role (enforced at app layer)
+  centreId  String
+  startDate DateTime
+  endDate   DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  centre Centre @relation(fields: [centreId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  // ensure no overlapping active assignments per centre at app layer (or PG EXCLUDE constraints)
+
+  @@index([userId])
+  @@index([centreId, startDate, endDate])
+}
+
+// Map facilitator to RELF employee (nodal) with history
+model FacilitatorEmployee {
+  id             String   @id @default(uuid())
+  facilitatorId  String // userId of facilitator
+  employeeUserId String // userId of RELF employee
+  startDate      DateTime
+
+  facilitator User @relation("FacilitatorToEmployee", fields: [facilitatorId], references: [id], onDelete: Cascade)
+  employee    User @relation("EmployeeToFacilitator", fields: [employeeUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([facilitatorId])
+  @@index([employeeUserId])
+}
+
+// Tutor assigned to a classroom (history, substitute supported)
+model TutorAssignment {
+  id           String    @id @default(uuid())
+  userId       String
+  classroomId  String
+  startDate    DateTime
+  endDate      DateTime?
+  isSubstitute Boolean   @default(false)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([classroomId, startDate, endDate])
+  @@index([isSubstitute])
+}
+
+// RELF Employee metadata
+model Employee {
+  id          String           @id @default(uuid())
+  userId      String           @unique
+  designation String
+  joiningDate DateTime
+  status      EmploymentStatus @default(ACTIVE)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  name          String
+  aadhaarNo     String?   @unique(map: "student_aadhaar_unique") // optional but unique if provided
+  rollNo        String    @unique // generated; collision handling in app
+  gender        Gender?
+  dob           DateTime?
+  streetAddress String?   @map("street_address")
+  city          String?
+  district      String?
+  state         String?
+  pincode       String?   @db.VarChar(10)
+  fatherName    String?
+  motherName    String?
+
+  assignments StudentClassroomAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city, state])
+}
+
+// Student <-> Classroom temporal assignment
+model StudentClassroomAssignment {
+  id          String           @id @default(uuid())
+  studentId   String
+  classroomId String
+  joinDate    DateTime         @map("join_date")
+  leaveDate   DateTime?        @map("leave_date")
+  status      AssignmentStatus @default(ACTIVE)
+
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId, status])
+  @@index([classroomId, joinDate, leaveDate])
+}
+
+model MonthlyClassroomAttendance {
+  id                    String   @id @default(uuid())
+  classroomId           String
+  year                  Int
+  month                 Int // 1..12
+  totalStudentsEnrolled Int // snapshot at submit time
+  openDays              Int
+  totalPresent          Int
+  attendancePercentage  Decimal  @db.Decimal(5, 2)
+  registerPhotoUrl      String?  @map("register_photo_url")
+  remarks               String?
+  enteredByTutorId      String
+  submittedAt           DateTime @default(now())
+  lastUpdatedAt         DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  enteredBy User      @relation("AttendanceEnteredBy", fields: [enteredByTutorId], references: [id], onDelete: Restrict)
+
+  @@unique([classroomId, year, month]) // one record per month per classroom
+  @@index([enteredByTutorId])
+  @@index([year, month])
+}
+
+/**
+ * history of data about assignment of new roles has to be taken care of
+ * renewal of membership notification via email
+ * memebership of different types
+ * delete button with restricted rights
+ */

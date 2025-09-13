@@ -70,5 +70,7 @@ export const config = {
     "/admin/:path*",
     "/superadmin/:path*",
     "/pending",
+    "/api/admin/:path*",
+    "/(users|centres|classrooms|facilitators|tutors|pending-users)(/.*)?",
   ],
 };

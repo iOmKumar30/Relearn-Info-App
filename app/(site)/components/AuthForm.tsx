@@ -54,7 +54,6 @@ export function AuthForm() {
     formState: { errors },
   } = useForm<FieldValues>({
     defaultValues: {
-      name: "",
       email: "",
       password: "",
     },
@@ -115,16 +114,6 @@ export function AuthForm() {
         "
       >
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {variant === "REGISTER" && (
-            <Input
-              disabled={isLoading}
-              register={register}
-              errors={errors}
-              required
-              id="name"
-              label="Name"
-            />
-          )}
           <Input
             disabled={isLoading}
             register={register}
