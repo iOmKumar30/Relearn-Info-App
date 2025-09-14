@@ -1,8 +1,8 @@
 "use client";
 
 import LogoutButton from "@/components/LogoutButton";
-import { useSession } from "next-auth/react";
-import { useMemo, useState } from "react";
+import { signOut, useSession } from "next-auth/react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 
 type UpdatableProfile = {
@@ -22,6 +22,12 @@ export default function PendingPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      signOut({ callbackUrl: "/" }); // Redirects to home
+    }
+  }, [status]);
+
   const onboardingStatus = (session?.user as any)?.onboardingStatus as
     | "PENDING_PROFILE"
     | "SUBMITTED_PROFILE"
@@ -30,7 +36,6 @@ export default function PendingPage() {
     | "REJECTED"
     | undefined;
 
-  const isPendingProfile = onboardingStatus === "PENDING_PROFILE";
   const isSubmittedOrBeyond =
     onboardingStatus === "SUBMITTED_PROFILE" ||
     onboardingStatus === "PENDING_ROLE" ||
@@ -74,8 +79,10 @@ export default function PendingPage() {
         throw new Error(msg || "Failed to submit profile");
       }
 
-      // refreshing session so onboardingStatus and user fields update in the UI
       await update();
+      setTimeout(() => {
+        signOut({ callbackUrl: "/" });
+      }, 2000);
       setSaved(true);
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
@@ -84,7 +91,7 @@ export default function PendingPage() {
     }
   };
 
-  // Loading or not authenticated
+  // Show loading spinner while checking session
   if (status === "loading") {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -92,9 +99,12 @@ export default function PendingPage() {
       </div>
     );
   }
+
   if (!session?.user?.id) {
+    // Even if session is missing but status isn't updated yet, fallback logout
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900 text-gray-200">
+        {" "}
         Please sign in to continue.
       </div>
     );

@@ -1,7 +1,3 @@
-// Approve a user's role request, assign roles, close PENDING, and activate the user.
-// Requires an authenticated admin. Replace hasAdminAccess with your RBAC check.
-
-import { useRBAC } from "@/app/hooks/useRBAC";
 import { authOptions } from "@/libs/authOptions";
 import prisma from "@/libs/prismadb";
 import { OnboardingStatus, RoleName } from "@prisma/client";
@@ -14,29 +10,33 @@ type ApprovePayload = {
   note?: string; // optional audit note
 };
 
-
-export async function POST(req: Request, ctx: { params: { userId: string } }) {
+export async function POST(
+  req: Request,
+  // Important: params must be awaited in Next.js dynamic route handlers
+  ctx: { params: Promise<{ userId: string }> }
+) {
   try {
+    const { userId } = await ctx.params;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id)
       return new NextResponse("Unauthorized", { status: 401 });
 
-
     const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      roleHistory: {
-        where: { endDate: null },
-        select: { role: { select: { name: true } } },
+      where: { id: session.user.id },
+      select: {
+        roleHistory: {
+          where: { endDate: null },
+          select: { role: { select: { name: true } } },
+        },
       },
-    },
     });
-    
+
     // better not to use react hooks in api routes
-    const isAdmin = me?.roleHistory?.some((r) => r.role.name === "ADMIN") ?? false;
+    const isAdmin =
+      me?.roleHistory?.some((r) => r.role.name === "ADMIN") ?? false;
     if (!isAdmin) return new NextResponse("Forbidden", { status: 403 });
 
-    const { userId } = ctx.params;
     const body = (await req.json()) as ApprovePayload;
 
     // Validate payload
@@ -44,12 +44,25 @@ export async function POST(req: Request, ctx: { params: { userId: string } }) {
       return new NextResponse("Invalid payload", { status: 400 });
     }
 
-    // Prepare roles to attach
+    // Validate roles against RoleName enum and deduplicate
+    const allowedRoleNames = new Set(Object.values(RoleName));
+    const invalidRoles = body.roles.filter(
+      (r) => !allowedRoleNames.has(r as RoleName)
+    );
+    if (invalidRoles.length > 0) {
+      return new NextResponse(
+        `One or more roles are invalid: ${invalidRoles.join(", ")}`,
+        { status: 400 }
+      );
+    }
+    const uniqueRoles = Array.from(new Set(body.roles)) as RoleName[];
+
+    // Prepare roles to attach - pass only valid RoleName enum values to Prisma
     const dbRoles = await prisma.role.findMany({
-      where: { name: { in: body.roles as RoleName[] } },
+      where: { name: { in: uniqueRoles } },
       select: { id: true, name: true },
     });
-    if (dbRoles.length !== body.roles.length) {
+    if (dbRoles.length !== uniqueRoles.length) {
       return new NextResponse("One or more roles are invalid", { status: 400 });
     }
 
@@ -127,7 +140,7 @@ export async function POST(req: Request, ctx: { params: { userId: string } }) {
         await sendApprovalEmail({
           to: result.email,
           loginUrl,
-          rolesGranted: body.roles,
+          rolesGranted: uniqueRoles,
         });
       }
     } catch (mailErr) {
@@ -140,7 +153,7 @@ export async function POST(req: Request, ctx: { params: { userId: string } }) {
       userId: result.id,
       onboardingStatus: result.onboardingStatus,
       activatedAt: result.activatedAt,
-      rolesGranted: body.roles,
+      rolesGranted: uniqueRoles,
     });
   } catch (err: any) {
     console.error("APPROVE_ROLE_ERROR", err);

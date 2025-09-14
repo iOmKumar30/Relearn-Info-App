@@ -97,7 +97,7 @@ export default function FacilitatorsPage() {
   [2];
 
   return (
-    <RBACGate roles={["ADMIN"]}>
+    <RBACGate roles={["ADMIN", "RELF_EMPLOYEE"]}>
       <h2 className="text-2xl font-semibold mb-4">Facilitators</h2>
 
       <div className="flex flex-wrap items-center gap-4 mb-4">

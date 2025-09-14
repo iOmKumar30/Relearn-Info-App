@@ -125,7 +125,7 @@ model User {
   phone   String?
   address String?
   status  UserStatus @default(ACTIVE)
-
+  sessionVersion Int? @default(0)
   // Onboarding
   onboardingStatus   OnboardingStatus @default(PENDING_PROFILE)
   profileSubmittedAt DateTime?
@@ -142,7 +142,6 @@ model User {
   // Auth
   emailCredential EmailCredential?
   accounts        Account[]
-  sessions        Session[] // optional if you use DB sessions
 
   // Requests / links
   roleRequests             RoleRequest[]
@@ -227,20 +226,6 @@ model Account {
   updatedAt DateTime @updatedAt
 
   @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-// Optional DB-backed sessions (useful if not using stateless JWT only)
-model Session {
-  id           String   @id @default(uuid())
-  userId       String
-  sessionToken String   @unique
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
   @@index([userId])
 }
 

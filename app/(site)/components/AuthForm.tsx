@@ -27,13 +27,7 @@ export function AuthForm() {
         router.push("/pending");
       } else {
   
-        const rolePath = roles
-          .find((r: string) => r !== "PENDING")
-          ?.toLowerCase();
-        
-        if (rolePath) {
-          router.push(`/${rolePath}`);
-        }
+        router.push("/dashboard")
       }
     }
   }, [status, session, router]);

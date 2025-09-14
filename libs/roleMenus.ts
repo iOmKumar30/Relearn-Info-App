@@ -7,7 +7,12 @@ import {
 import { UserPlusIcon } from "@heroicons/react/24/solid";
 
 // gonna add more roles and their menus as needed
-export const roles = ["Admin", "Facilitator", "Tutor", "Employee"] as const;
+export const roles = [
+  "ADMIN",
+  "FACILITATOR",
+  "TUTOR",
+  "RELF_EMPLOYEE",
+] as const;
 export type Role = (typeof roles)[number];
 
 export interface NavItem {
@@ -17,8 +22,8 @@ export interface NavItem {
 }
 
 export const roleMenus: Record<Role, NavItem[]> = {
-  Admin: [
-    { label: "Dashboard", href: "/admin", icon: ClipboardIcon },
+  ADMIN: [
+    { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     { label: "Centres", href: "/centres", icon: BuildingStorefrontIcon },
     {
       label: "Classrooms",
@@ -40,8 +45,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
     },
   ],
 
-  Facilitator: [
-    { label: "Dashboard", href: "/admin", icon: ClipboardIcon },
+  FACILITATOR: [
+    { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     { label: "Centres", href: "/centres", icon: BuildingStorefrontIcon },
     {
       label: "Classrooms",
@@ -51,8 +56,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Users", href: "/users", icon: UsersIcon },
   ],
 
-  Tutor: [
-    { label: "Dashboard", href: "/admin", icon: ClipboardIcon },
+  TUTOR: [
+    { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     {
       label: "Classrooms",
       href: "/classrooms",
@@ -60,8 +65,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
     },
   ],
 
-  Employee: [
-    { label: "Dashboard", href: "/admin", icon: ClipboardIcon },
+  RELF_EMPLOYEE: [
+    { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     {
       label: "Facilitators",
       href: "/facilitators",

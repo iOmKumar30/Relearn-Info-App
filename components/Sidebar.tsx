@@ -5,37 +5,67 @@ import { Sidebar, SidebarItem, SidebarItemGroup } from "flowbite-react";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
+type MenuDef = {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  hidden?: boolean;
+};
 
 interface LayoutProps {
   children: React.ReactNode;
-  role: Role;
+  roles: Role[] | null; // accept multiple roles
 }
 
-export default function SidebarLayout({ children, role }: LayoutProps) {
+function unionRoleMenus(roles: Role[] | undefined | null): MenuDef[] {
+  const list = Array.isArray(roles) ? roles : []; // guard undefined/null
+  const all: MenuDef[] = list.flatMap((r) => roleMenus[r] ?? []);
+  const seen = new Set<string>();
+  const out: MenuDef[] = [];
+  for (const item of all) {
+    if (!seen.has(item.href) && !item.hidden) {
+      seen.add(item.href);
+      out.push(item);
+    }
+  }
+  return out;
+}
+export default function SidebarLayout({ children, roles }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [selected, setSelected] = useState(roleMenus[role][0].href);
-  const [isMobile, setIsMobile] = useState(false); // NEW
-  const menu = roleMenus[role];
+  const [isMobile, setIsMobile] = useState(false);
 
+  // Build union menu once per roles change
+  const menu = useMemo(() => unionRoleMenus(roles), [roles]);
+
+  // Selected route from pathname
   const pathname = usePathname();
+  const [selected, setSelected] = useState<string>(pathname);
+
   useEffect(() => setSelected(pathname), [pathname]);
+
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      setCollapsed(window.innerWidth < 1024);
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      setCollapsed(mobile);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  /* widths in px */
+  // widths in px
   const OPEN = 195;
   const CLOSE = 72;
   const width = collapsed ? CLOSE : OPEN;
 
   const showBackdrop = !collapsed && isMobile;
+
+  // Display title composed from roles; primary role first if desired
+  const title =
+    roles && roles.length > 0 ? `${roles.join(" + ")} Dashboard` : "Dashboard";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -51,7 +81,9 @@ export default function SidebarLayout({ children, role }: LayoutProps) {
         {/* Top bar inside sidebar */}
         <div className="flex items-center justify-between h-14 px-3 border-b border-gray-800 bg-gray-900">
           {!collapsed && (
-            <span className="text-sm font-semibold truncate">{role}</span>
+            <span className="text-sm font-semibold truncate">
+              {roles && roles.length ? roles.join(", ") : "User"}
+            </span>
           )}
           <button
             aria-label="Toggle sidebar"
@@ -75,9 +107,7 @@ export default function SidebarLayout({ children, role }: LayoutProps) {
                   key={href}
                   href={href}
                   active={selected === href}
-                  onClick={() => {
-                    setSelected(href);
-                  }}
+                  onClick={() => setSelected(href)}
                   className={`relative group flex items-center ${
                     collapsed ? "justify-center" : "justify-start"
                   }`}
@@ -116,7 +146,7 @@ export default function SidebarLayout({ children, role }: LayoutProps) {
               <Menu className="h-5 w-5 text-gray-700" />
             </button>
           )}
-          <h1 className="text-xl font-semibold">{role} Dashboard</h1>
+          <h1 className="text-xl font-semibold">{title}</h1>
         </header>
 
         <main className="flex-1 overflow-auto p-6">{children}</main>

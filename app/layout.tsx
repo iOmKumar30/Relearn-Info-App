@@ -1,4 +1,3 @@
-import LogoutButton from "@/components/LogoutButton";
 import type { Metadata } from "next";
 import AuthContext from "./context/AuthContext";
 import "./globals.css";
