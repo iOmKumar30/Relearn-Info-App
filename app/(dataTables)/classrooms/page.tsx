@@ -1,7 +1,5 @@
 "use client";
 
-import { Badge, Button } from "flowbite-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import ClassroomCreateModal from "@/components/CreateModals/ClassroomCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
@@ -10,8 +8,10 @@ import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
+import { Badge, Button } from "flowbite-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
-
 type ClassroomRow = {
   id: string;
   code: string; // e.g., "J01-JR-01"
@@ -26,7 +26,6 @@ type ClassroomRow = {
   createdAt: string;
   updatedAt: string;
 };
-
 // DataTable columns (render keys mapped in rows memo)
 const columns = [
   { key: "code", label: "Classroom Code" },
@@ -41,9 +40,19 @@ const columns = [
 
 // Filter config for UI
 const classroomFilters: FilterOption[] = [
-  { key: "status", label: "Status", type: "select", options: ["ACTIVE", "INACTIVE"] },
+  {
+    key: "status",
+    label: "Status",
+    type: "select",
+    options: ["ACTIVE", "INACTIVE"],
+  },
   { key: "section", label: "Section", type: "select", options: ["JR", "SR"] },
-  { key: "timing", label: "Timing", type: "select", options: ["MORNING", "EVENING"] },
+  {
+    key: "timing",
+    label: "Timing",
+    type: "select",
+    options: ["MORNING", "EVENING"],
+  },
   { key: "centreId", label: "Centre ID", type: "text" }, // optional direct centre filter
 ];
 
@@ -53,6 +62,7 @@ export default function ClassroomsPage() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const router = useRouter();
 
   // Create/Edit/Delete modal state
   const [createOpen, setCreateOpen] = useState(false);
@@ -65,7 +75,10 @@ export default function ClassroomsPage() {
   // Data state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<{ total: number; rows: ClassroomRow[] } | null>(null);
+  const [data, setData] = useState<{
+    total: number;
+    rows: ClassroomRow[];
+  } | null>(null);
 
   // Build list URL with pagination, free-text q, and facet filters (centreId, section, timing, status)
   const buildUrl = useCallback(() => {
@@ -78,7 +91,8 @@ export default function ClassroomsPage() {
     if (filters.timing) url.searchParams.set("timing", filters.timing);
     if (filters.status) url.searchParams.set("status", filters.status);
     return url.toString();
-  }, [page, pageSize, search, filters]); [1]
+  }, [page, pageSize, search, filters]);
+  [1];
 
   // Fetch rows
   const fetchRows = useCallback(async () => {
@@ -94,11 +108,13 @@ export default function ClassroomsPage() {
     } finally {
       setLoading(false);
     }
-  }, [buildUrl]); [1]
+  }, [buildUrl]);
+  [1];
 
   useEffect(() => {
     fetchRows();
-  }, [fetchRows]); [1]
+  }, [fetchRows]);
+  [1];
 
   // Map server rows to DataTable cells (badges and formatting)
   const rows = useMemo(() => {
@@ -108,23 +124,38 @@ export default function ClassroomsPage() {
       centre_name: r.centre?.name || "",
       section:
         r.section === "JR" ? (
-          <Badge color="pink" className="uppercase">JR</Badge>
+          <Badge color="pink" className="uppercase">
+            JR
+          </Badge>
         ) : (
-          <Badge color="purple" className="uppercase">SR</Badge>
+          <Badge color="purple" className="uppercase">
+            SR
+          </Badge>
         ),
       timing:
         r.timing === "MORNING" ? (
-          <Badge color="success" className="uppercase">MORNING</Badge>
+          <Badge color="success" className="uppercase">
+            MORNING
+          </Badge>
         ) : (
-          <Badge color="warning" className="uppercase">EVENING</Badge>
+          <Badge color="warning" className="uppercase">
+            EVENING
+          </Badge>
         ),
       status: (
-        <Badge color={r.status === "ACTIVE" ? "success" : "gray"} className="uppercase">
+        <Badge
+          color={r.status === "ACTIVE" ? "success" : "gray"}
+          className="uppercase"
+        >
           {r.status}
         </Badge>
       ),
-      dateCreated: r.dateCreated ? new Date(r.dateCreated).toLocaleDateString() : "",
-      dateClosed: r.dateClosed ? new Date(r.dateClosed).toLocaleDateString() : "",
+      dateCreated: r.dateCreated
+        ? new Date(r.dateCreated).toLocaleDateString()
+        : "",
+      dateClosed: r.dateClosed
+        ? new Date(r.dateClosed).toLocaleDateString()
+        : "",
       monthlyAllowance: `₹ ${r.monthlyAllowance.toLocaleString("en-IN")}`,
     }));
   }, [data]);
@@ -138,7 +169,7 @@ export default function ClassroomsPage() {
     timing: string; // "Morning" | "Evening"
     status: "Active" | "Inactive";
     date_created: string; // YYYY-MM-DD
-    date_closed: string;  // YYYY-MM-DD or ""
+    date_closed: string; // YYYY-MM-DD or ""
   }) => {
     try {
       setLoading(true);
@@ -150,21 +181,28 @@ export default function ClassroomsPage() {
 
       if (!centreId) {
         const centreRes = await fetch(
-          `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(centreName)}`,
+          `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(
+            centreName
+          )}`,
           { cache: "no-store" }
         );
         if (!centreRes.ok) throw new Error(await centreRes.text());
         const centreJson = await centreRes.json();
         const centre = centreJson.rows?.[0];
-        if (!centre) throw new Error("Centre not found. Please select a valid centre.");
+        if (!centre)
+          throw new Error("Centre not found. Please select a valid centre.");
         centreId = centre.id;
       }
 
       // Map modal fields to API payload
       const body = {
         centreId,
-        section: payload.section_code.toUpperCase().startsWith("J") ? "JR" : "SR",
-        timing: payload.timing.toUpperCase().startsWith("M") ? "MORNING" : "EVENING",
+        section: payload.section_code.toUpperCase().startsWith("J")
+          ? "JR"
+          : "SR",
+        timing: payload.timing.toUpperCase().startsWith("M")
+          ? "MORNING"
+          : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
         dateCreated: payload.date_created,
@@ -211,7 +249,9 @@ export default function ClassroomsPage() {
 
       if (!centreId) {
         const centreRes = await fetch(
-          `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(centreName)}`,
+          `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(
+            centreName
+          )}`,
           { cache: "no-store" }
         );
         if (!centreRes.ok) throw new Error(await centreRes.text());
@@ -223,8 +263,12 @@ export default function ClassroomsPage() {
 
       const body: any = {
         centreId,
-        section: payload.section_code.toUpperCase().startsWith("J") ? "JR" : "SR",
-        timing: payload.timing.toUpperCase().startsWith("M") ? "MORNING" : "EVENING",
+        section: payload.section_code.toUpperCase().startsWith("J")
+          ? "JR"
+          : "SR",
+        timing: payload.timing.toUpperCase().startsWith("M")
+          ? "MORNING"
+          : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
         dateCreated: payload.date_created,
@@ -316,7 +360,10 @@ export default function ClassroomsPage() {
           placeholder="Search classrooms..."
         />
         <div className="flex-1 flex justify-end gap-4">
-          <AddButton label="Add Classroom" onClick={() => setCreateOpen(true)} />
+          <AddButton
+            label="Add Classroom"
+            onClick={() => setCreateOpen(true)}
+          />
           <FilterDropdown
             filters={[...classroomFilters]}
             onFilterChange={(f) => {
@@ -338,15 +385,29 @@ export default function ClassroomsPage() {
           <ClipLoader size={40} />
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} actions={renderActions} />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          actions={renderActions}
+          onRowClick={(row: any) =>
+            router.push(`/classrooms/${encodeURIComponent(row.id)}`)
+          }
+        />
       )}
 
       {/* Pager */}
       <div className="mt-3 flex items-center justify-end gap-2">
-        <Button size="xs" color="light" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+        <Button
+          size="xs"
+          color="light"
+          disabled={page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
           Prev
         </Button>
-        <span className="text-sm text-gray-600">Page {page} / {totalPages}</span>
+        <span className="text-sm text-gray-600">
+          Page {page} / {totalPages}
+        </span>
         <Button
           size="xs"
           color="light"
@@ -399,7 +460,9 @@ export default function ClassroomsPage() {
       <ConfirmDeleteModal
         open={deleteOpen}
         title="Delete Classroom"
-        message={`Are you sure you want to delete classroom ${deleteRow?.code || ""}? This cannot be undone.`}
+        message={`Are you sure you want to delete classroom ${
+          deleteRow?.code || ""
+        }? This cannot be undone.`}
         confirmLabel="Delete"
         onCancel={() => {
           setDeleteOpen(false);

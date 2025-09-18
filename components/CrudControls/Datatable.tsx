@@ -14,9 +14,15 @@ interface DataTableProps {
   columns: Column[];
   rows: Row[];
   actions?: (row: Row) => React.ReactNode;
+  onRowClick?: (row: any) => void;
 }
 
-export default function DataTable({ columns, rows, actions }: DataTableProps) {
+export default function DataTable({
+  columns,
+  rows,
+  actions,
+  onRowClick,
+}: DataTableProps) {
   return (
     <div className="rounded-2xl shadow-md border border-gray-200 overflow-hidden">
       <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
@@ -71,7 +77,10 @@ export default function DataTable({ columns, rows, actions }: DataTableProps) {
               rows.map((row, i) => (
                 <TableRow
                   key={i}
-                  className={`bg-white text-gray-800 hover:bg-gray-100 transition-colors duration-200 cursor-pointer`}
+                  className={`bg-white text-gray-800 ${
+                    onRowClick ? "hover:bg-gray-100 cursor-pointer" : ""
+                  } transition-colors duration-200`}
+                  onClick={() => onRowClick?.(row)}
                 >
                   {columns.map((col) => (
                     <TableCell key={col.key} className="px-6 py-4">
@@ -79,7 +88,15 @@ export default function DataTable({ columns, rows, actions }: DataTableProps) {
                     </TableCell>
                   ))}
                   {actions && (
-                    <TableCell className="px-6 py-4">{actions(row)}</TableCell>
+                    <TableCell
+                      className="px-6 py-4"
+                      onClick={(e) => {
+                        // prevent row navigation when clicking inside actions
+                        e.stopPropagation();
+                      }}
+                    >
+                      {actions(row)}
+                    </TableCell>
                   )}
                 </TableRow>
               ))

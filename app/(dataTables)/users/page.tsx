@@ -7,6 +7,7 @@ import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button, Pagination } from "flowbite-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 
@@ -235,6 +236,8 @@ export default function UsersPage() {
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
 
+  const router = useRouter();
+
   return (
     <RBACGate roles={["ADMIN"]}>
       <h2 className="text-2xl font-semibold mb-4">Users</h2>
@@ -265,7 +268,12 @@ export default function UsersPage() {
           <ClipLoader size={40} />
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} actions={renderActions} />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          actions={renderActions}
+          onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+        />
       )}
 
       {/* Pager (Flowbite Pagination) */}

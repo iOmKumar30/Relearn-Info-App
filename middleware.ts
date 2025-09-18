@@ -7,19 +7,13 @@ const PUBLIC_PATHS = new Set<string>(["/", "/auth/signin", "/auth/callback"]);
 // Role-based access map for top-level routes
 // Keys are route bases; values are arrays of allowed role names (UPPERCASE)
 const PROTECTED_ROUTES: Record<string, string[]> = {
-  "/dashboard": [
-    "ADMIN",
-    "FACILITATOR",
-    "TUTOR",
-    "RELF_EMPLOYEE",
-  ],
+  "/dashboard": ["ADMIN", "FACILITATOR", "TUTOR", "RELF_EMPLOYEE"],
   "/centres": ["ADMIN"],
   "/classrooms": ["ADMIN"],
   "/users": ["ADMIN"],
   "/pending-users": ["ADMIN"],
   "/facilitators": ["ADMIN", "RELF_EMPLOYEE"],
   "/tutors": ["ADMIN"],
-  // Add more as needed
 };
 
 const PENDING_PATH = "/pending";
@@ -96,5 +90,7 @@ export const config = {
     "/facilitators/:path*",
     "/tutors/:path*",
     "/pending",
+    "/users/:path*",
+    "/classrooms/:path*",
   ],
 };

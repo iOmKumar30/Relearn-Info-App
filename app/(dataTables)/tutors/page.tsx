@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Pagination } from "flowbite-react";
-import RBACGate from "@/components/RBACGate";
 import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
-import FilterDropdown from "@/components/CrudControls/FilterDropdown";
+import RBACGate from "@/components/RBACGate";
+import { Badge, Pagination } from "flowbite-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipLoader } from "react-spinners";
 
 const columns = [
   { key: "name", label: "Name" },
@@ -47,7 +48,7 @@ export default function TutorsPage() {
     url.searchParams.set("pageSize", String(pageSize));
     if (search) url.searchParams.set("q", search);
     return url.toString();
-  }, [role, page, pageSize, search]); [1]
+  }, [role, page, pageSize, search]); // [1]
 
   const fetchRows = useCallback(async () => {
     try {
@@ -62,11 +63,11 @@ export default function TutorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [buildUrl]); [1]
+  }, [buildUrl]); // [1]
 
   useEffect(() => {
     fetchRows();
-  }, [fetchRows]); [1]
+  }, [fetchRows]); // [1]
 
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => ({
@@ -86,9 +87,11 @@ export default function TutorsPage() {
         </Badge>
       ),
     }));
-  }, [data]); [3]
+  }, [data]); // [3]
 
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize)); [2]
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize)); // [2]
+
+  const router = useRouter();
 
   return (
     <RBACGate roles={["ADMIN"]}>
@@ -117,9 +120,16 @@ export default function TutorsPage() {
       )}
 
       {loading && !data ? (
-        <div className="rounded border border-gray-200 bg-white p-6">Loading...</div>
+        <div className="flex justify-center items-center h-screen">
+          <ClipLoader size={40} />
+        </div>
       ) : (
-        <DataTable columns={columns} rows={rows} /* no actions */ />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          /* no actions */
+          onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+        />
       )}
 
       <div className="mt-3 flex overflow-x-auto sm:justify-end">

@@ -17,14 +17,17 @@ async function isAdmin(userId?: string) {
 }
 
 // GET /api/admin/classrooms/:id
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
   if (!(await isAdmin(session.user.id)))
     return new NextResponse("Forbidden", { status: 403 });
 
-  const { id } = ctx.params;
+  const { id } = await ctx.params;
   const row = await prisma.classroom.findUnique({
     where: { id },
     select: {
@@ -47,14 +50,17 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 }
 
 // PUT /api/admin/classrooms/:id (update editable fields; code is immutable)
-export async function PUT(req: Request, ctx: { params: { id: string } }) {
+export async function PUT(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
   if (!(await isAdmin(session.user.id)))
     return new NextResponse("Forbidden", { status: 403 });
 
-  const { id } = ctx.params;
+  const { id } = await ctx.params;
   const body = await req.json();
 
   const data: any = {};
@@ -94,16 +100,19 @@ export async function PUT(req: Request, ctx: { params: { id: string } }) {
 }
 
 // DELETE /api/admin/classrooms/:id
-export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
   if (!(await isAdmin(session.user.id)))
     return new NextResponse("Forbidden", { status: 403 });
 
-  const { id } = ctx.params;
+  const { id } = await ctx.params;
 
-  // prevent delete if student history exists 
+  // prevent delete if student history exists
   const hasHistory = await prisma.studentClassroomAssignment.count({
     where: { classroomId: id },
   });
