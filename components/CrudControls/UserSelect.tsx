@@ -1,4 +1,5 @@
 "use client";
+import { useDebounce } from "@/app/hooks/useDebounce";
 import { useEffect, useRef, useState } from "react";
 
 type Hit = { id: string; name: string | null; email: string };
@@ -17,38 +18,33 @@ export default function UserSelect({
   const [term, setTerm] = useState("");
   const [items, setItems] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
-  const t = useRef<number | null>(null);
+  const debouncedTerm = useDebounce(term, 600);
 
   useEffect(() => {
     if (!open) return;
-    if (t.current) clearTimeout(t.current);
-    t.current = window.setTimeout(async () => {
-      setLoading(true);
-      try {
-        const url = new URL("/api/admin/users/by-role", window.location.origin);
-        url.searchParams.set("role", role);
-        url.searchParams.set("page", "1");
-        url.searchParams.set("pageSize", "10");
-        if (term.trim()) url.searchParams.set("q", term.trim());
-        const res = await fetch(url.toString(), { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          setItems(
-            (json.rows || []).map((u: any) => ({
-              id: u.id,
-              name: u.name,
-              email: u.email,
-            }))
-          );
-        } else setItems([]);
-      } finally {
+    setLoading(true);
+    const url = new URL("/api/admin/users/by-role", window.location.origin);
+    url.searchParams.set("role", role);
+    url.searchParams.set("page", "1");
+    url.searchParams.set("pageSize", "10");
+    if (debouncedTerm.trim()) url.searchParams.set("q", debouncedTerm.trim());
+    fetch(url.toString(), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.resolve({ rows: [] })))
+      .then((json) => {
+        setItems(
+          (json.rows || []).map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+          }))
+        );
         setLoading(false);
-      }
-    }, 300);
-    return () => {
-      if (t.current) clearTimeout(t.current);
-    };
-  }, [term, open, role]);
+      })
+      .catch(() => {
+        setItems([]);
+        setLoading(false);
+      });
+  }, [debouncedTerm, open, role]);
 
   return (
     <div className="relative">

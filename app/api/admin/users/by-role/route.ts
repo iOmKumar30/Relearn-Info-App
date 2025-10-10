@@ -4,7 +4,6 @@ import { Prisma, RoleName } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// Admin guard via active roles
 async function isAdmin(userId?: string) {
   if (!userId) return false;
   const u = await prisma.user.findUnique({
@@ -34,7 +33,7 @@ export async function GET(req: Request) {
     100,
     Math.max(1, Number(searchParams.get("pageSize") || 20))
   );
-
+  const q = (searchParams.get("q") || "").trim();
   if (!roleParam) {
     return new NextResponse("role query param is required, e.g. role=TUTOR", {
       status: 400,
@@ -48,6 +47,15 @@ export async function GET(req: Request) {
         role: { name: roleParam },
       },
     },
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
   };
 
   const [total, users] = await Promise.all([

@@ -17,11 +17,16 @@ type Status = "Active" | "Inactive";
 
 // Extended form state to carry a deterministic centre_id selected via autocomplete
 type FormState = {
-  classroom_id?: string;
-  centre_id?: string; // new: selected centre id
-  centre_name: string; // display label for centre (code — name, etc.)
+  classroom_id: string; // normalized to string, never undefined
+  centre_id: string; // normalized to string, never undefined
+  centre_name: string;
   section_code: string; // "Junior" | "Senior"
-  monthly_allowance: number | "";
+  street_address: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  monthly_allowance: number | ""; // controlled-safe for number input
   timing: string; // "Morning" | "Evening"
   status: Status;
   date_created: string; // YYYY-MM-DD
@@ -45,9 +50,15 @@ interface Props {
 }
 
 const EMPTY_FORM: FormState = {
+  classroom_id: "",
   centre_id: "",
   centre_name: "",
   section_code: "",
+  street_address: "",
+  city: "",
+  district: "",
+  state: "",
+  pincode: "",
   monthly_allowance: "",
   timing: "",
   status: "Active",
@@ -74,26 +85,44 @@ export default function ClassroomCreateModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   // Autocomplete search term and results
-  const [centreQuery, setCentreQuery] = useState("");
+  const [centreQuery, setCentreQuery] = useState<string>(""); // always string
   const debouncedCentreQuery = useDebounce(centreQuery, 300);
-  const [centreLoading, setCentreLoading] = useState(false);
+  const [centreLoading, setCentreLoading] = useState<boolean>(false);
   const [centreItems, setCentreItems] = useState<CentreHit[]>([]);
-  const [centreOpen, setCentreOpen] = useState(false);
+  const [centreOpen, setCentreOpen] = useState<boolean>(false);
+
+  // Normalize helper to prevent undefined/null
+  function normStr(v: unknown): string {
+    return typeof v === "string" ? v : "";
+  }
+  function normNumOrEmpty(v: unknown): number | "" {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    // Accept string numbers from initialValues: "123" -> 123
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+    return "";
+  }
 
   // Prefill for edit; reset for create
   useEffect(() => {
     if (!open) return;
     if (mode === "edit" && initialValues) {
       setForm({
-        classroom_id: initialValues.classroom_id || "",
-        centre_id: initialValues.centre_id || "",
-        centre_name: initialValues.centre_name || "",
-        section_code: initialValues.section_code || "",
-        monthly_allowance: (initialValues.monthly_allowance as number) ?? "",
-        timing: initialValues.timing || "",
+        classroom_id: normStr(initialValues.classroom_id),
+        centre_id: normStr(initialValues.centre_id),
+        centre_name: normStr(initialValues.centre_name),
+        section_code: normStr(initialValues.section_code),
+        street_address: normStr(initialValues.street_address),
+        city: normStr(initialValues.city),
+        district: normStr(initialValues.district),
+        state: normStr(initialValues.state),
+        pincode: normStr(initialValues.pincode),
+        monthly_allowance: normNumOrEmpty(initialValues.monthly_allowance),
+        timing: normStr(initialValues.timing),
         status: (initialValues.status as Status) || "Active",
-        date_created: initialValues.date_created || "",
-        date_closed: initialValues.date_closed || "",
+        date_created: normStr(initialValues.date_created),
+        date_closed: normStr(initialValues.date_closed),
       });
     } else {
       setForm(EMPTY_FORM);
@@ -114,7 +143,7 @@ export default function ClassroomCreateModal({
         const res = await fetch(url.toString(), { cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
-          setCentreItems(json.rows || []);
+          setCentreItems(Array.isArray(json.rows) ? json.rows : []);
         } else {
           setCentreItems([]);
         }
@@ -137,12 +166,19 @@ export default function ClassroomCreateModal({
 
     const { classroom_id, monthly_allowance, ...rest } = form;
 
-    // Prefer deterministic centre_id; keep centre_name for display
-    const payload = {
+    // parse number safely
+    const parsedAllowance =
+      monthly_allowance === ""
+        ? 0
+        : Number.isFinite(monthly_allowance)
+        ? (monthly_allowance as number)
+        : 0;
+
+    const payload: Omit<FormState, "classroom_id"> = {
       ...rest,
-      centre_id: form.centre_id?.trim() || "",
-      centre_name: (form.centre_name || "").trim(),
-      monthly_allowance: Number(monthly_allowance) || 0,
+      centre_id: form.centre_id.trim(),
+      centre_name: form.centre_name.trim(),
+      monthly_allowance: parsedAllowance,
     };
 
     if (mode === "edit" && onUpdate && classroom_id) {
@@ -198,7 +234,6 @@ export default function ClassroomCreateModal({
                             className="cursor-pointer px-3 py-2 hover:bg-gray-100 text-sm"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
-                              // deterministic id and display label
                               setForm((prev) => ({
                                 ...prev,
                                 centre_id: c.id,
@@ -235,6 +270,77 @@ export default function ClassroomCreateModal({
             )}
           </div>
 
+          {/* Street Address */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-white">
+              Street Address
+            </label>
+            <input
+              required
+              value={form.street_address}
+              onChange={(e) => handleChange("street_address", e.target.value)}
+              className="w-full rounded border px-3 py-2 text-white"
+              placeholder="Enter Street Address"
+            />
+          </div>
+
+          {/* City & District */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-white">
+                City
+              </label>
+              <input
+                required
+                value={form.city}
+                onChange={(e) => handleChange("city", e.target.value)}
+                className="w-full rounded border px-3 py-2 text-white"
+                placeholder="Enter City"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-white">
+                District
+              </label>
+              <input
+                required
+                value={form.district}
+                onChange={(e) => handleChange("district", e.target.value)}
+                className="w-full rounded border px-3 py-2 text-white"
+                placeholder="Enter District"
+              />
+            </div>
+          </div>
+
+          {/* State & Pincode */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-white">
+                State
+              </label>
+              <input
+                required
+                value={form.state}
+                onChange={(e) => handleChange("state", e.target.value)}
+                className="w-full rounded border px-3 py-2 text-white"
+                placeholder="Enter State"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-white">
+                Pincode
+              </label>
+              <input
+                required
+                title="6-digit pincode"
+                value={form.pincode}
+                onChange={(e) => handleChange("pincode", e.target.value)}
+                className="w-full rounded border px-3 py-2 text-white"
+                placeholder="Enter Pincode"
+              />
+            </div>
+          </div>
+
           {/* Section Code & Timing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -244,7 +350,7 @@ export default function ClassroomCreateModal({
               <select
                 title="Section"
                 required
-                value={form.section_code ?? ""}
+                value={form.section_code}
                 onChange={(e) => handleChange("section_code", e.target.value)}
                 className="w-full rounded border px-3 py-2"
               >
@@ -262,7 +368,7 @@ export default function ClassroomCreateModal({
               <select
                 title="Timing"
                 required
-                value={form.timing ?? ""}
+                value={form.timing}
                 onChange={(e) => handleChange("timing", e.target.value)}
                 className="w-full rounded border px-3 py-2"
               >
@@ -284,10 +390,22 @@ export default function ClassroomCreateModal({
               required
               type="number"
               min={0}
-              value={form.monthly_allowance}
-              onChange={(e) =>
-                handleChange("monthly_allowance", e.target.valueAsNumber)
+              value={
+                form.monthly_allowance === "" ? "" : form.monthly_allowance
               }
+              onChange={(e) => {
+                // Use raw string then normalize
+                const v = e.target.value;
+                if (v === "") {
+                  handleChange("monthly_allowance", "");
+                } else {
+                  const n = Number(v);
+                  handleChange(
+                    "monthly_allowance",
+                    Number.isFinite(n) ? n : ""
+                  );
+                }
+              }}
               className="w-full rounded border px-3 py-2 text-black"
               placeholder="Enter Amount"
             />

@@ -1,5 +1,5 @@
 // Server Component
-import ClassroomProfileClient from "./profile-client";
+import ClassroomProfileClient from "./classroom-client";
 
 export default async function ClassroomProfilePage({
   params,

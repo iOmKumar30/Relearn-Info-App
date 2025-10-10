@@ -100,16 +100,14 @@ export async function POST(req: Request) {
   const rolesInput = Array.isArray(body?.roles)
     ? (body.roles as RoleName[])
     : [];
-
   if (!email) return new NextResponse("Email is required", { status: 400 });
   if (rolesInput.length === 0)
     return new NextResponse("At least one role is required", { status: 400 });
 
-  // DEV: DEFAULT_USER_PASSWORD; PROD: generate random and email reset link
   const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
   const hash = await bcrypt.hash(defaultPassword, 10);
 
-  // Resolve roles
+  // Resolve roles outside transaction (read-only)
   const dbRoles = await prisma.role.findMany({
     where: { name: { in: rolesInput } },
     select: { id: true, name: true },
@@ -119,45 +117,55 @@ export async function POST(req: Request) {
   }
 
   try {
-    const created = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name,
-          email,
-          phone,
-          address,
-          status: UserStatus.ACTIVE,
-          onboardingStatus: OnboardingStatus.ACTIVE, // activated immediately
-          activatedAt: new Date(),
-          emailCredential: {
-            create: { email, passwordHash: hash },
+    const created = await prisma.$transaction(
+      async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            name,
+            email,
+            phone,
+            address,
+            status: UserStatus.ACTIVE,
+            onboardingStatus: OnboardingStatus.ACTIVE,
+            activatedAt: new Date(),
+            emailCredential: { create: { email, passwordHash: hash } },
           },
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          address: true,
-          status: true,
-          onboardingStatus: true,
-        },
-      });
-
-      // Open role history for assigned roles
-      for (const r of dbRoles) {
-        await tx.userRoleHistory.create({
-          data: { userId: user.id, roleId: r.id, startDate: new Date() },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+            status: true,
+            onboardingStatus: true,
+          },
         });
+
+        // Batch the role inserts to keep transaction short
+        if (dbRoles.length > 0) {
+          await tx.userRoleHistory.createMany({
+            data: dbRoles.map((r) => ({
+              userId: user.id,
+              roleId: r.id,
+              startDate: new Date(),
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        const roles = await tx.userRoleHistory.findMany({
+          where: { userId: user.id, endDate: null },
+          select: { role: { select: { name: true } } },
+        });
+
+        return { ...user, roles: roles.map((h) => h.role.name) };
+      },
+      {
+        // optional headroom; keep small to catch slow paths early
+        maxWait: 5000,
+        timeout: 10000,
       }
-
-      const roles = await tx.userRoleHistory.findMany({
-        where: { userId: user.id, endDate: null },
-        select: { role: { select: { name: true } } },
-      });
-
-      return { ...user, roles: roles.map((h) => h.role.name) };
-    });
+    );
 
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {

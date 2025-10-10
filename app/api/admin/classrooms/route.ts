@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
+import { generateClassroomCode } from "@/libs/classroomCode";
 import prisma from "@/libs/prismadb";
 import {
   ClassroomStatus,
@@ -8,66 +9,7 @@ import {
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-
-// RBAC: ADMIN only (server-side)
-async function isAdmin(userId?: string) {
-  if (!userId) return false;
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      roleHistory: {
-        where: { endDate: null },
-        select: { role: { select: { name: true } } },
-      },
-    },
-  });
-  const names = u?.roleHistory?.map((h) => h.role.name) ?? [];
-  return names.includes("ADMIN");
-}
-
-// Compose classroom code as "SNN-SEC-SS"
-// - S: first letter of Centre.state (uppercased)
-// - NN: numeric part extracted from Centre.code (e.g., SP01 -> 01)
-// - SEC: JR | SR
-// - SS: serial per (centreId, section), 2-digits starting at 01
-async function generateClassroomCode(
-  tx: Prisma.TransactionClient,
-  centreId: string,
-  section: SectionCode
-) {
-  const centre = await tx.centre.findUnique({
-    where: { id: centreId },
-    select: { code: true, state: true },
-  });
-  if (!centre) throw new Error("Centre not found for classroom creation");
-
-  const stateLetter = (centre.state?.trim()?.[0] ?? "X").toUpperCase();
-
-  // Extract trailing digits from centre.code; fallback to "01"
-  const centreNum = (() => {
-    const m = centre.code.match(/(\d+)\s*$/);
-    const n = m ? parseInt(m[1], 10) : 1;
-    return String(isNaN(n) ? 1 : n).padStart(2, "0");
-  })();
-
-  // Find the max existing serial for this centre+section by parsing code suffix
-  const last = await tx.classroom.findFirst({
-    where: { centreId, section },
-    orderBy: { createdAt: "desc" },
-    select: { code: true },
-  });
-
-  let nextSerial = 1;
-  if (last?.code) {
-    const parts = last.code.split("-");
-    const serialStr = parts[2]; // expect "J01-JR-03" -> "03"
-    const n = parseInt(serialStr, 10);
-    if (!isNaN(n)) nextSerial = n + 1;
-  }
-  const serial = String(nextSerial).padStart(2, "0");
-
-  return `${stateLetter}${centreNum}-${section}-${serial}`;
-}
+import { isAdmin } from "@/libs/isAdmin";
 
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
 export async function GET(req: Request) {
@@ -156,6 +98,11 @@ export async function GET(req: Request) {
         centreId: true,
         centre: { select: { id: true, code: true, name: true, state: true } },
         section: true,
+        streetAddress: true,
+        city: true,
+        district: true,
+        state: true,
+        pincode: true,
         timing: true,
         monthlyAllowance: true,
         status: true,
@@ -182,6 +129,11 @@ export async function POST(req: Request) {
   const body = await req.json();
   const centreId = String(body?.centreId ?? "").trim();
   const section = body?.section as SectionCode;
+  const streetAddress = String(body?.streetAddress ?? "").trim();
+  const city = String(body?.city ?? "").trim();
+  const district = String(body?.district ?? "").trim();
+  const state = String(body?.state ?? "").trim();
+  const pincode = String(body?.pincode ?? "").trim();
   const timing = body?.timing as ClassTiming;
   const monthlyAllowance = Number(body?.monthlyAllowance ?? 0);
   const status = (body?.status as ClassroomStatus) ?? ClassroomStatus.ACTIVE;
@@ -203,6 +155,11 @@ export async function POST(req: Request) {
           code,
           centreId,
           section,
+          streetAddress,
+          city,
+          district,
+          state,
+          pincode,
           timing,
           monthlyAllowance,
           status,
@@ -214,6 +171,11 @@ export async function POST(req: Request) {
           code: true,
           centreId: true,
           section: true,
+          streetAddress: true,
+          city: true,
+          district: true,
+          state: true,
+          pincode: true,
           timing: true,
           monthlyAllowance: true,
           status: true,

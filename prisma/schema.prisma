@@ -73,12 +73,12 @@ model Centre {
   id             String       @id @default(uuid())
   // custom code like "SP01", "SP02"
   code           String       @unique @db.VarChar(12)
-  name           String
-  streetAddress  String       @map("street_address")
+  name           String?
+  streetAddress  String?      @map("street_address")
   city           String? // nullable
   district       String? // nullable
-  state          String
-  pincode        String       @db.VarChar(10)
+  state          String?
+  pincode        String?      @db.VarChar(10)
   status         CentreStatus @default(ACTIVE)
   dateAssociated DateTime     @map("date_associated")
   dateLeft       DateTime?    @map("date_left")
@@ -97,14 +97,19 @@ model Centre {
 model Classroom {
   id               String          @id @default(uuid())
   //  J1-JR-001
-  code             String          @unique @db.VarChar(24)
+  code             String?          @unique @db.VarChar(24)
+  streetAddress    String?         @map("street_address")
+  city             String?
+  district         String?
+  state            String?
+  pincode          String?         @db.VarChar(10)
   centreId         String          @map("centre_id")
   centre           Centre          @relation(fields: [centreId], references: [id], onDelete: Cascade)
-  section          SectionCode     @map("section_code")
-  timing           ClassTiming
-  monthlyAllowance Int             @map("monthly_allowance")
+  section          SectionCode?    @map("section_code")
+  timing           ClassTiming?
+  monthlyAllowance Int?            @map("monthly_allowance")
   status           ClassroomStatus @default(ACTIVE)
-  dateCreated      DateTime        @map("date_created")
+  dateCreated      DateTime?       @map("date_created")
   dateClosed       DateTime?       @map("date_closed")
 
   tutorAssignments  TutorAssignment[]
@@ -119,13 +124,13 @@ model Classroom {
 }
 
 model User {
-  id      String     @id @default(uuid())
-  name    String?
-  email   String     @unique
-  phone   String?
-  address String?
-  status  UserStatus @default(ACTIVE)
-  sessionVersion Int? @default(0)
+  id                 String           @id @default(uuid())
+  name               String?
+  email              String           @unique
+  phone              String?
+  address            String?
+  status             UserStatus       @default(ACTIVE)
+  sessionVersion     Int?             @default(0)
   // Onboarding
   onboardingStatus   OnboardingStatus @default(PENDING_PROFILE)
   profileSubmittedAt DateTime?

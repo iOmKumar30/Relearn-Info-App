@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
@@ -7,7 +8,6 @@ import { Badge, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
-
 const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
@@ -41,15 +41,19 @@ export default function TutorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
 
+  const debouncedSearch = useDebounce(search, 800); // debounce search input
+
+
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users/by-role", window.location.origin);
     url.searchParams.set("role", role);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (search) url.searchParams.set("q", search);
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     return url.toString();
-  }, [role, page, pageSize, search]); // [1]
+  }, [role, page, pageSize, debouncedSearch]); 
 
+  // useCallback to avoid infinite loop in useEffect
   const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
@@ -63,11 +67,11 @@ export default function TutorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [buildUrl]); // [1]
+  }, [buildUrl]); 
 
   useEffect(() => {
     fetchRows();
-  }, [fetchRows]); // [1]
+  }, [fetchRows, page, debouncedSearch]); 
 
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => ({

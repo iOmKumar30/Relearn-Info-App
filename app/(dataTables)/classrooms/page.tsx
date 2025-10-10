@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import ClassroomCreateModal from "@/components/CreateModals/ClassroomCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
@@ -79,19 +80,19 @@ export default function ClassroomsPage() {
     total: number;
     rows: ClassroomRow[];
   } | null>(null);
-
+  const debouncedSearch = useDebounce(search, 800);
   // Build list URL with pagination, free-text q, and facet filters (centreId, section, timing, status)
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/classrooms", window.location.origin);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (search) url.searchParams.set("q", search);
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     if (filters.centreId) url.searchParams.set("centreId", filters.centreId);
     if (filters.section) url.searchParams.set("section", filters.section);
     if (filters.timing) url.searchParams.set("timing", filters.timing);
     if (filters.status) url.searchParams.set("status", filters.status);
     return url.toString();
-  }, [page, pageSize, search, filters]);
+  }, [page, pageSize, debouncedSearch, filters]);
   [1];
 
   // Fetch rows
@@ -165,6 +166,11 @@ export default function ClassroomsPage() {
     centre_id?: string;
     centre_name: string;
     section_code: string; // "Junior" | "Senior"
+    street_address: string;
+    city: string;
+    district: string;
+    state: string;
+    pincode: string;
     monthly_allowance: number | "";
     timing: string; // "Morning" | "Evening"
     status: "Active" | "Inactive";
@@ -205,6 +211,11 @@ export default function ClassroomsPage() {
           : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
+        streetAddress: payload.street_address.trim(),
+        city: payload.city.trim(),
+        district: payload.district.trim(),
+        state: payload.state.trim(),
+        pincode: payload.pincode.trim(),
         dateCreated: payload.date_created,
         dateClosed: payload.date_closed || null,
       };
@@ -232,6 +243,11 @@ export default function ClassroomsPage() {
       centre_id?: string;
       centre_name: string;
       section_code: string;
+      street_address: string;
+      city: string;
+      district: string;
+      state: string;
+      pincode: string;
       monthly_allowance: number | "";
       timing: string;
       status: "Active" | "Inactive";
@@ -271,6 +287,11 @@ export default function ClassroomsPage() {
           : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
+        streetAddress: payload.street_address.trim(),
+        city: payload.city.trim(),
+        district: payload.district.trim(),
+        state: payload.state.trim(),
+        pincode: payload.pincode.trim(),
         dateCreated: payload.date_created,
         dateClosed: payload.date_closed || null,
       };

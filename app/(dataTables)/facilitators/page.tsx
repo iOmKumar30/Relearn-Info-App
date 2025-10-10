@@ -1,10 +1,13 @@
 "use client";
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Pagination } from "flowbite-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipLoader } from "react-spinners";
 
 // Table columns – kept simple and consistent
 const columns = [
@@ -38,16 +41,16 @@ export default function FacilitatorsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
-
+  const debouncedSearch = useDebounce(search, 800);
   // Build URL for role-based listing (single role, plus q/page/pageSize)
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users/by-role", window.location.origin);
     url.searchParams.set("role", role);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (search) url.searchParams.set("q", search); // backend currently ignores q if not implemented; harmless
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch); // backend currently ignores q if not implemented; harmless
     return url.toString();
-  }, [role, page, pageSize, search]);
+  }, [role, page, pageSize, debouncedSearch]);
   [1];
 
   const fetchRows = useCallback(async () => {
@@ -95,6 +98,7 @@ export default function FacilitatorsPage() {
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
   [2];
+  const router = useRouter();
 
   return (
     <RBACGate roles={["ADMIN", "RELF_EMPLOYEE"]}>
@@ -129,11 +133,15 @@ export default function FacilitatorsPage() {
       )}
 
       {loading && !data ? (
-        <div className="rounded border border-gray-200 bg-white p-6">
-          Loading...
+        <div className="flex justify-center items-center h-screen">
+          <ClipLoader size={40} />
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} /* no actions */ />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+        />
       )}
 
       <div className="mt-3 flex overflow-x-auto sm:justify-end">

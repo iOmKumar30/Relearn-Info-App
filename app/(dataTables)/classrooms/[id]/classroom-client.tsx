@@ -2,7 +2,7 @@
 
 import DataTable from "@/components/CrudControls/Datatable";
 import UserSelect from "@/components/CrudControls/UserSelect";
-import { Badge, Button } from "flowbite-react";
+import { Badge, Button, Spinner } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function ClassroomProfileClient({
@@ -10,7 +10,7 @@ export default function ClassroomProfileClient({
 }: {
   classroomId: string;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [classroom, setClassroom] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -23,11 +23,12 @@ export default function ClassroomProfileClient({
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
+
   async function fetchAssignments() {
     const res = await fetch(
       `/api/admin/assignments/tutor?classroomId=${encodeURIComponent(
         classroomId
-      )}&page=1&pageSize=50`,
+      )}&page=1&pageSize=10`,
       { cache: "no-store" }
     );
     if (!res.ok) throw new Error(await res.text());
@@ -62,7 +63,7 @@ export default function ClassroomProfileClient({
       start: x.startDate ? new Date(x.startDate).toLocaleDateString() : "",
       end: x.endDate ? new Date(x.endDate).toLocaleDateString() : "",
       tag: x.isSubstitute ? "Substitute" : "Primary",
-      __raw: x, // for future use if needed
+      __raw: x,
     }));
   }, [assignments]);
 
@@ -108,7 +109,6 @@ export default function ClassroomProfileClient({
     }
   }
 
-  // DataTable column definitions aligned with rows useMemo
   const columns = useMemo(
     () => [
       { key: "tutor", label: "Tutor" },
@@ -119,18 +119,29 @@ export default function ClassroomProfileClient({
     []
   );
 
-  // Render actions cell (Close button mirrors original table behavior)
-  const renderActions = (row: any) => {
-    return !row.end ? (
+  const renderActions = (row: any) =>
+    !row.end ? (
       <Button size="xs" color="light" onClick={() => closeAssignment(row.id)}>
         Close
       </Button>
     ) : null;
-  };
+
+  // Central full-page loader to prevent partial rendering
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="xl" color="info" aria-label="Loading classroom data" />
+          <div className="text-sm text-gray-600">Loading classroom data…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold mb-3">Classroom Profile</h2>
+
       {error && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-red-700">
           {error}
@@ -153,6 +164,11 @@ export default function ClassroomProfileClient({
             </Badge>
           </div>
           <div>Section: {classroom.section}</div>
+          <div>Street Address: {classroom.streetAddress}</div>
+          <div>City: {classroom.city}</div>
+          <div>District: {classroom.district}</div>
+          <div>State: {classroom.state}</div>
+          <div>Pincode: {classroom.pincode}</div>
           <div>Timing: {classroom.timing}</div>
         </div>
       )}

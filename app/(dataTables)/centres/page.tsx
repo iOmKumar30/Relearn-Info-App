@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import CentreCreateModal from "@/components/CreateModals/CentreCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
@@ -9,6 +10,7 @@ import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 
@@ -54,6 +56,8 @@ const centreFilters: FilterOption[] = [
 ];
 
 export default function CentresPage() {
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
@@ -71,19 +75,19 @@ export default function CentresPage() {
   const [data, setData] = useState<{ total: number; rows: CentreRow[] } | null>(
     null
   );
-
+  const debouncedSearch = useDebounce(search, 800);
   // Build query string for list endpoint
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/centres", window.location.origin);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (search) url.searchParams.set("q", search);
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     if (filters.status) url.searchParams.set("status", filters.status);
     if (filters.state) url.searchParams.set("state", filters.state);
     if (filters.city) url.searchParams.set("city", filters.city);
     if (filters.district) url.searchParams.set("district", filters.district);
     return url.toString();
-  }, [page, pageSize, search, filters]);
+  }, [page, pageSize, debouncedSearch, filters]);
 
   const fetchRows = useCallback(async () => {
     try {
@@ -129,7 +133,6 @@ export default function CentresPage() {
       setLoading(true);
       setError(null);
 
-      // Map UI fields → API contract
       const body = {
         name: String(payload?.name || "").trim(),
         streetAddress: String(
@@ -189,7 +192,6 @@ export default function CentresPage() {
     }
   };
 
-  
   // Update handler
   const handleUpdate = async (centreId: string, payload: any) => {
     try {
@@ -247,7 +249,6 @@ export default function CentresPage() {
         }),
       };
 
-      
       if ("name" in body && !body.name) {
         throw new Error("Name cannot be empty.");
       }
@@ -368,7 +369,14 @@ export default function CentresPage() {
           <ClipLoader size={40} />
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} actions={renderActions} />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          actions={renderActions}
+          onRowClick={(row: any) =>
+            router.push(`/centres/${encodeURIComponent(row.id)}`)
+          }
+        />
       )}
 
       {/* Pager */}

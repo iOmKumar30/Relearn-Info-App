@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/authOptions";
 import prisma from "@/libs/prismadb";
 import { CentreStatus } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 
 // Admin guard
 async function isAdmin(userId?: string) {
   if (!userId) return false;
   const u = await prisma.user.findUnique({
     where: { id: userId },
-    select: { roleHistory: { where: { endDate: null }, include: { role: true } } },
+    select: {
+      roleHistory: { where: { endDate: null }, include: { role: true } },
+    },
   });
   const names = u?.roleHistory?.map((h) => h.role.name) ?? [];
   return names.includes("ADMIN");
@@ -18,8 +20,10 @@ async function isAdmin(userId?: string) {
 // GET /api/admin/centres/:id
 export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
-  if (!(await isAdmin(session.user.id))) return new NextResponse("Forbidden", { status: 403 });
+  if (!session?.user?.id)
+    return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   const { id } = ctx.params;
   const row = await prisma.centre.findUnique({
@@ -45,25 +49,36 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 }
 
 // PUT /api/admin/centres/:id  (update user-editable fields only)
-export async function PUT(req: Request, ctx: { params: { id: string } }) {
+export async function PUT(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
-  if (!(await isAdmin(session.user.id))) return new NextResponse("Forbidden", { status: 403 });
+  const { id } = await ctx.params;
+  if (!session?.user?.id)
+    return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
-  const { id } = ctx.params;
+  
   const body = await req.json();
 
   // Only allow editable fields (code is backend-managed and immutable)
   const data: any = {};
   if (body.name !== undefined) data.name = String(body.name).trim();
-  if (body.streetAddress !== undefined) data.streetAddress = String(body.streetAddress).trim();
-  if (body.city !== undefined) data.city = body.city ? String(body.city).trim() : null;
-  if (body.district !== undefined) data.district = body.district ? String(body.district).trim() : null;
+  if (body.streetAddress !== undefined)
+    data.streetAddress = String(body.streetAddress).trim();
+  if (body.city !== undefined)
+    data.city = body.city ? String(body.city).trim() : null;
+  if (body.district !== undefined)
+    data.district = body.district ? String(body.district).trim() : null;
   if (body.state !== undefined) data.state = String(body.state).trim();
   if (body.pincode !== undefined) data.pincode = String(body.pincode).trim();
   if (body.status !== undefined) data.status = body.status as CentreStatus;
   if (body.dateAssociated !== undefined)
-    data.dateAssociated = body.dateAssociated ? new Date(body.dateAssociated) : new Date();
+    data.dateAssociated = body.dateAssociated
+      ? new Date(body.dateAssociated)
+      : new Date();
   if (body.dateLeft !== undefined)
     data.dateLeft = body.dateLeft ? new Date(body.dateLeft) : null;
 
@@ -95,8 +110,10 @@ export async function PUT(req: Request, ctx: { params: { id: string } }) {
 // DELETE /api/admin/centres/:id
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
-  if (!(await isAdmin(session.user.id))) return new NextResponse("Forbidden", { status: 403 });
+  if (!session?.user?.id)
+    return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   const { id } = ctx.params;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounce } from "@/app/hooks/useDebounce";
 import UserCreateModal from "@/components/CreateModals/UserCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
@@ -57,15 +58,15 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
-
+  const debouncedSearch = useDebounce(search, 800);
   // Build list URL with pagination and search
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users", window.location.origin);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (search) url.searchParams.set("q", search);
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     return url.toString();
-  }, [page, pageSize, search]);
+  }, [page, pageSize, debouncedSearch]);
 
   const fetchRows = useCallback(async () => {
     try {
