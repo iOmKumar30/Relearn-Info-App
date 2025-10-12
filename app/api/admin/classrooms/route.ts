@@ -1,14 +1,15 @@
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
+import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import {
   ClassroomStatus,
   ClassTiming,
+  Prisma,
   SectionCode,
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/libs/isAdmin";
 
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
 export async function GET(req: Request) {
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20)),
+    Math.max(1, Number(searchParams.get("pageSize") || 20))
   );
   const q = (searchParams.get("q") || "").trim();
 
