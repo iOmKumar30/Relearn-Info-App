@@ -4,7 +4,7 @@ import DataTable from "@/components/CrudControls/Datatable";
 import { Badge, Button } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
-
+import UserSelect from "@/components/CrudControls/UserSelect";
 type Centre = {
   id: string;
   code: string;
@@ -26,6 +26,12 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   const [centre, setCentre] = useState<Centre | null>(null);
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [facHistory, setFacHistory] = useState<any[]>([]);
+
+
+  // facilitator assignments states
+  const [showAddFac, setShowAddFac] = useState(false);
+  const [selectedFac, setSelectedFac] = useState<{ id: string; label: string } | null>(null);
+  const [assigning, setAssigning] = useState(false);
 
   const fetchCentre = useCallback(async () => {
     const res = await fetch(`/api/admin/centres/${centreId}`, {
@@ -178,6 +184,9 @@ export default function CentreClient({ centreId }: { centreId: string }) {
     }
   }
 
+  const hasActiveFacilitator = (facHistory || []).some(
+    (x: any) => !x.endDate
+  )
   const renderFacActions = (row: any) =>
     !row.end ? (
       <Button
@@ -249,8 +258,56 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         <h3 className="font-medium mb-2">Classrooms</h3>
         <DataTable columns={classroomColumns} rows={classroomRows} />
       </div>
+      {!hasActiveFacilitator && (
+        <div className="mt-3">
+          <Button size="lg" color="light" onClick={() => setShowAddFac(true)}>Add Facilitator</Button>
+          {showAddFac && (
+            <div className="my-4 border p-4 rounded bg-gray-50 max-w-sm">
+              <UserSelect
+                role="FACILITATOR"
+                value={selectedFac}
+                onChange={setSelectedFac}
+                placeholder="Search facilitators…"
+              />
+              <div className="flex justify-end mt-2 gap-2">
+                <Button color="light"
+                  disabled={!selectedFac || assigning}
+                  onClick={async () => {
+                    if (!selectedFac?.id) return;
+                    setAssigning(true);
+                    try {
+                      const res = await fetch("/api/admin/assignments/facilitator-centre", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          facilitatorId: selectedFac.id,
+                          centreId,
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      setShowAddFac(false);
+                      setSelectedFac(null);
+                      await load();
+                    } catch (err: any) {
+                      alert(err.message || "Failed to assign facilitator");
+                    } finally {
+                      setAssigning(false);
+                    }
+                  }}
+                >
+                  Assign
+                </Button>
+                <Button color="light" onClick={() => setShowAddFac(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-      <div className="mt-8">
+
+      <div className="mt-3">
         <h3 className="font-medium mb-2">Facilitator History</h3>
         <DataTable
           columns={facColumns}

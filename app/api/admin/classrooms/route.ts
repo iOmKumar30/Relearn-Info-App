@@ -23,12 +23,23 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const q = (searchParams.get("q") || "").trim();
 
   // Direct facet filters
-  const centreId = searchParams.get("centreId") || undefined;
+  const centreIdRaw = searchParams.get("centreId") || undefined;
+  let centreIds: string[] | undefined = undefined;
+  if (centreIdRaw) {
+    if (centreIdRaw.includes(",")) {
+      centreIds = centreIdRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else {
+      centreIds = [centreIdRaw];
+    }
+  }
   const sectionParam = (searchParams.get("section") || "").toUpperCase();
   const timingParam = (searchParams.get("timing") || "").toUpperCase();
   const statusParam = (searchParams.get("status") || "").toUpperCase();
@@ -49,7 +60,7 @@ export async function GET(req: Request) {
       : undefined;
 
   const where: Prisma.ClassroomWhereInput = {
-    ...(centreId ? { centreId } : {}),
+    ...(centreIds ? { centreId: { in: centreIds } } : {}),
     ...(section ? { section } : {}),
     ...(timing ? { timing } : {}),
     ...(status ? { status } : {}),

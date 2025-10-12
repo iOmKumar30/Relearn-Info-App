@@ -18,14 +18,14 @@ async function isAdmin(userId?: string) {
 }
 
 // GET /api/admin/centres/:id
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(_req: Request, ctx: {params: Promise<{id: string}>}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
   if (!(await isAdmin(session.user.id)))
     return new NextResponse("Forbidden", { status: 403 });
 
-  const { id } = ctx.params;
+  const { id } = await ctx.params;
   const row = await prisma.centre.findUnique({
     where: { id },
     select: {

@@ -4,7 +4,6 @@ import CentreSelect from "@/components/CrudControls/CentreSelect";
 import ClassroomSelect from "@/components/CrudControls/ClassroomSelect";
 import DataTable from "@/components/CrudControls/Datatable";
 import { Badge, Button, Spinner } from "flowbite-react";
-import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function UserProfileClient({ userId }: { userId: string }) {
@@ -26,7 +25,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     any | null
   >(null);
   const [facilitatorsForEmployee, setFacilitatorsForEmployee] = useState<any[]>(
-    []
+    [],
   );
 
   // Facilitator -> Centres -> Classroom Link
@@ -42,9 +41,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchAssignments() {
     const res = await fetch(
       `/api/admin/assignments/tutor?userId=${encodeURIComponent(
-        userId
+        userId,
       )}&page=1&pageSize=50`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -52,9 +51,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchFacilitatorCentreLinks() {
     const res = await fetch(
       `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(
-        userId
+        userId,
       )}`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) return { rows: [] };
     return res.json();
@@ -62,7 +61,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchEmployeeForFacilitator() {
     const url = new URL(
       "/api/admin/assignments/employee-facilitators",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("facilitatorId", userId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -72,7 +71,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchFacilitatorsForEmployee() {
     const url = new URL(
       "/api/admin/assignments/employee-facilitators",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("employeeUserId", userId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -106,13 +105,32 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       setUser(u);
       setAssignments(a.rows || []);
       setFacCentreLinks(fc.rows || []);
-      const centreIds = (fc.rows|| []).map((x:any) => )
-      // For a facilitator, show the single related employee (latest by startDate if multiple)
+
+      // get the centres id of the current facilitator
+      // 1) pull out your raw values as strings,
+      // 2) use a Set to dedupe,
+      // 3) force the result to string[] by annotating or using a generic
+      const centreIds: string[] = Array.from(
+        new Set(
+          (fc.rows ?? [])
+            .map((x: any) => String(x.centre?.id ?? x.centreId))
+            // this type‐guard filter lets TS know we only keep non‐empty strings
+            .filter((id: string): id is string => id !== '')
+        )
+      );
+
+      let classList: any[] = [];
+
+      if (centreIds.length > 0) {
+        classList = await fetchClassroomsByCentres(centreIds);
+      }
+
+      setFacClassrooms(classList);
       const facRows = facSide.rows || [];
       if (facRows.length > 0) {
         facRows.sort(
           (x: any, y: any) =>
-            new Date(y.startDate).getTime() - new Date(x.startDate).getTime()
+            new Date(y.startDate).getTime() - new Date(x.startDate).getTime(),
         );
         setEmployeeForFacilitator(facRows[0].employee || null);
       } else {
@@ -121,7 +139,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
       // For an employee, show all related facilitators
       setFacilitatorsForEmployee(
-        (empSide.rows || []).map((r: any) => r.facilitator).filter(Boolean)
+        (empSide.rows || []).map((r: any) => r.facilitator).filter(Boolean),
       );
     } catch (e: any) {
       setError(e?.message || "Failed to load profile");
@@ -230,7 +248,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endDate: new Date().toISOString() }),
-        }
+        },
       );
       if (!res.ok) throw new Error(await res.text());
       await load();
@@ -241,16 +259,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }
   }
 
-  const columns = useMemo(
-    () => [
-      { key: "classroom", label: "Classroom" },
-      { key: "centre", label: "Centre" },
-      { key: "start", label: "Start" },
-      { key: "end", label: "End" },
-      { key: "tag", label: "Type" },
-    ],
-    []
-  );
+  const columns = useMemo(() => [
+    { key: "code", label: "Code" },
+    { key: "section", label: "Section" },
+    { key: "centre", label: "Centre" },
+    { key: "timing", label: "Timing" },
+    { key: "monthlyAllowance", label: "Allowance" },
+    { key: "status", label: "Status" },
+  ], []);
 
   const renderActions = (row: any) =>
     !row.end ? (
@@ -266,7 +282,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "start", label: "Start" },
       { key: "end", label: "End" },
     ],
-    []
+    [],
   );
 
   const facCentreRows = useMemo(() => {
@@ -296,17 +312,17 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "name", label: "Employee Name" },
       { key: "email", label: "Employee Email" },
     ],
-    []
+    [],
   );
   const employeeRows = useMemo(() => {
     return employeeForFacilitator
       ? [
-          {
-            id: employeeForFacilitator.id,
-            name: employeeForFacilitator.name ?? "—",
-            email: employeeForFacilitator.email,
-          },
-        ]
+        {
+          id: employeeForFacilitator.id,
+          name: employeeForFacilitator.name ?? "—",
+          email: employeeForFacilitator.email,
+        },
+      ]
       : [];
   }, [employeeForFacilitator]);
 
@@ -315,7 +331,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "name", label: "Facilitator Name" },
       { key: "email", label: "Facilitator Email" },
     ],
-    []
+    [],
   );
   const facilitatorRows = useMemo(() => {
     return (facilitatorsForEmployee || []).map((f: any) => ({
@@ -379,9 +395,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         </div>
       )}
 
-      <h3 className="font-medium mb-2">Assignments</h3>
-      <DataTable columns={columns} rows={rows} actions={renderActions} />
-
       {isFacilitator && (
         <div className="mt-8">
           <h3 className="font-medium mb-2">Assign Centre</h3>
@@ -404,6 +417,18 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             rows={facCentreRows}
             actions={renderFacCentreActions}
           />
+          <div className="mt-6">
+            <h4 className="font-medium mb-2">Classrooms in Your Centres</h4>
+            <DataTable
+              columns={columns}
+              rows={facClassrooms.map((c) => ({
+                ...c,
+                centre: c.centre
+                  ? `${c.centre.code} — ${c.centre.name}`
+                  : c.centreId,
+              }))}
+            />
+          </div>
 
           <div className="mt-6">
             <h4 className="font-medium mb-2">Related Employee</h4>
