@@ -1,10 +1,10 @@
 "use client";
 
 import DataTable from "@/components/CrudControls/Datatable";
+import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
-import UserSelect from "@/components/CrudControls/UserSelect";
 type Centre = {
   id: string;
   code: string;
@@ -27,18 +27,23 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [facHistory, setFacHistory] = useState<any[]>([]);
 
-
   // facilitator assignments states
   const [showAddFac, setShowAddFac] = useState(false);
-  const [selectedFac, setSelectedFac] = useState<{ id: string; label: string } | null>(null);
+  const [selectedFac, setSelectedFac] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [assigning, setAssigning] = useState(false);
 
   const fetchCentre = useCallback(async () => {
     const res = await fetch(`/api/admin/centres/${centreId}`, {
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || "Failed to load centre");
+    }
+    return await res.json();
   }, [centreId]);
 
   const fetchClassrooms = useCallback(async () => {
@@ -47,8 +52,12 @@ export default function CentreClient({ centreId }: { centreId: string }) {
     url.searchParams.set("pageSize", "100");
     url.searchParams.set("centreId", centreId);
     const res = await fetch(url.toString(), { cache: "no-store" });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json(); // { total, rows }
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || "Failed to load classrooms");
+    }
+    
+    return await res.json();
   }, [centreId]);
 
   const fetchFacilitatorHistory = useCallback(async () => {
@@ -58,8 +67,8 @@ export default function CentreClient({ centreId }: { centreId: string }) {
     );
     url.searchParams.set("centreId", centreId);
     const res = await fetch(url.toString(), { cache: "no-store" });
-    if (!res.ok) return { rows: [] }; // non-admin or no links
-    return res.json(); // { rows }
+    if (!res.ok) return { rows: [] };
+    return await res.json();
   }, [centreId]);
 
   const load = useCallback(async () => {
@@ -74,7 +83,9 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setCentre(c);
       setClassrooms(cls.rows || []);
       setFacHistory(fac.rows || []);
+      console.log("Centre data:", c, cls, fac);
     } catch (e: any) {
+      console.error(e);
       setError(e?.message || "Failed to load centre");
     } finally {
       setLoading(false);
@@ -187,10 +198,13 @@ export default function CentreClient({ centreId }: { centreId: string }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/admin/assignments/facilitator-centre/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" }
-      });
+      const res = await fetch(
+        `/api/admin/assignments/facilitator-centre/${id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
       if (!res.ok) throw new Error(await res.text());
       await load();
     } catch (e: any) {
@@ -199,9 +213,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setLoading(false);
     }
   }
-  const hasActiveFacilitator = (facHistory || []).some(
-    (x: any) => !x.endDate
-  )
+  const hasActiveFacilitator = (facHistory || []).some((x: any) => !x.endDate);
   const renderFacActions = (row: any) =>
     !row.end ? (
       <Button
@@ -211,7 +223,15 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       >
         Close
       </Button>
-    ) : <Button size="xs" color="red" onClick={() => deleteFacilitatorLink(row.id)}>Delete</Button>;
+    ) : (
+      <Button
+        size="xs"
+        color="red"
+        onClick={() => deleteFacilitatorLink(row.id)}
+      >
+        Delete
+      </Button>
+    );
   // Central full-page loader while fetching, to avoid any partial rendering
   if (loading) {
     return (
@@ -274,7 +294,9 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       </div>
       {!hasActiveFacilitator && (
         <div className="mt-3">
-          <Button size="lg" color="light" onClick={() => setShowAddFac(true)}>Add Facilitator</Button>
+          <Button size="lg" color="light" onClick={() => setShowAddFac(true)}>
+            Add Facilitator
+          </Button>
           {showAddFac && (
             <div className="my-4 border p-4 rounded bg-gray-50 max-w-sm">
               <UserSelect
@@ -284,20 +306,24 @@ export default function CentreClient({ centreId }: { centreId: string }) {
                 placeholder="Search facilitators…"
               />
               <div className="flex justify-end mt-2 gap-2">
-                <Button color="light"
+                <Button
+                  color="light"
                   disabled={!selectedFac || assigning}
                   onClick={async () => {
                     if (!selectedFac?.id) return;
                     setAssigning(true);
                     try {
-                      const res = await fetch("/api/admin/assignments/facilitator-centre", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          facilitatorId: selectedFac.id,
-                          centreId,
-                        }),
-                      });
+                      const res = await fetch(
+                        "/api/admin/assignments/facilitator-centre",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            facilitatorId: selectedFac.id,
+                            centreId,
+                          }),
+                        }
+                      );
                       if (!res.ok) throw new Error(await res.text());
                       setShowAddFac(false);
                       setSelectedFac(null);
@@ -319,7 +345,6 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           )}
         </div>
       )}
-
 
       <div className="mt-3">
         <h3 className="font-medium mb-2">Facilitator History</h3>
