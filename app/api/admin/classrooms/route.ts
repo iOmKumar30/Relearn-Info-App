@@ -11,6 +11,7 @@ import {
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
+console.log("Loaded /api/admin/classrooms route", process.cwd());
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -95,6 +96,8 @@ export async function GET(req: Request) {
         }
       : {}),
   };
+
+  console.log("typeof prisma", typeof prisma);
 
   const [total, rows] = await Promise.all([
     prisma.classroom.count({ where }),
