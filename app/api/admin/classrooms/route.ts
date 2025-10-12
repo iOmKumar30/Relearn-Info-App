@@ -1,7 +1,6 @@
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
 import { isAdmin } from "@/libs/isAdmin";
-import prisma from "@/libs/prismadb";
 import {
   ClassroomStatus,
   ClassTiming,
@@ -11,7 +10,6 @@ import {
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-console.log("Loaded /api/admin/classrooms route", process.cwd());
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -96,8 +94,6 @@ export async function GET(req: Request) {
         }
       : {}),
   };
-
-  console.log("typeof prisma", typeof prisma);
 
   const [total, rows] = await Promise.all([
     prisma.classroom.count({ where }),
