@@ -4,7 +4,6 @@ import prisma from "@/libs/prismadb";
 import {
   ClassroomStatus,
   ClassTiming,
-  Prisma,
   SectionCode,
 } from "@prisma/client";
 import { getServerSession } from "next-auth";

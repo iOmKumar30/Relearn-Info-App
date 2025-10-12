@@ -1,4 +1,3 @@
-// app/api/admin/assignments/facilitator-centre/[id]/route.ts
 import { authOptions } from "@/libs/authOptions";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";

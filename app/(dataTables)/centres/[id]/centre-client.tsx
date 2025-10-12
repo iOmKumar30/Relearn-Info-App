@@ -183,7 +183,22 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setLoading(false);
     }
   }
-
+  async function deleteFacilitatorLink(id: string) {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`/api/admin/assignments/facilitator-centre/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "Failed to delete the Facilitator Link");
+    } finally {
+      setLoading(false);
+    }
+  }
   const hasActiveFacilitator = (facHistory || []).some(
     (x: any) => !x.endDate
   )
@@ -196,8 +211,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       >
         Close
       </Button>
-    ) : null;
-
+    ) : <Button size="xs" color="red" onClick={() => deleteFacilitatorLink(row.id)}>Delete</Button>;
   // Central full-page loader while fetching, to avoid any partial rendering
   if (loading) {
     return (
