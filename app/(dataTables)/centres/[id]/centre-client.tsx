@@ -56,7 +56,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       const msg = await res.text();
       throw new Error(msg || "Failed to load classrooms");
     }
-    
+
     return await res.json();
   }, [centreId]);
 
@@ -72,24 +72,33 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   }, [centreId]);
 
   const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [c, cls, fac] = await Promise.all([
-        fetchCentre(),
-        fetchClassrooms(),
-        fetchFacilitatorHistory(),
-      ]);
-      setCentre(c);
-      setClassrooms(cls.rows || []);
-      setFacHistory(fac.rows || []);
-      console.log("Centre data:", c, cls, fac);
-    } catch (e: any) {
-      console.error(e);
-      setError(e?.message || "Failed to load centre");
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    setError(null);
+
+    const results = await Promise.allSettled([
+      fetchCentre(),
+      fetchClassrooms(),
+      fetchFacilitatorHistory(),
+    ]);
+
+    const [centreRes, classRes, facRes] = results;
+
+    if (centreRes.status === "fulfilled") setCentre(centreRes.value);
+    if (classRes.status === "fulfilled")
+      setClassrooms(classRes.value.rows || []);
+    if (facRes.status === "fulfilled") setFacHistory(facRes.value.rows || []);
+
+    if (centreRes.status === "rejected") {
+      setError(centreRes.reason?.message || "Failed to load centre");
     }
+    if (classRes.status === "rejected") {
+      setError(classRes.reason?.message || "Failed to load classrooms");
+    }
+    if (facRes.status === "rejected") {
+      setError(facRes.reason?.message || "Failed to load facilitator history");
+    }
+
+    setLoading(false);
   }, [fetchCentre, fetchClassrooms, fetchFacilitatorHistory]);
 
   useEffect(() => {
