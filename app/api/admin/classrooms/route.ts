@@ -1,7 +1,9 @@
+export const runtime = "nodejs";
+
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
 import { isAdmin } from "@/libs/isAdmin";
-import prisma from "@/libs/prismadb";
+import { prisma } from "@/libs/prismadb";
 import {
   ClassroomStatus,
   ClassTiming,
