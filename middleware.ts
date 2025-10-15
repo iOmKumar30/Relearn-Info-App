@@ -43,6 +43,11 @@ export async function middleware(req: NextRequest) {
 
   // Auth check — JWT must be present and contain roles
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  console.log("MIDDLEWARE token:", {
+    path: pathname,
+    tokenSub: token?.sub,
+    roles: (token as any)?.roles,
+  });
   if (!token || !Array.isArray((token as any).roles)) {
     // Not authenticated → send to public landing or sign-in
     return NextResponse.redirect(new URL("/", req.url));
@@ -77,6 +82,10 @@ export async function middleware(req: NextRequest) {
   const allowed = PROTECTED_ROUTES[matchedBase];
   const hasAccess = roles.some((r) => allowed.includes(r));
   if (!hasAccess) {
+    // if role is pending then send to pending page
+    if (roles.includes("PENDING")) {
+      return NextResponse.redirect(new URL(PENDING_PATH, req.url));
+    }
     // Unauthorized path attempt => fallback to common dashboard
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
@@ -92,7 +101,6 @@ export const config = {
     "/users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
-    "/pending",
     "/users/:path*",
     "/classrooms/:path*",
   ],
