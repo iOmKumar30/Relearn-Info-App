@@ -1,21 +1,10 @@
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
+import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { ClassroomStatus, ClassTiming, SectionCode } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-
-async function isAdmin(userId?: string) {
-  if (!userId) return false;
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      roleHistory: { where: { endDate: null }, include: { role: true } },
-    },
-  });
-  const names = u?.roleHistory?.map((h) => h.role.name) ?? [];
-  return names.includes("ADMIN");
-}
 
 // GET /api/admin/classrooms/:id
 export async function GET(

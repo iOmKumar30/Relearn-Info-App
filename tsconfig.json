@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -19,7 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -29,6 +35,12 @@
     ".next/types/**/*.ts",
     "types/next-auth.d.ts"
   ],
-  "typeRoots": ["./types", "./node_modules/@types"],
-  "exclude": ["node_modules"]
+  "typeRoots": [
+    "./types",
+    "./node_modules/@types"
+  ],
+  "ignoreDeprecations": "6.0",
+  "exclude": [
+    "node_modules"
+  ]
 }

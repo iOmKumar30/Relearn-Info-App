@@ -1,9 +1,10 @@
 export const runtime = "nodejs";
-
+export const dynamic = "force-dynamic";
+import prisma from "@/libs/prismadb";
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
 import { isAdmin } from "@/libs/isAdmin";
-import { prisma } from "@/libs/prismadb";
+
 import {
   ClassroomStatus,
   ClassTiming,
@@ -12,6 +13,9 @@ import {
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+// @ts-ignore
+console.log("prisma import type:", typeof prisma);
+
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);

@@ -1,22 +1,8 @@
 import { authOptions } from "@/libs/authOptions";
+import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-
-async function isAdmin(userId?: string) {
-  if (!userId) return false;
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      roleHistory: {
-        where: { endDate: null },
-        select: { role: { select: { name: true } } },
-      },
-    },
-  });
-  const names = u?.roleHistory?.map((h) => h.role.name) ?? [];
-  return names.includes("ADMIN");
-}
 
 // List assignments by classroom (or by userId if provided)
 export async function GET(req: Request) {

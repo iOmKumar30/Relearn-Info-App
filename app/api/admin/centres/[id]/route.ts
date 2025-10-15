@@ -1,24 +1,15 @@
 import { authOptions } from "@/libs/authOptions";
+import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { CentreStatus } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// Admin guard
-async function isAdmin(userId?: string) {
-  if (!userId) return false;
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      roleHistory: { where: { endDate: null }, include: { role: true } },
-    },
-  });
-  const names = u?.roleHistory?.map((h) => h.role.name) ?? [];
-  return names.includes("ADMIN");
-}
-
 // GET /api/admin/centres/:id
-export async function GET(_req: Request, ctx: {params: Promise<{id: string}>}) {
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
@@ -60,7 +51,6 @@ export async function PUT(
   if (!(await isAdmin(session.user.id)))
     return new NextResponse("Forbidden", { status: 403 });
 
-  
   const body = await req.json();
 
   // Only allow editable fields (code is backend-managed and immutable)
