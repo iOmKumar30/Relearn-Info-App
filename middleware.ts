@@ -28,7 +28,10 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
-    pathname.startsWith("/favicon.ico")
+    pathname.startsWith("/favicon.ico") ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/_vercel") ||
+    pathname.startsWith("/_vercel/image")
   ) {
     return NextResponse.next();
   }
