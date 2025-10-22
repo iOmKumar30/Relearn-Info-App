@@ -19,6 +19,11 @@ type ClassroomRow = {
   centreId: string;
   centre: { id: string; code: string; name: string; state: string };
   section: "JR" | "SR";
+  streetAddress: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
   timing: "MORNING" | "EVENING";
   monthlyAllowance: number;
   status: "ACTIVE" | "INACTIVE";
@@ -27,11 +32,14 @@ type ClassroomRow = {
   createdAt: string;
   updatedAt: string;
 };
-// DataTable columns (render keys mapped in rows memo)
+// DataTable columns 
 const columns = [
   { key: "code", label: "Classroom Code" },
   { key: "centre_name", label: "Centre Name" },
   { key: "section", label: "Section" },
+  { key: "streetAddress", label: "Street Address" },
+  { key: "district", label: "District" },
+  { key: "state", label: "State" },
   { key: "timing", label: "Timing" },
   { key: "monthlyAllowance", label: "Monthly Allowance" },
   { key: "status", label: "Status" },
@@ -458,6 +466,11 @@ export default function ClassroomsPage() {
                 centre_id: editRow.centreId, // allow modal to carry the id
                 centre_name: editRow.centre?.name || "",
                 section_code: editRow.section === "JR" ? "Junior" : "Senior",
+                street_address: editRow.streetAddress,
+                city: editRow.city,
+                district: editRow.district,
+                state: editRow.state,
+                pincode: editRow.pincode,
                 monthly_allowance: editRow.monthlyAllowance,
                 timing: editRow.timing === "MORNING" ? "Morning" : "Evening",
                 status: editRow.status === "ACTIVE" ? "Active" : "Inactive",
