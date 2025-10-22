@@ -1,9 +1,9 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-import prisma from "@/libs/prismadb";
 import { authOptions } from "@/libs/authOptions";
 import { generateClassroomCode } from "@/libs/classroomCode";
 import { isAdmin } from "@/libs/isAdmin";
+import prisma from "@/libs/prismadb";
 
 import {
   ClassroomStatus,
@@ -126,6 +126,22 @@ export async function GET(req: Request) {
         dateClosed: true,
         createdAt: true,
         updatedAt: true,
+        tutorAssignments: {
+          where: { endDate: null},
+          take: 1,
+          orderBy: { startDate: "desc" },
+          select: {
+            id: true,
+            isSubstitute: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     }),
   ]);

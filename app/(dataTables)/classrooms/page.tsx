@@ -31,8 +31,17 @@ type ClassroomRow = {
   dateClosed: string | null;
   createdAt: string;
   updatedAt: string;
+  tutorAssignments?: Array<{
+    id: string;
+    isSubstitute: boolean;
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  }>;
 };
-// DataTable columns 
+// DataTable columns
 const columns = [
   { key: "code", label: "Classroom Code" },
   { key: "centre_name", label: "Centre Name" },
@@ -40,6 +49,7 @@ const columns = [
   { key: "streetAddress", label: "Street Address" },
   { key: "district", label: "District" },
   { key: "state", label: "State" },
+  { key: "currentTutor", label: "Current Tutor" },
   { key: "timing", label: "Timing" },
   { key: "monthlyAllowance", label: "Monthly Allowance" },
   { key: "status", label: "Status" },
@@ -159,6 +169,21 @@ export default function ClassroomsPage() {
           {r.status}
         </Badge>
       ),
+      currentTutor:
+        r.tutorAssignments && r.tutorAssignments.length > 0 ? (
+          <span>
+            {r.tutorAssignments[0].user.name || "Unnamed"} (
+            {r.tutorAssignments[0].user.email})
+            {r.tutorAssignments[0].isSubstitute && (
+              <Badge color="warning" size="xs" className="ml-1">
+                SUB
+              </Badge>
+            )}
+          </span>
+        ) : (
+          "—"
+        ),
+
       dateCreated: r.dateCreated
         ? new Date(r.dateCreated).toLocaleDateString()
         : "",
