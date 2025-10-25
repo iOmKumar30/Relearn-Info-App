@@ -61,6 +61,7 @@ export async function PUT(
 
   // Prepare update fields from input
   const data: any = {};
+  if (body.centreId !== undefined) data.centreId = String(body.centreId).trim();
   if (body.section !== undefined) data.section = body.section as SectionCode;
   if (body.timing !== undefined) data.timing = body.timing as ClassTiming;
   if (body.monthlyAllowance !== undefined)
@@ -89,12 +90,20 @@ export async function PUT(
       if (!current) throw new Error("Not Found");
 
       let codeUpdate = {};
-      if (data.section !== undefined && data.section !== current.section) {
-        // Section is changing, generate new code
+
+      // Determine the effective new centreId and section
+      const newCentreId = data.centreId ?? current.centreId;
+      const newSection = data.section ?? current.section;
+
+      // Regenerate code if centreId OR section changes
+      if (
+        (data.centreId !== undefined && data.centreId !== current.centreId) ||
+        (data.section !== undefined && data.section !== current.section)
+      ) {
         const newCode = await generateClassroomCode(
           tx,
-          current.centreId,
-          data.section
+          newCentreId,
+          newSection
         );
         codeUpdate = { code: newCode };
       }
@@ -126,6 +135,7 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (err) {
+    console.error("Classroom update error:", err);
     return new NextResponse("Not Found", { status: 404 });
   }
 }

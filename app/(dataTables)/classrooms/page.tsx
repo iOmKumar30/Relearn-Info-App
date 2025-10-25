@@ -45,6 +45,7 @@ type ClassroomRow = {
 const columns = [
   { key: "code", label: "Classroom Code" },
   { key: "centre_name", label: "Centre Name" },
+  { key: "centre_code", label: "Centre Code" },
   { key: "section", label: "Section" },
   { key: "streetAddress", label: "Street Address" },
   { key: "district", label: "District" },
@@ -141,6 +142,7 @@ export default function ClassroomsPage() {
       // Keep original fields for action handlers (id lookup)
       ...r,
       centre_name: r.centre?.name || "",
+      centre_code: r.centre?.code || "",
       section:
         r.section === "JR" ? (
           <Badge color="pink" className="uppercase">
