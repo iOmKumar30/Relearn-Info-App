@@ -4,4 +4,6 @@ export const ALL_ROLES = [
   "TUTOR",
   "FACILITATOR",
   "EMPLOYEE",
+  "TUTOR OF TUTOR",
+  "MEMBER"
 ];

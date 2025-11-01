@@ -97,7 +97,7 @@ model Centre {
 model Classroom {
   id               String          @id @default(uuid())
   //  J1-JR-001
-  code             String?          @unique @db.VarChar(24)
+  code             String?         @unique @db.VarChar(24)
   streetAddress    String?         @map("street_address")
   city             String?
   district         String?
@@ -389,3 +389,29 @@ model MonthlyClassroomAttendance {
  * memebership of different types
  * delete button with restricted rights
  */
+
+model Donation {
+  id            String   @id @default(cuid())
+  pan           String
+  name          String
+  address       String
+  email         String
+  contact       String
+  reason        String
+  method        String
+  amount        Decimal  @db.Decimal(12, 2)
+  date          DateTime
+  receiptNumber String   @unique
+  transactionId String   @unique
+
+  @@index([date])
+  @@index([email])
+  @@map("donation")
+}
+
+model Counter {
+  financialYear String @id
+  seq           Int
+
+  @@map("counter")
+}

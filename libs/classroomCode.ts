@@ -2,10 +2,10 @@
 // - S: first letter of Centre.state (uppercased)
 // - NN: numeric part extracted from Centre.code (e.g., SP01 -> 01)
 // - SEC: JR | SR
-
+// - SS: serial per (centreId, section), 2-digits starting at 01
 import { Prisma, SectionCode } from "@prisma/client";
 
-// - SS: serial per (centreId, section), 2-digits starting at 01
+
 export async function generateClassroomCode(
   tx: Prisma.TransactionClient,
   centreId: string,

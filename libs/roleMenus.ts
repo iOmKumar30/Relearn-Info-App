@@ -1,12 +1,14 @@
+
 import {
   BuildingStorefrontIcon,
   ClipboardIcon,
+  DocumentCurrencyRupeeIcon,
   UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import { UserPlusIcon } from "@heroicons/react/24/solid";
+import { FaDonate } from "react-icons/fa";
 
-// gonna add more roles and their menus as needed
 export const roles = [
   "ADMIN",
   "FACILITATOR",
@@ -19,58 +21,71 @@ export interface NavItem {
   label: string;
   href: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  external?: boolean;
+  sso?: boolean; 
 }
 
 export const roleMenus: Record<Role, NavItem[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     { label: "Centres", href: "/centres", icon: BuildingStorefrontIcon },
-    {
-      label: "Classrooms",
-      href: "/classrooms",
-      icon: BuildingStorefrontIcon,
-    },
+    { label: "Classrooms", href: "/classrooms", icon: BuildingStorefrontIcon },
     { label: "Users", href: "/users", icon: UsersIcon },
-    {
-      label: "Facilitators",
-      href: "/facilitators",
-      icon: UserCircleIcon,
-    },
+    { label: "Facilitators", href: "/facilitators", icon: UserCircleIcon },
     { label: "Tutors", href: "/tutors", icon: UserCircleIcon },
     { label: "Employees", href: "/employees", icon: UserCircleIcon },
+    { label: "Pending Users", href: "/pending-users", icon: UserPlusIcon },
+
+    // Public donation page (plain external link)
     {
-      label: "Pending Users",
-      href: "/pending-users",
-      icon: UserPlusIcon,
+      label: "Donate",
+      href: "https://rzp-payment-serverless.vercel.app",
+      icon: FaDonate as any,
+      external: true,
+    },
+
+    // Donations admin (SSO flow via internal issuer endpoint)
+    {
+      label: "Donations",
+      href: "/api/admin/donations/sso",
+      icon: DocumentCurrencyRupeeIcon,
+      sso: true, // trigger SSO handler in sidebar
+      external: true, // render as non-Link styling; open in new tab
     },
   ],
 
   FACILITATOR: [
     { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     { label: "Centres", href: "/centres", icon: BuildingStorefrontIcon },
-    {
-      label: "Classrooms",
-      href: "/classrooms",
-      icon: BuildingStorefrontIcon,
-    },
+    { label: "Classrooms", href: "/classrooms", icon: BuildingStorefrontIcon },
     { label: "Users", href: "/users", icon: UsersIcon },
+    {
+      label: "Donations",
+      href: "https://rzp-payment-serverless.vercel.app",
+      icon: FaDonate as any,
+      external: true,
+    },
   ],
 
   TUTOR: [
     { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
+    { label: "Classrooms", href: "/classrooms", icon: BuildingStorefrontIcon },
     {
-      label: "Classrooms",
-      href: "/classrooms",
-      icon: BuildingStorefrontIcon,
+      label: "Donations",
+      href: "https://rzp-payment-serverless.vercel.app",
+      icon: FaDonate as any,
+      external: true,
     },
   ],
 
   RELF_EMPLOYEE: [
     { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
+    { label: "Facilitators", href: "/facilitators", icon: UserCircleIcon },
     {
-      label: "Facilitators",
-      href: "/facilitators",
-      icon: UserCircleIcon,
+      label: "Donations",
+      href: "https://rzp-payment-serverless.vercel.app",
+      icon: FaDonate as any,
+      external: true,
     },
   ],
 };
