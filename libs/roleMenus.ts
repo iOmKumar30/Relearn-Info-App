@@ -1,7 +1,7 @@
-
 import {
   BuildingStorefrontIcon,
   ClipboardIcon,
+  DocumentCheckIcon,
   DocumentCurrencyRupeeIcon,
   UserCircleIcon,
   UsersIcon,
@@ -22,7 +22,7 @@ export interface NavItem {
   href: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
   external?: boolean;
-  sso?: boolean; 
+  sso?: boolean;
 }
 
 export const roleMenus: Record<Role, NavItem[]> = {
@@ -35,7 +35,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Tutors", href: "/tutors", icon: UserCircleIcon },
     { label: "Employees", href: "/employees", icon: UserCircleIcon },
     { label: "Pending Users", href: "/pending-users", icon: UserPlusIcon },
-
+    {
+      label: "Certificates",
+      href: "/admin/certificates",
+      icon: DocumentCheckIcon,
+    },
     // Public donation page (plain external link)
     {
       label: "Donate",

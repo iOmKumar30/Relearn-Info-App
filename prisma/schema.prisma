@@ -56,6 +56,8 @@ enum RoleName {
   TUTOR
   FACILITATOR
   RELF_EMPLOYEE
+  TUTOR_OF_TUTOR
+  MEMBER
 }
 
 enum OnboardingStatus {
@@ -414,4 +416,77 @@ model Counter {
   seq           Int
 
   @@map("counter")
+}
+
+enum KPIValueSource {
+  MANUAL
+  AUTO
+}
+
+enum KPIUnit {
+  COUNT // raw numbers
+  PERCENT // store as decimal 0..1
+  LAKHS // currency-like values
+}
+
+model KPI {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  unit        KPIUnit
+  description String?
+  active      Boolean  @default(true)
+  category    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  values  KPIMonthlyValue[]
+  targets KPIFiscalTarget[]
+}
+
+model KPIMonthlyValue {
+  id        String         @id @default(cuid())
+  kpiId     String
+  kpi       KPI            @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  month     DateTime
+  value     Float
+  source    KPIValueSource
+  notes     String?
+  userId    String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([kpiId, month, source])
+}
+
+model KPIFiscalTarget {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  fiscalLabel String
+  startDate   DateTime
+  endDate     DateTime
+  targetValue Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([kpiId, fiscalLabel])
+}
+
+model MembershipCertificate {
+  id            String   @id @default(cuid())
+  name          String
+  year          String // e.g., "2025-26" or "2025"
+  dateIssued    DateTime // the date printed on certificate
+  // Store a stable certificate number for external reference if needed
+  certificateNo String   @unique
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([year])
+  @@index([dateIssued])
 }
