@@ -34,17 +34,29 @@ export async function GET(req: Request) {
 
   // Direct facet filters
   const centreIdRaw = searchParams.get("centreId") || undefined;
+
+  // here centreId param as Centre Code(s)
+  // if centreIdRaw is a comma separated list of codes, split it and filter out empty strings
   let centreIds: string[] | undefined = undefined;
   if (centreIdRaw) {
-    if (centreIdRaw.includes(",")) {
-      centreIds = centreIdRaw
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    } else {
-      centreIds = [centreIdRaw];
+    const codes = centreIdRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (codes.length > 0) {
+      const centres = await prisma.centre.findMany({
+        where: { code: { in: codes } },
+        select: { id: true },
+      });
+      centreIds = centres.map((c) => c.id);
+      // If no centres match the given codes, force an empty result quickly
+      if (centreIds.length === 0) {
+        return NextResponse.json({ page, pageSize, total: 0, rows: [] });
+      }
     }
   }
+
   const sectionParam = (searchParams.get("section") || "").toUpperCase();
   const timingParam = (searchParams.get("timing") || "").toUpperCase();
   const statusParam = (searchParams.get("status") || "").toUpperCase();
@@ -73,7 +85,6 @@ export async function GET(req: Request) {
       ? {
           OR: [
             { code: { contains: q, mode: "insensitive" } },
-            // Optional enum matches from q
             (["JR", "SR"] as const).includes(q.toUpperCase() as any)
               ? ({
                   section: q.toUpperCase() as SectionCode,
@@ -89,9 +100,7 @@ export async function GET(req: Request) {
                   status: q.toUpperCase() as ClassroomStatus,
                 } as Prisma.ClassroomWhereInput)
               : undefined,
-            {
-              streetAddress: { contains: q, mode: "insensitive" },
-            },
+            { streetAddress: { contains: q, mode: "insensitive" } },
             { city: { contains: q, mode: "insensitive" } },
             { district: { contains: q, mode: "insensitive" } },
             { pincode: { contains: q, mode: "insensitive" } },
