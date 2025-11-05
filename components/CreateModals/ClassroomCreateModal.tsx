@@ -1,9 +1,9 @@
 "use client";
 
+import StateSelect from "@/components/CrudControls/StateSelect";
 import { Modal, ModalBody, ModalHeader } from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
-// Simple debounce hook
 function useDebounce<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -24,7 +24,7 @@ type FormState = {
   street_address: string;
   city: string;
   district: string;
-  state: string;
+  state: string; // stores full state name (e.g., "Karnataka")
   pincode: string;
   monthly_allowance: number | ""; // controlled-safe for number input
   timing: string; // "Morning" | "Evening"
@@ -71,7 +71,7 @@ type CentreHit = {
   code: string;
   name: string;
   city?: string | null;
-  state: string;
+  state: string; // assumed full state name in your API results
 };
 
 export default function ClassroomCreateModal({
@@ -85,19 +85,18 @@ export default function ClassroomCreateModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   // Autocomplete search term and results
-  const [centreQuery, setCentreQuery] = useState<string>(""); // always string
+  const [centreQuery, setCentreQuery] = useState<string>("");
   const debouncedCentreQuery = useDebounce(centreQuery, 300);
   const [centreLoading, setCentreLoading] = useState<boolean>(false);
   const [centreItems, setCentreItems] = useState<CentreHit[]>([]);
   const [centreOpen, setCentreOpen] = useState<boolean>(false);
 
-  // Normalize helper to prevent undefined/null
+  // Normalize helpers
   function normStr(v: unknown): string {
     return typeof v === "string" ? v : "";
   }
   function normNumOrEmpty(v: unknown): number | "" {
     if (typeof v === "number" && Number.isFinite(v)) return v;
-    // Accept string numbers from initialValues: "123" -> 123
     if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
       return Number(v);
     }
@@ -116,7 +115,7 @@ export default function ClassroomCreateModal({
         street_address: normStr(initialValues.street_address),
         city: normStr(initialValues.city),
         district: normStr(initialValues.district),
-        state: normStr(initialValues.state),
+        state: normStr(initialValues.state), // full state name preserved
         pincode: normStr(initialValues.pincode),
         monthly_allowance: normNumOrEmpty(initialValues.monthly_allowance),
         timing: normStr(initialValues.timing),
@@ -166,7 +165,6 @@ export default function ClassroomCreateModal({
 
     const { classroom_id, monthly_allowance, ...rest } = form;
 
-    // parse number safely
     const parsedAllowance =
       monthly_allowance === ""
         ? 0
@@ -238,6 +236,9 @@ export default function ClassroomCreateModal({
                                 ...prev,
                                 centre_id: c.id,
                                 centre_name: label,
+                                // Optionally prefill address/state if you want:
+                                // state: c.state,
+                                // city: c.city ?? prev.city,
                               }));
                               setCentreOpen(false);
                             }}
@@ -318,12 +319,9 @@ export default function ClassroomCreateModal({
               <label className="mb-1 block text-sm font-medium text-white">
                 State
               </label>
-              <input
-                required
-                value={form.state}
-                onChange={(e) => handleChange("state", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
-                placeholder="Enter State"
+              <StateSelect
+                value={form.state || null} // full state name
+                onChange={(fullName) => handleChange("state", fullName || "")}
               />
             </div>
             <div>
@@ -394,7 +392,6 @@ export default function ClassroomCreateModal({
                 form.monthly_allowance === "" ? "" : form.monthly_allowance
               }
               onChange={(e) => {
-                // Use raw string then normalize
                 const v = e.target.value;
                 if (v === "") {
                   handleChange("monthly_allowance", "");
@@ -468,7 +465,7 @@ export default function ClassroomCreateModal({
             <button
               type="submit"
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              disabled={!form.centre_id} // enforce deterministic centre selection
+              disabled={!form.centre_id}
             >
               {isEdit ? "Save changes" : "Create"}
             </button>

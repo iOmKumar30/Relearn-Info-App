@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -23,9 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [
@@ -33,14 +27,10 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "types/next-auth.d.ts"
+    "types/next-auth.d.ts",
+    "scripts/migrations/2025-11-05-recode-classrooms.js"
   ],
-  "typeRoots": [
-    "./types",
-    "./node_modules/@types"
-  ],
+  "typeRoots": ["./types", "./node_modules/@types"],
   "ignoreDeprecations": "6.0",
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

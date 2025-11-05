@@ -23,6 +23,9 @@ export default function DataTable({
   actions,
   onRowClick,
 }: DataTableProps) {
+  // Prepend S. No. to header and rows
+  const totalHeadCols = 1 + columns.length + (actions ? 1 : 0);
+
   return (
     <div className="rounded-2xl shadow-md border border-gray-200 overflow-hidden">
       <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
@@ -32,6 +35,12 @@ export default function DataTable({
             className="sticky top-0 z-10 bg-gray-100 shadow-sm"
           >
             <TableRow>
+              {/* S. No. column header */}
+              <TableHeadCell className="w-20 px-6 py-3 font-bold text-gray-700 uppercase tracking-wider text-sm">
+                S. No.
+              </TableHeadCell>
+
+              {/* Remaining headers */}
               {columns.map((col) => (
                 <TableHeadCell
                   key={col.key}
@@ -52,7 +61,7 @@ export default function DataTable({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length + (actions ? 1 : 0)}
+                  colSpan={totalHeadCols}
                   className="py-8 text-center text-gray-500"
                 >
                   <div className="flex flex-col items-center gap-2">
@@ -82,11 +91,19 @@ export default function DataTable({
                   } transition-colors duration-200`}
                   onClick={() => onRowClick?.(row)}
                 >
+                  {/* S. No. cell */}
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-gray-700">
+                    {i + 1}
+                  </TableCell>
+
+                  {/* Data cells */}
                   {columns.map((col) => (
                     <TableCell key={col.key} className="px-6 py-4">
                       {row[col.key]}
                     </TableCell>
                   ))}
+
+                  {/* Actions cell */}
                   {actions && (
                     <TableCell
                       className="px-6 py-4"

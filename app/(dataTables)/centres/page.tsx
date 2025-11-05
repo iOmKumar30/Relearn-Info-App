@@ -26,13 +26,22 @@ type CentreRow = {
   status: "ACTIVE" | "INACTIVE";
   dateAssociated: string;
   dateLeft: string | null;
+  // NEW: facilitator received from API
+  facilitator: {
+    assignmentId: string;
+    userId: string;
+    name: string | null;
+    email: string | null;
+    startDate: string;
+  } | null;
 };
 
-// Table columns: keys map to render-friendly keys below
+// Table columns: Facilitator inserted right after Street Address
 const columns = [
   { key: "code", label: "Centre Code" },
   { key: "name", label: "Name" },
   { key: "streetAddress", label: "Street Address" },
+  { key: "facilitator", label: "Facilitator" }, // NEW
   { key: "city", label: "City" },
   { key: "district", label: "District" },
   { key: "state", label: "State" },
@@ -76,6 +85,7 @@ export default function CentresPage() {
     null
   );
   const debouncedSearch = useDebounce(search, 800);
+
   // Build query string for list endpoint
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/centres", window.location.origin);
@@ -108,23 +118,45 @@ export default function CentresPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Render-friendly mapping (status badge, date formatting)
+  // Render-friendly mapping (status badge, date formatting, facilitator cell)
   const rows = useMemo(() => {
-    return (data?.rows ?? []).map((r) => ({
-      ...r,
-      status: (
-        <Badge
-          color={r.status === "ACTIVE" ? "success" : "gray"}
-          className="uppercase"
-        >
-          {r.status}
-        </Badge>
-      ),
-      dateAssociated: r.dateAssociated
-        ? new Date(r.dateAssociated).toLocaleDateString()
-        : "",
-      dateLeft: r.dateLeft ? new Date(r.dateLeft).toLocaleDateString() : "",
-    }));
+    return (data?.rows ?? []).map((r) => {
+      // Facilitator cell UI
+      const facCell = r.facilitator ? (
+        <div className="flex flex-col">
+          <span className="font-medium text-gray-800">
+            {r.facilitator.name || "Unnamed"}
+          </span>
+          {r.facilitator.email && (
+            <span className="text-xs text-gray-600">{r.facilitator.email}</span>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">—</span>
+          <Badge color="warning">Add</Badge>
+        </div>
+      );
+
+      return {
+        ...r,
+        facilitator: facCell, // map object → JSX
+        status: (
+          <Badge
+            color={r.status === "ACTIVE" ? "success" : "gray"}
+            className="uppercase"
+          >
+            {r.status}
+          </Badge>
+        ),
+        dateAssociated: r.dateAssociated
+          ? new Date(r.dateAssociated).toLocaleDateString("en-GB")
+          : "",
+        dateLeft: r.dateLeft
+          ? new Date(r.dateLeft).toLocaleDateString("en-GB")
+          : "",
+      };
+    });
   }, [data]);
 
   // Create handler
@@ -147,7 +179,7 @@ export default function CentresPage() {
             ? "INACTIVE"
             : "ACTIVE",
         dateAssociated:
-          payload?.date_associated ?? payload?.dateAssociated ?? "", // allow string "YYYY-MM-DD"
+          payload?.date_associated ?? payload?.dateAssociated ?? "",
         dateLeft: payload?.date_left
           ? String(payload.date_left).trim() || null
           : payload?.dateLeft
@@ -155,13 +187,12 @@ export default function CentresPage() {
           : null,
       };
 
-      // Normalize dates: allow "YYYY-MM-DD" strings or Date-compatible strings
+      // Normalize dates
       if (
         typeof body.dateAssociated === "string" &&
         body.dateAssociated.length > 0
       ) {
-        // Backend accepts string; if you prefer Date objects, convert here:
-        // body.dateAssociated = new Date(body.dateAssociated).toISOString();
+        // keep as string; backend can parse
       } else if (!body.dateAssociated) {
         body.dateAssociated = new Date().toISOString();
       }
@@ -169,7 +200,7 @@ export default function CentresPage() {
         body.dateLeft = null;
       }
 
-      // Minimal client-side required field checks to surface issues early
+      // required checks
       if (!body.name || !body.streetAddress || !body.state || !body.pincode) {
         throw new Error(
           "Please fill name, street address, state, and pincode."
@@ -197,9 +228,7 @@ export default function CentresPage() {
     try {
       setLoading(true);
       setError(null);
-      // Map UI form fields → API expected fields (camelCase + enums)
       const body = {
-        // Only include fields that are present to avoid unintended overwrites
         ...(payload?.name !== undefined && {
           name: String(payload.name).trim(),
         }),
@@ -249,18 +278,14 @@ export default function CentresPage() {
         }),
       };
 
-      if ("name" in body && !body.name) {
+      if ("name" in body && !body.name)
         throw new Error("Name cannot be empty.");
-      }
-      if ("streetAddress" in body && !body.streetAddress) {
+      if ("streetAddress" in body && !body.streetAddress)
         throw new Error("Street address cannot be empty.");
-      }
-      if ("state" in body && !body.state) {
+      if ("state" in body && !body.state)
         throw new Error("State cannot be empty.");
-      }
-      if ("pincode" in body && !body.pincode) {
+      if ("pincode" in body && !body.pincode)
         throw new Error("Pincode cannot be empty.");
-      }
 
       const res = await fetch(`/api/admin/centres/${centreId}`, {
         method: "PUT",
@@ -306,7 +331,6 @@ export default function CentresPage() {
         size="xs"
         color="blue"
         onClick={() => {
-          // map back DataTable row to raw values for modal
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setEditRow(raw);
@@ -352,7 +376,7 @@ export default function CentresPage() {
             filters={centreFilters}
             onFilterChange={(f) => {
               setFilters(f);
-              setPage(1); // reset paging when filters change
+              setPage(1);
             }}
           />
         </div>

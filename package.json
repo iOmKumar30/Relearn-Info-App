@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "db:seed:kpi": "tsx prisma/seed-kpi.ts"
+    "db:seed:kpi": "tsx prisma/seed-kpi.ts",
+    "recode:classrooms": "node scripts/migrations/2025-11-05-recode-classrooms.js"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

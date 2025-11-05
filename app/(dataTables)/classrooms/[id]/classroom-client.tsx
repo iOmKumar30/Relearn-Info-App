@@ -122,7 +122,7 @@ export default function ClassroomProfileClient({
   const renderActions = (row: any) =>
     !row.end ? (
       <Button size="xs" color="light" onClick={() => closeAssignment(row.id)}>
-        Close
+        No Longer Teaching
       </Button>
     ) : null;
 

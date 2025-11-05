@@ -230,7 +230,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         color="light"
         onClick={() => closeFacilitatorLink(row.id)}
       >
-        Close
+        No Longer Associated
       </Button>
     ) : (
       <Button

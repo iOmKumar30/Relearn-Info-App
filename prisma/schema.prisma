@@ -96,6 +96,11 @@ model Centre {
   @@index([status])
 }
 
+model CentreCodeCounter {
+  state String @id
+  seq   Int
+}
+
 model Classroom {
   id               String          @id @default(uuid())
   //  J1-JR-001
@@ -121,7 +126,7 @@ model Classroom {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([centreId])
+  @@index([centreId, section])
   @@index([status, section, timing])
 }
 

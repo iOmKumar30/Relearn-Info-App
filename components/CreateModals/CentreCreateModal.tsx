@@ -1,18 +1,19 @@
 "use client";
 
+import StateSelect from "@/components/CrudControls/StateSelect";
+import { ALL_STATE_OPTIONS } from "@/libs/geo/stateCodes";
 import { Modal, ModalBody, ModalHeader } from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
 type Status = "Active" | "Inactive";
 
 type FormState = {
-  // centre_id is generated server-side (for create), present for edit
   centre_id?: string;
   name: string;
   street_address: string;
   city: string;
   district: string;
-  state: string;
+  state: string; // now stores full state name, e.g., "Karnataka"
   pincode: string;
   status: Status;
   date_associated: string;
@@ -23,10 +24,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
 
-  // Create
   onCreate?: (payload: Omit<FormState, "centre_id">) => void;
 
-  // Edit
   mode?: "create" | "edit";
   initialValues?: Partial<FormState>;
   onUpdate?: (centre_id: string, payload: Omit<FormState, "centre_id">) => void;
@@ -37,7 +36,7 @@ const EMPTY_FORM: FormState = {
   street_address: "",
   city: "",
   district: "",
-  state: "",
+  state: "", // full name
   pincode: "",
   status: "Active",
   date_associated: "",
@@ -65,7 +64,15 @@ export default function CentreCreateModal({
         street_address: initialValues.street_address || "",
         city: initialValues.city || "",
         district: initialValues.district || "",
-        state: initialValues.state || "",
+        // Accept either a full name or a code from incoming data; normalize to full name
+        state: (() => {
+          const incoming = initialValues.state || "";
+          if (!incoming) return "";
+          const byCode = ALL_STATE_OPTIONS.find(
+            (o) => o.code === incoming
+          )?.name;
+          return byCode || incoming; // if already full name, keep it
+        })(),
         pincode: initialValues.pincode || "",
         status: (initialValues.status as Status) || "Active",
         date_associated: initialValues.date_associated || "",
@@ -162,12 +169,9 @@ export default function CentreCreateModal({
               <label className="mb-1 block text-sm font-medium text-white">
                 State
               </label>
-              <input
-                required
-                value={form.state}
-                onChange={(e) => handleChange("state", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
-                placeholder="Enter State"
+              <StateSelect
+                value={form.state || null} // full name
+                onChange={(fullName) => handleChange("state", fullName || "")}
               />
             </div>
             <div>

@@ -89,6 +89,25 @@ export async function GET(req: Request) {
                   status: q.toUpperCase() as ClassroomStatus,
                 } as Prisma.ClassroomWhereInput)
               : undefined,
+            {
+              streetAddress: { contains: q, mode: "insensitive" },
+            },
+            { city: { contains: q, mode: "insensitive" } },
+            { district: { contains: q, mode: "insensitive" } },
+            { pincode: { contains: q, mode: "insensitive" } },
+            {
+              tutorAssignments: {
+                some: {
+                  endDate: null,
+                  user: {
+                    OR: [
+                      { name: { contains: q, mode: "insensitive" } },
+                      { email: { contains: q, mode: "insensitive" } },
+                    ],
+                  },
+                },
+              },
+            },
             // Centre fields
             { centre: { name: { contains: q, mode: "insensitive" } } },
             { centre: { code: { contains: q, mode: "insensitive" } } },
@@ -127,7 +146,7 @@ export async function GET(req: Request) {
         createdAt: true,
         updatedAt: true,
         tutorAssignments: {
-          where: { endDate: null},
+          where: { endDate: null },
           take: 1,
           orderBy: { startDate: "desc" },
           select: {

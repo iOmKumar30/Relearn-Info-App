@@ -1,0 +1,57 @@
+export type StateCode = keyof typeof STATE_CODES;
+
+// Canonical 2-letter codes for Indian states/UTs (ISO-like; customize if your org differs).
+export const STATE_CODES = {
+  AN: "Andaman and Nicobar Islands",
+  AP: "Andhra Pradesh",
+  AR: "Arunachal Pradesh",
+  AS: "Assam",
+  BR: "Bihar",
+  CH: "Chandigarh",
+  CT: "Chhattisgarh",
+  DN: "Dadra and Nagar Haveli and Daman and Diu",
+  DL: "Delhi",
+  GA: "Goa",
+  GJ: "Gujarat",
+  HR: "Haryana",
+  HP: "Himachal Pradesh",
+  JK: "Jammu and Kashmir",
+  JH: "Jharkhand",
+  KA: "Karnataka",
+  KL: "Kerala",
+  LA: "Ladakh",
+  LD: "Lakshadweep",
+  MP: "Madhya Pradesh",
+  MH: "Maharashtra",
+  MN: "Manipur",
+  ML: "Meghalaya",
+  MZ: "Mizoram",
+  NL: "Nagaland",
+  OD: "Odisha",
+  PY: "Puducherry",
+  PB: "Punjab",
+  RJ: "Rajasthan",
+  SK: "Sikkim",
+  TN: "Tamil Nadu",
+  TS: "Telangana",
+  TR: "Tripura",
+  UP: "Uttar Pradesh",
+  UT: "Uttarakhand",
+  WB: "West Bengal",
+} as const;
+
+export const ALL_STATE_OPTIONS = Object.entries(STATE_CODES).map(
+  ([code, name]) => ({
+    code,
+    name,
+    label: `${name} (${code})`,
+  })
+);
+
+export function resolveStateCodeByName(input: string): string | null {
+  const trimmed = input.trim().toLowerCase();
+  for (const [code, name] of Object.entries(STATE_CODES)) {
+    if (name.toLowerCase() === trimmed) return code;
+  }
+  return null;
+}

@@ -1,28 +1,14 @@
 import { authOptions } from "@/libs/authOptions";
+import { nextCentreCodeForState } from "@/libs/centres/codeGen";
+import { STATE_CODES } from "@/libs/geo/stateCodes";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { CentreStatus, Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// Simple sequential code generator "SP01", "SP02", ...
-async function generateCentreCode() {
-  const last = await prisma.centre.findFirst({
-    orderBy: { createdAt: "desc" },
-    select: { code: true },
-  });
-  const prefix = "SP";
-  const width = 2;
-  let nextNum = 1;
-  if (last?.code?.startsWith(prefix)) {
-    const num = parseInt(last.code.slice(prefix.length), 10);
-    if (!isNaN(num)) nextNum = num + 1;
-  }
-  const padded = String(nextNum).padStart(width, "0");
-  return `${prefix}${padded}`;
-}
-
 // GET /api/admin/centres?page=&pageSize=&q=&status=&state=&city=&district=
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -91,14 +77,59 @@ export async function GET(req: Request) {
         dateLeft: true,
         createdAt: true,
         updatedAt: true,
+
+        // Include current (active) facilitator assignment, most recent by startDate
+        facilitatorLinks: {
+          where: { endDate: null },
+          orderBy: { startDate: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            startDate: true,
+            endDate: true,
+          },
+        },
       },
     }),
   ]);
 
-  return NextResponse.json({ page, pageSize, total, rows });
+  // Flatten for convenience: expose facilitator as a single object or null
+  const shaped = rows.map((c) => {
+    const currentFac = c.facilitatorLinks?.[0]
+      ? {
+          assignmentId: c.facilitatorLinks[0].id,
+          userId: c.facilitatorLinks[0].user.id,
+          name: c.facilitatorLinks[0].user.name,
+          email: c.facilitatorLinks[0].user.email,
+          startDate: c.facilitatorLinks[0].startDate,
+        }
+      : null;
+
+    // Strip facilitatorLinks array if you prefer a flatter response
+    const { facilitatorLinks, ...rest } = c;
+    return { ...rest, facilitator: currentFac };
+  });
+
+  return NextResponse.json({ page, pageSize, total, rows: shaped });
 }
 
-// POST /api/admin/centres  (create)
+// POST /api/admin/centres (create)
+
+function resolveCodeFromFullName(fullName: string): string | null {
+  const normalized = fullName.trim().toLowerCase();
+  for (const [code, name] of Object.entries(STATE_CODES)) {
+    if (name.toLowerCase() === normalized) return code;
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -110,7 +141,9 @@ export async function POST(req: Request) {
 
   const name = String(body?.name ?? "").trim();
   const streetAddress = String(body?.streetAddress ?? "").trim();
-  const state = String(body?.state ?? "").trim();
+
+  const stateFullName = String(body?.state ?? "").trim();
+
   const pincode = String(body?.pincode ?? "").trim();
   const city = body?.city ? String(body.city).trim() : null;
   const district = body?.district ? String(body.district).trim() : null;
@@ -120,14 +153,22 @@ export async function POST(req: Request) {
     : new Date();
   const dateLeft = body?.dateLeft ? new Date(body.dateLeft) : null;
 
-  if (!name || !streetAddress || !state || !pincode) {
+  if (!name || !streetAddress || !stateFullName || !pincode) {
     return new NextResponse("Missing required fields", { status: 400 });
+  }
+
+  // Map full name -> 2-letter code for code generation
+  const stateCode = resolveCodeFromFullName(stateFullName);
+  if (!stateCode) {
+    return new NextResponse("Invalid state name", { status: 400 });
   }
 
   try {
     const created = await prisma.$transaction(async (tx) => {
-      const code = await generateCentreCode();
+      // Use the state code for generating sequential centre code
+      const code = await nextCentreCodeForState(stateCode);
 
+      // Persist the human-readable full state name in DB (adjust if your schema wants the code)
       const row = await tx.centre.create({
         data: {
           code,
@@ -135,7 +176,7 @@ export async function POST(req: Request) {
           streetAddress,
           city,
           district,
-          state,
+          state: stateFullName, // store full name as requested
           pincode,
           status,
           dateAssociated,
@@ -148,7 +189,7 @@ export async function POST(req: Request) {
           streetAddress: true,
           city: true,
           district: true,
-          state: true,
+          state: true, // returns full name
           pincode: true,
           status: true,
           dateAssociated: true,
