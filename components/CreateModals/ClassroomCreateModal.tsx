@@ -20,7 +20,7 @@ type FormState = {
   classroom_id: string; // normalized to string, never undefined
   centre_id: string; // normalized to string, never undefined
   centre_name: string;
-  section_code: string; // "Junior" | "Senior"
+  section_code: string; // "Junior" | "Senior" | "BOTH"
   street_address: string;
   city: string;
   district: string;
@@ -357,6 +357,7 @@ export default function ClassroomCreateModal({
                 </option>
                 <option value="Junior">Junior</option>
                 <option value="Senior">Senior</option>
+                <option value="Both">Both</option>
               </select>
             </div>
             <div>

@@ -127,9 +127,13 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           <Badge color="pink" className="uppercase">
             JR
           </Badge>
-        ) : (
+        ) : r.section === "SR" ? (
           <Badge color="purple" className="uppercase">
             SR
+          </Badge>
+        ) : (
+          <Badge color="indigo" className="uppercase">
+            JR/SR
           </Badge>
         ),
       timing:

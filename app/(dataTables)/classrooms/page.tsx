@@ -15,10 +15,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 type ClassroomRow = {
   id: string;
-  code: string; // e.g., "J01-JR-01"
+  code: string;
   centreId: string;
   centre: { id: string; code: string; name: string; state: string };
-  section: "JR" | "SR";
+  section: "JR" | "SR" | "BOTH";
   streetAddress: string;
   city: string;
   district: string;
@@ -73,7 +73,7 @@ const classroomFilters: FilterOption[] = [
     type: "select",
     options: ["MORNING", "EVENING"],
   },
-  { key: "centreId", label: "Centre ID", type: "text" }, // optional direct centre filter
+  { key: "code", label: "Centre Code", type: "text" }, // optional direct centre filter
 ];
 
 export default function ClassroomsPage() {
@@ -106,7 +106,7 @@ export default function ClassroomsPage() {
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
     if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
-    if (filters.centreId) url.searchParams.set("centreId", filters.centreId);
+    if (filters.code) url.searchParams.set("centreCode", filters.code);
     if (filters.section) url.searchParams.set("section", filters.section);
     if (filters.timing) url.searchParams.set("timing", filters.timing);
     if (filters.status) url.searchParams.set("status", filters.status);
@@ -148,9 +148,13 @@ export default function ClassroomsPage() {
           <Badge color="pink" className="uppercase">
             JR
           </Badge>
-        ) : (
+        ) : r.section === "SR" ? (
           <Badge color="purple" className="uppercase">
             SR
+          </Badge>
+        ) : (
+          <Badge color="indigo" className="uppercase">
+            JR/SR
           </Badge>
         ),
       timing:
@@ -200,7 +204,7 @@ export default function ClassroomsPage() {
   const handleCreate = async (payload: {
     centre_id?: string;
     centre_name: string;
-    section_code: string; // "Junior" | "Senior"
+    section_code: string; // "Junior" | "Senior" | "Both"
     street_address: string;
     city: string;
     district: string;
@@ -240,7 +244,9 @@ export default function ClassroomsPage() {
         centreId,
         section: payload.section_code.toUpperCase().startsWith("J")
           ? "JR"
-          : "SR",
+          : payload.section_code.toUpperCase().startsWith("S")
+          ? "SR"
+          : "BOTH",
         timing: payload.timing.toUpperCase().startsWith("M")
           ? "MORNING"
           : "EVENING",
@@ -316,7 +322,9 @@ export default function ClassroomsPage() {
         centreId,
         section: payload.section_code.toUpperCase().startsWith("J")
           ? "JR"
-          : "SR",
+          : payload.section_code.toUpperCase().startsWith("S")
+          ? "SR"
+          : "BOTH",
         timing: payload.timing.toUpperCase().startsWith("M")
           ? "MORNING"
           : "EVENING",

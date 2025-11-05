@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 console.log("prisma import type:", typeof prisma);
 
 // GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
+// GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&centreCode=&section=&timing=&status=
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -30,41 +31,58 @@ export async function GET(req: Request) {
     100,
     Math.max(1, Number(searchParams.get("pageSize") || 20))
   );
-  const q = (searchParams.get("q") || "").trim();
+  const qRaw = (searchParams.get("q") || "").trim();
 
-  // Direct facet filters
-  const centreIdRaw = searchParams.get("centreId") || undefined;
+  // Independent filters
+  const centreIdRaw = searchParams.get("centreId") || ""; // comma-separated Centre IDs
+  const centreCodeRaw = searchParams.get("centreCode") || ""; // comma-separated Centre codes (e.g., JH01, WB02)
 
-  // here centreId param as Centre Code(s)
-  // if centreIdRaw is a comma separated list of codes, split it and filter out empty strings
-  let centreIds: string[] | undefined = undefined;
-  if (centreIdRaw) {
-    const codes = centreIdRaw
+  // Parse centreId list (IDs)
+  const centreIdList = centreIdRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Parse centreCode list and resolve to IDs
+  let centreIdsFromCodes: string[] = [];
+  if (centreCodeRaw) {
+    const codes = centreCodeRaw
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-
     if (codes.length > 0) {
       const centres = await prisma.centre.findMany({
         where: { code: { in: codes } },
         select: { id: true },
       });
-      centreIds = centres.map((c) => c.id);
-      // If no centres match the given codes, force an empty result quickly
-      if (centreIds.length === 0) {
-        return NextResponse.json({ page, pageSize, total: 0, rows: [] });
-      }
+      centreIdsFromCodes = centres.map((c) => c.id);
     }
   }
 
+  // Combine centreId filters if both provided
+  let finalCentreIds: string[] | undefined = undefined;
+  if (centreIdList.length > 0 && centreIdsFromCodes.length > 0) {
+    // Intersection if both params are given
+    const set = new Set(centreIdList);
+    finalCentreIds = centreIdsFromCodes.filter((id) => set.has(id));
+    if (finalCentreIds.length === 0) {
+      return NextResponse.json({ page, pageSize, total: 0, rows: [] });
+    }
+  } else if (centreIdList.length > 0) {
+    finalCentreIds = centreIdList;
+  } else if (centreIdsFromCodes.length > 0) {
+    finalCentreIds = centreIdsFromCodes;
+  }
+
+  // Enum params
   const sectionParam = (searchParams.get("section") || "").toUpperCase();
   const timingParam = (searchParams.get("timing") || "").toUpperCase();
   const statusParam = (searchParams.get("status") || "").toUpperCase();
 
-  const section =
-    sectionParam === "JR" || sectionParam === "SR"
-      ? (sectionParam as SectionCode)
-      : undefined;
+  const validSections = new Set(["JR", "SR", "BOTH"]);
+  const section = validSections.has(sectionParam)
+    ? (sectionParam as SectionCode)
+    : undefined;
 
   const timing =
     timingParam === "MORNING" || timingParam === "EVENING"
@@ -76,8 +94,12 @@ export async function GET(req: Request) {
       ? (statusParam as ClassroomStatus)
       : undefined;
 
+  // Text query facets
+  const q = qRaw;
+  const qUp = q.toUpperCase();
+
   const where: Prisma.ClassroomWhereInput = {
-    ...(centreIds ? { centreId: { in: centreIds } } : {}),
+    ...(finalCentreIds ? { centreId: { in: finalCentreIds } } : {}),
     ...(section ? { section } : {}),
     ...(timing ? { timing } : {}),
     ...(status ? { status } : {}),
@@ -85,19 +107,15 @@ export async function GET(req: Request) {
       ? {
           OR: [
             { code: { contains: q, mode: "insensitive" } },
-            (["JR", "SR"] as const).includes(q.toUpperCase() as any)
-              ? ({
-                  section: q.toUpperCase() as SectionCode,
-                } as Prisma.ClassroomWhereInput)
+            validSections.has(qUp)
+              ? ({ section: qUp as SectionCode } as Prisma.ClassroomWhereInput)
               : undefined,
-            (["MORNING", "EVENING"] as const).includes(q.toUpperCase() as any)
-              ? ({
-                  timing: q.toUpperCase() as ClassTiming,
-                } as Prisma.ClassroomWhereInput)
+            (["MORNING", "EVENING"] as const).includes(qUp as any)
+              ? ({ timing: qUp as ClassTiming } as Prisma.ClassroomWhereInput)
               : undefined,
-            (["ACTIVE", "INACTIVE"] as const).includes(q.toUpperCase() as any)
+            (["ACTIVE", "INACTIVE"] as const).includes(qUp as any)
               ? ({
-                  status: q.toUpperCase() as ClassroomStatus,
+                  status: qUp as ClassroomStatus,
                 } as Prisma.ClassroomWhereInput)
               : undefined,
             { streetAddress: { contains: q, mode: "insensitive" } },
@@ -162,11 +180,7 @@ export async function GET(req: Request) {
             id: true,
             isSubstitute: true,
             user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+              select: { id: true, name: true, email: true },
             },
           },
         },
@@ -208,7 +222,7 @@ export async function POST(req: Request) {
 
   try {
     const created = await prisma.$transaction(async (tx) => {
-      const code = await generateClassroomCode(tx, centreId, section);
+      const code = await generateClassroomCode(tx, centreId);
 
       const row = await tx.classroom.create({
         data: {

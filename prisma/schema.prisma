@@ -21,6 +21,7 @@ enum ClassroomStatus {
 enum SectionCode {
   JR
   SR
+  BOTH
 }
 
 enum ClassTiming {
@@ -126,8 +127,13 @@ model Classroom {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([centreId, section])
+  @@index([centreId])
   @@index([status, section, timing])
+}
+
+model ClassroomCodeCounter {
+  key String @id // always "GLOBAL"
+  seq Int
 }
 
 model User {

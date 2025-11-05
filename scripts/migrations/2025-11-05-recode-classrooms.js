@@ -1,7 +1,5 @@
-// scripts/migrations/2025-11-05-recode-classrooms.js
-// Rewrites classroom.code to CENTRECODE-SECTION-SS per (centreId, section)
-// - Assumes Centre.code is already migrated (e.g., JH01, WB02)
-// - Serial SS starts at 01 and increments by createdAt ascending per (centreId, section)
+// scripts/migrations/2025-11-05-recode-classrooms-global.js
+// Rewrites classroom.code to CENTRECODE-NN with a global NN by createdAt ascending.
 
 require("dotenv/config");
 const { PrismaClient } = require("@prisma/client");
@@ -14,20 +12,14 @@ async function backfill() {
   });
   const centreCodes = new Map(centres.map((c) => [c.id, c.code]));
 
-  console.log("Loading classrooms...");
+  console.log("Loading classrooms (global ordering)...");
   const classrooms = await prisma.classroom.findMany({
-    select: {
-      id: true,
-      centreId: true,
-      section: true,
-      code: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "asc" }, // deterministic ordering
+    select: { id: true, centreId: true, code: true, createdAt: true },
+    orderBy: { createdAt: "asc" }, // global order
   });
 
   const updates = [];
-  const counters = new Map(); // key = `${centreId}-${section}`
+  let seq = 0;
 
   console.log("Computing new codes...");
   for (const cls of classrooms) {
@@ -39,20 +31,15 @@ async function backfill() {
       });
       continue;
     }
-    const key = `${cls.centreId}-${cls.section}`;
-    const cur = counters.get(key) || 0;
-    const next = cur + 1;
-    counters.set(key, next);
-
-    const serial = String(next).padStart(2, "0");
-    const newCode = `${centreCode}-${cls.section}-${serial}`;
-
+    seq += 1;
+    const serial = String(seq).padStart(2, "0");
+    const newCode = `${centreCode}-${serial}`;
     if (newCode !== cls.code) {
       updates.push({ id: cls.id, code: newCode });
     }
   }
 
-  // Collision guard
+  // Collision guard (paranoia)
   const seen = new Set();
   for (const u of updates) {
     if (seen.has(u.code)) {
@@ -78,12 +65,20 @@ async function backfill() {
     );
   }
 
-  console.log("Backfill complete.");
+  // Sync the runtime counter to the max sequence used
+  console.log("Syncing global counter...");
+  await prisma.classroomCodeCounter.upsert({
+    where: { key: "GLOBAL" },
+    update: { seq },
+    create: { key: "GLOBAL", seq },
+  });
+
+  console.log("Backfill (global) complete. Final seq:", seq);
 }
 
 backfill()
   .catch((e) => {
-    console.error("Backfill error:", e);
+    console.error("Backfill global error:", e);
     process.exit(1);
   })
   .finally(async () => {
