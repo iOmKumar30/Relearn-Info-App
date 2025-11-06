@@ -7,6 +7,12 @@ import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
+import {
+  AppRole,
+  mapBackendRolesToUi,
+  mapUiRolesToBackend,
+  ROLE_LABELS,
+} from "@/libs/roles";
 import { Badge, Button, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,7 +26,7 @@ type Row = {
   address: string | null;
   status: "ACTIVE" | "INACTIVE";
   onboardingStatus: string;
-  roles: string[];
+  roles: string[]; // Backend RoleName[] from API
   createdAt?: string;
 };
 
@@ -31,17 +37,6 @@ const columns = [
   { key: "roles", label: "Roles" },
   { key: "status", label: "Status" },
 ];
-
-// UI role labels → backend RoleName enum
-function mapUiRolesToBackend(roles: string[]): string[] {
-  const map: Record<string, string> = {
-    Tutor: "TUTOR",
-    Facilitator: "FACILITATOR",
-    Employee: "RELF_EMPLOYEE",
-    Admin: "ADMIN",
-  };
-  return (roles || []).map((r) => map[r] || r).filter(Boolean);
-}
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
@@ -59,6 +54,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
+
   // Build list URL with pagination and search
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users", window.location.origin);
@@ -87,38 +83,42 @@ export default function UsersPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Render-friendly mapping
+  // Render-friendly mapping: Convert backend roles to UI labels
   const rows = useMemo(() => {
-    return (data?.rows ?? []).map((u) => ({
-      ...u,
-      roles: (
-        <>
-          {(u.roles || []).map((role: string) => (
-            <Badge key={role} color="info" className="mr-1 uppercase">
-              {role}
-            </Badge>
-          ))}
-        </>
-      ),
-      status: (
-        <Badge
-          color={u.status === "ACTIVE" ? "success" : "gray"}
-          className="uppercase"
-        >
-          {u.status}
-        </Badge>
-      ),
-    }));
+    return (data?.rows ?? []).map((u) => {
+      const uiRoleLabels = mapBackendRolesToUi(u.roles as any); // Convert backend → UI
+
+      return {
+        ...u,
+        roles: (
+          <>
+            {uiRoleLabels.map((label: string) => (
+              <Badge key={label} color="info" className="mr-1 uppercase">
+                {label}
+              </Badge>
+            ))}
+          </>
+        ),
+        status: (
+          <Badge
+            color={u.status === "ACTIVE" ? "success" : "gray"}
+            className="uppercase"
+          >
+            {u.status}
+          </Badge>
+        ),
+      };
+    });
   }, [data]);
 
-  // Create user (assign roles immediately; backend activates and creates credential)
+  // Create user: Convert UI roles → backend before sending
   const handleCreate = async (payload: {
     name: string;
     email: string;
     phone: string;
     address: string;
     status: "ACTIVE" | "INACTIVE";
-    roles: Array<"Tutor" | "Facilitator" | "Employee" | "Admin">;
+    roles: AppRole[]; // UI labels from modal
   }) => {
     try {
       setLoading(true);
@@ -129,7 +129,7 @@ export default function UsersPage() {
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
-        roles: mapUiRolesToBackend(payload.roles),
+        roles: mapUiRolesToBackend(payload.roles), // Convert UI → backend
       };
 
       const res = await fetch("/api/admin/users", {
@@ -147,16 +147,16 @@ export default function UsersPage() {
     }
   };
 
-  // Update user (profile/status only)
+  // Update user (profile/status only; roles not updated here)
   const handleUpdate = async (
     user_id: string,
     payload: {
       name: string;
-      email: string; // not updated here
+      email: string;
       phone: string;
       address: string;
       status: "ACTIVE" | "INACTIVE";
-      roles: string[]; // ignored here; role changes require a separate flow
+      roles: AppRole[]; // ignored
     }
   ) => {
     try {
@@ -236,7 +236,6 @@ export default function UsersPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
-
   const router = useRouter();
 
   return (
@@ -274,6 +273,8 @@ export default function UsersPage() {
           rows={rows}
           actions={renderActions}
           onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+          page={page}
+          pageSize={pageSize}
         />
       )}
 
@@ -287,7 +288,7 @@ export default function UsersPage() {
         />
       </div>
 
-      {/* Create modal (creates user + credential + roles) */}
+      {/* Create modal */}
       <UserCreateModal
         open={createOpen}
         mode="create"
@@ -300,7 +301,7 @@ export default function UsersPage() {
         }
       />
 
-      {/* Edit modal (profile/status only) */}
+      {/* Edit modal (profile/status only; roles ignored) */}
       <UserCreateModal
         open={editOpen}
         mode="edit"
@@ -310,10 +311,10 @@ export default function UsersPage() {
           email: editRow?.email || "",
           phone: editRow?.phone || "",
           address: editRow?.address || "",
-          status: editRow?.status, // "ACTIVE" | "INACTIVE"
-          roles: (Array.isArray(editRow?.roles)
-            ? (editRow?.roles as any)
-            : []) as any, // roles ignored on submit
+          status: editRow?.status,
+          roles: mapBackendRolesToUi((editRow?.roles as any) || []).map(
+            (role) => ROLE_LABELS[role] as AppRole
+          ),
         }}
         onUpdate={(user_id, payload) => handleUpdate(user_id, payload as any)}
         onClose={() => {

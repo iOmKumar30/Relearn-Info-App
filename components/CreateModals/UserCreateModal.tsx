@@ -1,5 +1,6 @@
 "use client";
 
+import { ALL_ROLES, AppRole, ROLE_LABELS } from "@/libs/roles";
 import { Modal, ModalBody, ModalHeader } from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
@@ -16,25 +17,15 @@ interface Props {
   onUpdate?: (user_id: string, payload: Omit<FormState, "user_id">) => void;
 }
 
-type RoleOption = "Tutor" | "Facilitator" | "Employee" | "Admin";
-
 type FormState = {
-  // user_id generated server-side for create; present when editing
   user_id?: string;
   name: string;
   email: string;
   phone: string;
   address: string;
   status: "ACTIVE" | "INACTIVE";
-  roles: RoleOption[];
+  roles: AppRole[]; // use canonical role type
 };
-
-const ALL_ROLES: RoleOption[] = [
-  "Tutor",
-  "Facilitator",
-  "Employee",
-  "Admin",
-];
 
 const EMPTY_FORM: FormState = {
   name: "",
@@ -55,7 +46,6 @@ export default function UserCreateModal({
 }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
-  // Prefill on edit, reset on create
   useEffect(() => {
     if (!open) return;
 
@@ -82,7 +72,7 @@ export default function UserCreateModal({
     value: FormState[K]
   ) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const toggleRole = (role: RoleOption) => {
+  const toggleRole = (role: AppRole) => {
     setForm((prev) => {
       const exists = prev.roles.includes(role);
       return {
@@ -94,42 +84,36 @@ export default function UserCreateModal({
     });
   };
 
-  function toRoleArray(value: any): RoleOption[] {
-    // Already a string[] (or array-like) → coerce each to a valid RoleOption if possible
+  function toRoleArray(value: any): AppRole[] {
+    // Array of strings
     if (Array.isArray(value)) {
       return value
         .map((v) => (typeof v === "string" ? v.trim() : String(v).trim()))
-        .filter(Boolean)
-        .map((v) => v as RoleOption);
+        .filter((v) =>
+          (ALL_ROLES as readonly string[]).includes(v)
+        ) as AppRole[];
     }
-
-    // CSV string → split → trim → cast
+    // CSV string
     if (typeof value === "string" && value.trim().length) {
-      return value
+      const arr = value
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean)
-        .map((v) => v as RoleOption);
+        .filter(Boolean);
+      return arr.filter((v) =>
+        (ALL_ROLES as readonly string[]).includes(v)
+      ) as AppRole[];
     }
-
-    // Array of objects like [{ role_name: "Tutor" }] → extract and cast
-    if (value && Array.isArray(value?.data)) {
-      return value.data
-        .map((r: any) => (r?.role_name ?? r?.name ?? "").toString().trim())
-        .filter(Boolean)
-        .map((v: string) => v as RoleOption);
-    }
-
-    // Generic object array fallback
+    // Array of objects with role_name/name/value
     if (Array.isArray(value) && value.length && typeof value[0] === "object") {
-      return value
+      const arr = value
         .map((r: any) =>
           (r?.role_name ?? r?.name ?? r?.value ?? "").toString().trim()
         )
-        .filter(Boolean)
-        .map((v: string) => v as RoleOption);
+        .filter(Boolean);
+      return arr.filter((v) =>
+        (ALL_ROLES as readonly string[]).includes(v)
+      ) as AppRole[];
     }
-
     return [];
   }
 
@@ -137,13 +121,11 @@ export default function UserCreateModal({
     e.preventDefault();
 
     const { user_id, ...payload } = form;
-
     if (mode === "edit" && onUpdate && user_id) {
       onUpdate(user_id, payload);
     } else if (mode === "create" && onCreate) {
       onCreate(payload);
     }
-
     onClose();
   };
 
@@ -247,7 +229,7 @@ export default function UserCreateModal({
                     }
                     onChange={() => toggleRole(role)}
                   />
-                  {role}
+                  {ROLE_LABELS[role]}
                 </label>
               ))}
             </div>

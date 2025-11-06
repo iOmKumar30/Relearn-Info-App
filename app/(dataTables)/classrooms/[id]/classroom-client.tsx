@@ -190,7 +190,13 @@ export default function ClassroomProfileClient({
       </div>
 
       <h3 className="font-medium mb-2">Tutor Assignments</h3>
-      <DataTable columns={columns} rows={rows} actions={renderActions} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        actions={renderActions}
+        page={1}
+        pageSize={100}
+      />
     </div>
   );
 }

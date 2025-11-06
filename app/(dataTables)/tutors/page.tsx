@@ -43,7 +43,6 @@ export default function TutorsPage() {
 
   const debouncedSearch = useDebounce(search, 800); // debounce search input
 
-
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users/by-role", window.location.origin);
     url.searchParams.set("role", role);
@@ -51,7 +50,7 @@ export default function TutorsPage() {
     url.searchParams.set("pageSize", String(pageSize));
     if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     return url.toString();
-  }, [role, page, pageSize, debouncedSearch]); 
+  }, [role, page, pageSize, debouncedSearch]);
 
   // useCallback to avoid infinite loop in useEffect
   const fetchRows = useCallback(async () => {
@@ -67,11 +66,11 @@ export default function TutorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [buildUrl]); 
+  }, [buildUrl]);
 
   useEffect(() => {
     fetchRows();
-  }, [fetchRows, page, debouncedSearch]); 
+  }, [fetchRows, page, debouncedSearch]);
 
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => ({
@@ -133,6 +132,8 @@ export default function TutorsPage() {
           rows={rows}
           /* no actions */
           onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+          page={page}
+          pageSize={pageSize}
         />
       )}
 

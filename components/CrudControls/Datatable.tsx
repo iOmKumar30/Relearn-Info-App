@@ -1,3 +1,4 @@
+import { serialNumber } from "@/libs/pagination";
 import {
   Table,
   TableBody,
@@ -15,6 +16,8 @@ interface DataTableProps {
   rows: Row[];
   actions?: (row: Row) => React.ReactNode;
   onRowClick?: (row: any) => void;
+  page: number; // NEW: current page number
+  pageSize: number; // NEW: rows per page
 }
 
 export default function DataTable({
@@ -22,8 +25,9 @@ export default function DataTable({
   rows,
   actions,
   onRowClick,
+  page,
+  pageSize,
 }: DataTableProps) {
-  // Prepend S. No. to header and rows
   const totalHeadCols = 1 + columns.length + (actions ? 1 : 0);
 
   return (
@@ -83,40 +87,42 @@ export default function DataTable({
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row, i) => (
-                <TableRow
-                  key={i}
-                  className={`bg-white text-gray-800 ${
-                    onRowClick ? "hover:bg-gray-100 cursor-pointer" : ""
-                  } transition-colors duration-200`}
-                  onClick={() => onRowClick?.(row)}
-                >
-                  {/* S. No. cell */}
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-gray-700">
-                    {i + 1}
-                  </TableCell>
-
-                  {/* Data cells */}
-                  {columns.map((col) => (
-                    <TableCell key={col.key} className="px-6 py-4">
-                      {row[col.key]}
+              rows.map((row, index) => {
+                const serial = serialNumber(page, pageSize, index);
+                return (
+                  <TableRow
+                    key={row.id || index}
+                    className={`bg-white text-gray-800 ${
+                      onRowClick ? "hover:bg-gray-100 cursor-pointer" : ""
+                    } transition-colors duration-200`}
+                    onClick={() => onRowClick?.(row)}
+                  >
+                    {/* S. No. cell */}
+                    <TableCell className="px-6 py-4 whitespace-nowrap text-gray-700">
+                      {serial}
                     </TableCell>
-                  ))}
 
-                  {/* Actions cell */}
-                  {actions && (
-                    <TableCell
-                      className="px-6 py-4"
-                      onClick={(e) => {
-                        // prevent row navigation when clicking inside actions
-                        e.stopPropagation();
-                      }}
-                    >
-                      {actions(row)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
+                    {/* Data cells */}
+                    {columns.map((col) => (
+                      <TableCell key={col.key} className="px-6 py-4">
+                        {row[col.key]}
+                      </TableCell>
+                    ))}
+
+                    {/* Actions cell */}
+                    {actions && (
+                      <TableCell
+                        className="px-6 py-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      >
+                        {actions(row)}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

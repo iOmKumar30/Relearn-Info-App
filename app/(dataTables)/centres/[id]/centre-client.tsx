@@ -5,6 +5,7 @@ import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
+
 type Centre = {
   id: string;
   code: string;
@@ -20,12 +21,20 @@ type Centre = {
 };
 
 export default function CentreClient({ centreId }: { centreId: string }) {
-  const [loading, setLoading] = useState(true); // start true so nothing flashes before data
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [centre, setCentre] = useState<Centre | null>(null);
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [facHistory, setFacHistory] = useState<any[]>([]);
+
+  // Pagination states for classrooms (adjust as needed)
+  const [classroomPage] = useState(1);
+  const [classroomPageSize] = useState(100);
+
+  // Pagination states for facilitator history (adjust as needed)
+  const [facPage] = useState(1);
+  const [facPageSize] = useState(100);
 
   // facilitator assignments states
   const [showAddFac, setShowAddFac] = useState(false);
@@ -56,7 +65,6 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       const msg = await res.text();
       throw new Error(msg || "Failed to load classrooms");
     }
-
     return await res.json();
   }, [centreId]);
 
@@ -207,6 +215,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setLoading(false);
     }
   }
+
   async function deleteFacilitatorLink(id: string) {
     try {
       setLoading(true);
@@ -226,7 +235,9 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setLoading(false);
     }
   }
+
   const hasActiveFacilitator = (facHistory || []).some((x: any) => !x.endDate);
+
   const renderFacActions = (row: any) =>
     !row.end ? (
       <Button
@@ -245,7 +256,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         Delete
       </Button>
     );
-  // Central full-page loader while fetching, to avoid any partial rendering
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -303,8 +314,14 @@ export default function CentreClient({ centreId }: { centreId: string }) {
 
       <div className="mt-6">
         <h3 className="font-medium mb-2">Classrooms</h3>
-        <DataTable columns={classroomColumns} rows={classroomRows} />
+        <DataTable
+          columns={classroomColumns}
+          rows={classroomRows}
+          page={classroomPage}
+          pageSize={classroomPageSize}
+        />
       </div>
+
       {!hasActiveFacilitator && (
         <div className="mt-3">
           <Button size="lg" color="light" onClick={() => setShowAddFac(true)}>
@@ -365,6 +382,8 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           columns={facColumns}
           rows={facRows}
           actions={renderFacActions}
+          page={facPage}
+          pageSize={facPageSize}
         />
       </div>
     </div>

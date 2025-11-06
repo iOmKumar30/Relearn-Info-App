@@ -26,7 +26,6 @@ type CentreRow = {
   status: "ACTIVE" | "INACTIVE";
   dateAssociated: string;
   dateLeft: string | null;
-  // NEW: facilitator received from API
   facilitator: {
     assignmentId: string;
     userId: string;
@@ -36,12 +35,11 @@ type CentreRow = {
   } | null;
 };
 
-// Table columns: Facilitator inserted right after Street Address
 const columns = [
   { key: "code", label: "Centre Code" },
   { key: "name", label: "Name" },
   { key: "streetAddress", label: "Street Address" },
-  { key: "facilitator", label: "Facilitator" }, // NEW
+  { key: "facilitator", label: "Facilitator" },
   { key: "city", label: "City" },
   { key: "district", label: "District" },
   { key: "state", label: "State" },
@@ -51,7 +49,6 @@ const columns = [
   { key: "dateLeft", label: "Date Left" },
 ];
 
-// Filters config for UI
 const centreFilters: FilterOption[] = [
   {
     key: "status",
@@ -86,7 +83,6 @@ export default function CentresPage() {
   );
   const debouncedSearch = useDebounce(search, 800);
 
-  // Build query string for list endpoint
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/centres", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -118,10 +114,8 @@ export default function CentresPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Render-friendly mapping (status badge, date formatting, facilitator cell)
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((r) => {
-      // Facilitator cell UI
       const facCell = r.facilitator ? (
         <div className="flex flex-col">
           <span className="font-medium text-gray-800">
@@ -140,7 +134,7 @@ export default function CentresPage() {
 
       return {
         ...r,
-        facilitator: facCell, // map object → JSX
+        facilitator: facCell,
         status: (
           <Badge
             color={r.status === "ACTIVE" ? "success" : "gray"}
@@ -159,7 +153,6 @@ export default function CentresPage() {
     });
   }, [data]);
 
-  // Create handler
   const handleCreate = async (payload: any) => {
     try {
       setLoading(true);
@@ -187,7 +180,6 @@ export default function CentresPage() {
           : null,
       };
 
-      // Normalize dates
       if (
         typeof body.dateAssociated === "string" &&
         body.dateAssociated.length > 0
@@ -200,7 +192,6 @@ export default function CentresPage() {
         body.dateLeft = null;
       }
 
-      // required checks
       if (!body.name || !body.streetAddress || !body.state || !body.pincode) {
         throw new Error(
           "Please fill name, street address, state, and pincode."
@@ -223,7 +214,6 @@ export default function CentresPage() {
     }
   };
 
-  // Update handler
   const handleUpdate = async (centreId: string, payload: any) => {
     try {
       setLoading(true);
@@ -304,7 +294,6 @@ export default function CentresPage() {
     }
   };
 
-  // Delete handler
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
     try {
@@ -324,7 +313,6 @@ export default function CentresPage() {
     }
   };
 
-  // Row actions: Edit + Delete buttons
   const renderActions = (row: any) => (
     <div className="flex gap-2">
       <Button
@@ -360,7 +348,6 @@ export default function CentresPage() {
     <RBACGate roles={["ADMIN"]}>
       <h2 className="mb-4 text-2xl font-semibold">Centres</h2>
 
-      {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <SearchBar
           value={search}
@@ -400,10 +387,11 @@ export default function CentresPage() {
           onRowClick={(row: any) =>
             router.push(`/centres/${encodeURIComponent(row.id)}`)
           }
+          page={page} // ADDED
+          pageSize={pageSize} // ADDED
         />
       )}
 
-      {/* Pager */}
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button
           size="xs"
@@ -426,7 +414,6 @@ export default function CentresPage() {
         </Button>
       </div>
 
-      {/* Create modal */}
       <CentreCreateModal
         open={createOpen}
         mode="create"
@@ -434,7 +421,6 @@ export default function CentresPage() {
         onCreate={handleCreate}
       />
 
-      {/* Edit modal */}
       <CentreCreateModal
         open={editOpen}
         mode="edit"
@@ -465,7 +451,6 @@ export default function CentresPage() {
         }}
       />
 
-      {/* Delete confirm modal */}
       <ConfirmDeleteModal
         open={deleteOpen}
         title="Delete Centre"

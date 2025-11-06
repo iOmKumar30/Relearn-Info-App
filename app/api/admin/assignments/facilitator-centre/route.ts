@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       startDate: true,
       endDate: true,
       user: { select: { id: true, name: true, email: true } },
-      centre: { select: { id: true, code: true, name: true } },
+      centre: { select: { id: true, code: true, name: true, state: true, city: true, district: true, pincode: true, streetAddress: true } },
     },
   });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ALL_ROLES, AppRole, ROLE_LABELS } from "@/libs/roles";
 import {
   Button,
   Checkbox,
@@ -8,11 +9,7 @@ import {
   ModalBody,
   ModalHeader,
 } from "flowbite-react";
-import { useState } from "react";
-
-// Keep aligned with your RoleName enum on backend
-const ALL_ROLES = ["TUTOR", "FACILITATOR", "RELF_EMPLOYEE", "ADMIN"] as const;
-type RoleName = (typeof ALL_ROLES)[number];
+import { useEffect, useState } from "react";
 
 interface Props {
   open: boolean;
@@ -27,24 +24,28 @@ export default function RoleAssignModal({
   user,
   onAssigned,
 }: Props) {
-  const [selected, setSelected] = useState<RoleName[]>([]);
+  const [selected, setSelected] = useState<AppRole[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Reset on user/open change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const reset = () => {
     setSelected([]);
     setErr(null);
   };
 
-  // Close with reset
   const handleClose = () => {
     reset();
     onClose();
   };
 
-  const toggle = (r: RoleName) => {
+  useEffect(() => {
+    if (!open) return;
+    // Optionally preselect roles based on some UI logic
+    setSelected([]);
+    setErr(null);
+  }, [open, user?.id]);
+
+  const toggle = (r: AppRole) => {
     setSelected((prev) =>
       prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
     );
@@ -79,22 +80,26 @@ export default function RoleAssignModal({
       setSubmitting(false);
     }
   };
+
   function formatRoles(val: unknown): string {
     if (!val) return "";
-    // Already an array of strings
     if (Array.isArray(val)) {
       const arr = val
         .map((v) =>
           typeof v === "string"
-            ? v
+            ? v.trim()
             : String((v as any)?.name ?? (v as any)?.role ?? v)
         )
-        .filter(Boolean);
+        .filter((v) => (ALL_ROLES as readonly string[]).includes(v))
+        .map((v) => ROLE_LABELS[v as AppRole]);
       return arr.join(", ");
     }
-    // If it's a string, return as-is
-    if (typeof val === "string") return val;
-    // If it's an object like [{ role: { name: "ADMIN" } }] passed incorrectly
+    if (typeof val === "string") {
+      const v = val.trim();
+      return (ALL_ROLES as readonly string[]).includes(v)
+        ? ROLE_LABELS[v as AppRole]
+        : v;
+    }
     try {
       const maybeArray =
         (val as any)?.data ?? (val as any)?.roles ?? (val as any)?.currentRoles;
@@ -105,12 +110,14 @@ export default function RoleAssignModal({
               ? v
               : String((v as any)?.name ?? (v as any)?.role ?? "")
           )
-          .filter(Boolean)
+          .filter((v) => (ALL_ROLES as readonly string[]).includes(v))
+          .map((v) => ROLE_LABELS[v as AppRole])
           .join(", ");
       }
     } catch {}
     return "";
   }
+
   return (
     <Modal show={open} onClose={handleClose} size="md" dismissible>
       <ModalHeader>Assign Roles</ModalHeader>
@@ -136,7 +143,7 @@ export default function RoleAssignModal({
                   checked={selected.includes(r)}
                   onChange={() => toggle(r)}
                 />
-                <Label className="uppercase">{r}</Label>
+                <Label className="uppercase">{ROLE_LABELS[r]}</Label>
               </label>
             ))}
           </div>

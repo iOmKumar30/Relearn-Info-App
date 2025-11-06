@@ -141,6 +141,8 @@ export default function FacilitatorsPage() {
           columns={columns}
           rows={rows}
           onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+          page={page}
+          pageSize={pageSize}
         />
       )}
 

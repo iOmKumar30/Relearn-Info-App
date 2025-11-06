@@ -456,6 +456,8 @@ export default function ClassroomsPage() {
           onRowClick={(row: any) =>
             router.push(`/classrooms/${encodeURIComponent(row.id)}`)
           }
+          page={page}
+          pageSize={pageSize}
         />
       )}
 
