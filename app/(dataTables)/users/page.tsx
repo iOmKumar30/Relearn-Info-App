@@ -5,6 +5,7 @@ import UserCreateModal from "@/components/CreateModals/UserCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import {
@@ -83,10 +84,77 @@ export default function UsersPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Render-friendly mapping: Convert backend roles to UI labels
+  // Raw rows for export (no JSX)
+  const rawRows = useMemo(() => data?.rows ?? [], [data]);
+
+  // Helper for export-all: same endpoint, different pagination
+  const buildListUrl = useCallback(
+    (pageParam: number, pageSizeParam: number) => {
+      const url = new URL("/api/admin/users", window.location.origin);
+      url.searchParams.set("page", String(pageParam));
+      url.searchParams.set("pageSize", String(pageSizeParam));
+      if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      return url;
+    },
+    [debouncedSearch]
+  );
+
+  async function fetchAllUsers(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const url = buildListUrl(pageAll, pageSizeAll);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: Row[] = json?.rows || [];
+
+      out.push(
+        ...rows.map((u) => ({
+          name: u.name || "",
+          email: u.email,
+          phone: u.phone || "",
+          // Roles as UI labels joined by comma
+          roles: mapBackendRolesToUi(u.roles as any).join(", "),
+          status: u.status,
+          onboardingStatus: u.onboardingStatus,
+          createdAt: u.createdAt
+            ? new Date(u.createdAt).toLocaleDateString("en-GB")
+            : "",
+          address: u.address || "",
+        }))
+      );
+
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break; // safety
+    }
+
+    return out;
+  }
+
+  // Visible rows formatted for export (no JSX)
+  const formattedVisibleForExport = useMemo(() => {
+    return rawRows.map((u) => ({
+      name: u.name || "",
+      email: u.email,
+      phone: u.phone || "",
+      roles: mapBackendRolesToUi(u.roles as any).join(", "),
+      status: u.status,
+      onboardingStatus: u.onboardingStatus,
+      createdAt: u.createdAt
+        ? new Date(u.createdAt).toLocaleDateString("en-GB")
+        : "",
+      address: u.address || "",
+    }));
+  }, [rawRows]);
+
+  // Render-friendly mapping (with badges)
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => {
-      const uiRoleLabels = mapBackendRolesToUi(u.roles as any); // Convert backend → UI
+      const uiRoleLabels = mapBackendRolesToUi(u.roles as any);
 
       return {
         ...u,
@@ -111,14 +179,14 @@ export default function UsersPage() {
     });
   }, [data]);
 
-  // Create user: Convert UI roles → backend before sending
+  // Create user
   const handleCreate = async (payload: {
     name: string;
     email: string;
     phone: string;
     address: string;
     status: "ACTIVE" | "INACTIVE";
-    roles: AppRole[]; // UI labels from modal
+    roles: AppRole[];
   }) => {
     try {
       setLoading(true);
@@ -129,7 +197,7 @@ export default function UsersPage() {
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
-        roles: mapUiRolesToBackend(payload.roles), // Convert UI → backend
+        roles: mapUiRolesToBackend(payload.roles),
       };
 
       const res = await fetch("/api/admin/users", {
@@ -147,7 +215,7 @@ export default function UsersPage() {
     }
   };
 
-  // Update user (profile/status only; roles not updated here)
+  // Update user (profile/status only)
   const handleUpdate = async (
     user_id: string,
     payload: {
@@ -156,7 +224,7 @@ export default function UsersPage() {
       phone: string;
       address: string;
       status: "ACTIVE" | "INACTIVE";
-      roles: AppRole[]; // ignored
+      roles: AppRole[];
     }
   ) => {
     try {
@@ -205,7 +273,7 @@ export default function UsersPage() {
     }
   };
 
-  // Actions column (Edit/Delete)
+  // Actions column
   const renderActions = (row: any) => (
     <div className="flex gap-2">
       <Button
@@ -252,7 +320,23 @@ export default function UsersPage() {
           }}
           placeholder="Search users by name, email, or phone..."
         />
-        <div className="flex-1 flex justify-end">
+        <div className="flex-1 flex justify-end gap-3 z-100">
+          <ExportXlsxButton
+            fileName="users"
+            sheetName="Users"
+            columns={[
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone" },
+              { key: "roles", label: "Roles" },
+              { key: "status", label: "Status" },
+              { key: "onboardingStatus", label: "Onboarding" },
+              { key: "createdAt", label: "Created" },
+              { key: "address", label: "Address" },
+            ]}
+            visibleRows={formattedVisibleForExport}
+            fetchAll={fetchAllUsers}
+          />
           <AddButton label="Add User" onClick={() => setCreateOpen(true)} />
         </div>
       </div>
@@ -278,7 +362,7 @@ export default function UsersPage() {
         />
       )}
 
-      {/* Pager (Flowbite Pagination) */}
+      {/* Pager */}
       <div className="mt-3 flex overflow-x-auto sm:justify-end">
         <Pagination
           currentPage={page}
@@ -301,7 +385,7 @@ export default function UsersPage() {
         }
       />
 
-      {/* Edit modal (profile/status only; roles ignored) */}
+      {/* Edit modal */}
       <UserCreateModal
         open={editOpen}
         mode="edit"

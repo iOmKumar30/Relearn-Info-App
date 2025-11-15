@@ -5,6 +5,7 @@ import CentreCreateModal from "@/components/CreateModals/CentreCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
@@ -83,6 +84,7 @@ export default function CentresPage() {
   );
   const debouncedSearch = useDebounce(search, 800);
 
+  // Build list URL with pagination + filters + search
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/centres", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -113,6 +115,87 @@ export default function CentresPage() {
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
+
+  // Keep raw data for export (avoid JSX)
+  const rawRows = useMemo(() => data?.rows ?? [], [data]);
+
+  // Helper to build the same list URL with custom page/pageSize
+  const buildListUrl = useCallback(
+    (pageParam: number, pageSizeParam: number) => {
+      const url = new URL("/api/admin/centres", window.location.origin);
+      url.searchParams.set("page", String(pageParam));
+      url.searchParams.set("pageSize", String(pageSizeParam));
+      if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      if (filters.status) url.searchParams.set("status", filters.status);
+      if (filters.state) url.searchParams.set("state", filters.state);
+      if (filters.city) url.searchParams.set("city", filters.city);
+      if (filters.district) url.searchParams.set("district", filters.district);
+      return url;
+    },
+    [debouncedSearch, filters]
+  );
+
+  // Fetch all rows across pages using the same API & current filters/search
+  async function fetchAllCentres(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const url = buildListUrl(pageAll, pageSizeAll);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows = (json?.rows || []) as any[];
+
+      out.push(
+        ...rows.map((r) => ({
+          code: r.code,
+          name: r.name,
+          streetAddress: r.streetAddress,
+          facilitatorName: r.facilitator?.name || "", 
+          facilitatorEmail: r.facilitator?.email || "",
+          city: r.city,
+          district: r.district,
+          state: r.state,
+          pincode: r.pincode,
+          status: r.status,
+          dateAssociated: r.dateAssociated
+            ? new Date(r.dateAssociated).toLocaleDateString("en-GB")
+            : "",
+          dateLeft: r.dateLeft
+            ? new Date(r.dateLeft).toLocaleDateString("en-GB")
+            : "",
+        }))
+      );
+      if (rows.length < pageSizeAll) break;  
+      pageAll += 1;
+      if (pageAll > 200) break;
+    }
+    return out;
+  }
+
+  // avoding JSX for export
+  const formattedVisibleForExport = useMemo(() => {
+    return rawRows.map((r: any) => ({
+      code: r.code,
+      name: r.name,
+      streetAddress: r.streetAddress,
+      facilitatorName: r.facilitator?.name || "", // NEW
+      facilitatorEmail: r.facilitator?.email || "", // NEW
+      city: r.city,
+      district: r.district,
+      state: r.state,
+      pincode: r.pincode,
+      status: r.status,
+      dateAssociated: r.dateAssociated
+        ? new Date(r.dateAssociated).toLocaleDateString("en-GB")
+        : "",
+      dateLeft: r.dateLeft
+        ? new Date(r.dateLeft).toLocaleDateString("en-GB")
+        : "",
+    }));
+  }, [rawRows]);
 
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((r) => {
@@ -184,7 +267,7 @@ export default function CentresPage() {
         typeof body.dateAssociated === "string" &&
         body.dateAssociated.length > 0
       ) {
-        // keep as string; backend can parse
+        // keep as string; backend parses
       } else if (!body.dateAssociated) {
         body.dateAssociated = new Date().toISOString();
       }
@@ -348,6 +431,7 @@ export default function CentresPage() {
     <RBACGate roles={["ADMIN"]}>
       <h2 className="mb-4 text-2xl font-semibold">Centres</h2>
 
+      {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <SearchBar
           value={search}
@@ -357,13 +441,35 @@ export default function CentresPage() {
           }}
           placeholder="Search centres..."
         />
-        <div className="flex-1 flex justify-end gap-4">
+        <div className="flex-1 flex justify-end gap-4 z-50">
+          <ExportXlsxButton
+            fileName="centres"
+            sheetName="Centres"
+            columns={[
+              { key: "code", label: "Centre Code" },
+              { key: "name", label: "Name" },
+              { key: "streetAddress", label: "Street Address" },
+              { key: "facilitatorName", label: "Facilitator Name" },
+              { key: "facilitatorEmail", label: "Facilitator Email" },
+              { key: "city", label: "City" },
+              { key: "district", label: "District" },
+              { key: "state", label: "State" },
+              { key: "pincode", label: "Pincode" },
+              { key: "status", label: "Status" },
+              { key: "dateAssociated", label: "Date Associated" },
+              { key: "dateLeft", label: "Date Left" },
+            ]}
+            // Visible (current page) with pretty formatting for dates/facilitator
+            visibleRows={formattedVisibleForExport}
+            // All rows across pages via the same API respecting filters/search
+            fetchAll={fetchAllCentres}
+          />
           <AddButton label="Add Centre" onClick={() => setCreateOpen(true)} />
           <FilterDropdown
             filters={centreFilters}
             onFilterChange={(f) => {
               setFilters(f);
-              setPage(1);
+              setPage(1); // reset paging on filter change
             }}
           />
         </div>
@@ -387,11 +493,12 @@ export default function CentresPage() {
           onRowClick={(row: any) =>
             router.push(`/centres/${encodeURIComponent(row.id)}`)
           }
-          page={page} // ADDED
-          pageSize={pageSize} // ADDED
+          page={page} // keep
+          pageSize={pageSize} // keep
         />
       )}
 
+      {/* Pager */}
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button
           size="xs"
@@ -414,6 +521,7 @@ export default function CentresPage() {
         </Button>
       </div>
 
+      {/* Create modal */}
       <CentreCreateModal
         open={createOpen}
         mode="create"
@@ -421,6 +529,7 @@ export default function CentresPage() {
         onCreate={handleCreate}
       />
 
+      {/* Edit modal */}
       <CentreCreateModal
         open={editOpen}
         mode="edit"
@@ -451,6 +560,7 @@ export default function CentresPage() {
         }}
       />
 
+      {/* Delete confirm modal */}
       <ConfirmDeleteModal
         open={deleteOpen}
         title="Delete Centre"

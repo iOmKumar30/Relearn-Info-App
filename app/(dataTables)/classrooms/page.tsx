@@ -5,6 +5,7 @@ import ClassroomCreateModal from "@/components/CreateModals/ClassroomCreateModal
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
@@ -13,6 +14,7 @@ import { Badge, Button } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
+
 type ClassroomRow = {
   id: string;
   code: string;
@@ -34,13 +36,10 @@ type ClassroomRow = {
   tutorAssignments?: Array<{
     id: string;
     isSubstitute: boolean;
-    user: {
-      id: string;
-      name: string | null;
-      email: string;
-    };
+    user: { id: string; name: string | null; email: string };
   }>;
 };
+
 // DataTable columns
 const columns = [
   { key: "code", label: "Classroom Code" },
@@ -73,7 +72,7 @@ const classroomFilters: FilterOption[] = [
     type: "select",
     options: ["MORNING", "EVENING"],
   },
-  { key: "code", label: "Centre Code", type: "text" }, // optional direct centre filter
+  { key: "code", label: "Centre Code", type: "text" },
 ];
 
 export default function ClassroomsPage() {
@@ -84,7 +83,7 @@ export default function ClassroomsPage() {
   const pageSize = 20;
   const router = useRouter();
 
-  // Create/Edit/Delete modal state
+  // Create/Edit/Delete state
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<ClassroomRow | null>(null);
@@ -100,7 +99,8 @@ export default function ClassroomsPage() {
     rows: ClassroomRow[];
   } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
-  // Build list URL with pagination, free-text q, and facet filters (centreId, section, timing, status)
+
+  // Build list URL with pagination, search, and facet filters
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/classrooms", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -112,7 +112,6 @@ export default function ClassroomsPage() {
     if (filters.status) url.searchParams.set("status", filters.status);
     return url.toString();
   }, [page, pageSize, debouncedSearch, filters]);
-  [1];
 
   // Fetch rows
   const fetchRows = useCallback(async () => {
@@ -129,17 +128,109 @@ export default function ClassroomsPage() {
       setLoading(false);
     }
   }, [buildUrl]);
-  [1];
 
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
-  [1];
 
-  // Map server rows to DataTable cells (badges and formatting)
+  // Raw rows for export (avoid JSX)
+  const rawRows = useMemo(() => data?.rows ?? [], [data]);
+
+  // Helper to build same URL with custom page/pageSize (for export all)
+  const buildListUrl = useCallback(
+    (pageParam: number, pageSizeParam: number) => {
+      const url = new URL("/api/admin/classrooms", window.location.origin);
+      url.searchParams.set("page", String(pageParam));
+      url.searchParams.set("pageSize", String(pageSizeParam));
+      if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      if (filters.code) url.searchParams.set("centreCode", filters.code);
+      if (filters.section) url.searchParams.set("section", filters.section);
+      if (filters.timing) url.searchParams.set("timing", filters.timing);
+      if (filters.status) url.searchParams.set("status", filters.status);
+      return url;
+    },
+    [debouncedSearch, filters]
+  );
+
+  // Fetch all classrooms across pages with current filters/search
+  async function fetchAllClassrooms(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const url = buildListUrl(pageAll, pageSizeAll);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: ClassroomRow[] = json?.rows || [];
+
+      out.push(
+        ...rows.map((r) => ({
+          code: r.code,
+          centreName: r.centre?.name || "",
+          centreCode: r.centre?.code || "",
+          section: r.section,
+          streetAddress: r.streetAddress,
+          district: r.district,
+          state: r.state,
+          currentTutor:
+            r.tutorAssignments && r.tutorAssignments.length > 0
+              ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
+                  r.tutorAssignments[0].user.email
+                })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+              : "",
+          timing: r.timing,
+          monthlyAllowance: r.monthlyAllowance,
+          status: r.status,
+          dateCreated: r.dateCreated
+            ? new Date(r.dateCreated).toLocaleDateString("en-GB")
+            : "",
+          dateClosed: r.dateClosed
+            ? new Date(r.dateClosed).toLocaleDateString("en-GB")
+            : "",
+        }))
+      );
+
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break; // safety
+    }
+
+    return out;
+  }
+
+  // Visible rows formatted for export (no JSX)
+  const formattedVisibleForExport = useMemo(() => {
+    return rawRows.map((r) => ({
+      code: r.code,
+      centreName: r.centre?.name || "",
+      centreCode: r.centre?.code || "",
+      section: r.section,
+      streetAddress: r.streetAddress,
+      district: r.district,
+      state: r.state,
+      currentTutor:
+        r.tutorAssignments && r.tutorAssignments.length > 0
+          ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
+              r.tutorAssignments[0].user.email
+            })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+          : "",
+      timing: r.timing,
+      monthlyAllowance: r.monthlyAllowance,
+      status: r.status,
+      dateCreated: r.dateCreated
+        ? new Date(r.dateCreated).toLocaleDateString("en-GB")
+        : "",
+      dateClosed: r.dateClosed
+        ? new Date(r.dateClosed).toLocaleDateString("en-GB")
+        : "",
+    }));
+  }, [rawRows]);
+
+  // Map rows for DataTable render (with JSX)
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((r) => ({
-      // Keep original fields for action handlers (id lookup)
       ...r,
       centre_name: r.centre?.name || "",
       centre_code: r.centre?.code || "",
@@ -189,38 +280,22 @@ export default function ClassroomsPage() {
         ) : (
           "—"
         ),
-
       dateCreated: r.dateCreated
-        ? new Date(r.dateCreated).toLocaleDateString()
+        ? new Date(r.dateCreated).toLocaleDateString("en-GB")
         : "",
       dateClosed: r.dateClosed
-        ? new Date(r.dateClosed).toLocaleDateString()
+        ? new Date(r.dateClosed).toLocaleDateString("en-GB")
         : "",
       monthlyAllowance: `₹ ${r.monthlyAllowance.toLocaleString("en-IN")}`,
     }));
   }, [data]);
 
-  // Create → POST /api/admin/classrooms
-  const handleCreate = async (payload: {
-    centre_id?: string;
-    centre_name: string;
-    section_code: string; // "Junior" | "Senior" | "Both"
-    street_address: string;
-    city: string;
-    district: string;
-    state: string;
-    pincode: string;
-    monthly_allowance: number | "";
-    timing: string; // "Morning" | "Evening"
-    status: "Active" | "Inactive";
-    date_created: string; // YYYY-MM-DD
-    date_closed: string; // YYYY-MM-DD or ""
-  }) => {
+  // Create → POST
+  const handleCreate = async (payload: any) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Prefer deterministic id from modal; fallback to trimmed name lookup only if needed
       let centreId = payload.centre_id?.trim();
       const centreName = payload.centre_name?.trim();
 
@@ -239,7 +314,6 @@ export default function ClassroomsPage() {
         centreId = centre.id;
       }
 
-      // Map modal fields to API payload
       const body = {
         centreId,
         section: payload.section_code.toUpperCase().startsWith("J")
@@ -277,30 +351,12 @@ export default function ClassroomsPage() {
     }
   };
 
-  // Update → PUT /api/admin/classrooms/:id
-  const handleUpdate = async (
-    classroom_id: string,
-    payload: {
-      centre_id?: string;
-      centre_name: string;
-      section_code: string;
-      street_address: string;
-      city: string;
-      district: string;
-      state: string;
-      pincode: string;
-      monthly_allowance: number | "";
-      timing: string;
-      status: "Active" | "Inactive";
-      date_created: string;
-      date_closed: string;
-    }
-  ) => {
+  // Update → PUT
+  const handleUpdate = async (classroom_id: string, payload: any) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Prefer deterministic id from modal; fallback to trimmed name lookup only if needed
       let centreId = payload.centre_id?.trim();
       const centreName = payload.centre_name?.trim();
 
@@ -356,7 +412,7 @@ export default function ClassroomsPage() {
     }
   };
 
-  // Delete → DELETE /api/admin/classrooms/:id
+  // Delete → DELETE
   const [deleting, setDeleting] = useState(false);
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
@@ -419,11 +475,32 @@ export default function ClassroomsPage() {
           value={search}
           onChange={(v) => {
             setSearch(v);
-            setPage(1); // reset paging on query change
+            setPage(1);
           }}
           placeholder="Search classrooms..."
         />
-        <div className="flex-1 flex justify-end gap-4">
+        <div className="flex-1 flex justify-end gap-4 z-100">
+          <ExportXlsxButton
+            fileName="classrooms"
+            sheetName="Classrooms"
+            columns={[
+              { key: "code", label: "Classroom Code" },
+              { key: "centreName", label: "Centre Name" },
+              { key: "centreCode", label: "Centre Code" },
+              { key: "section", label: "Section" },
+              { key: "streetAddress", label: "Street Address" },
+              { key: "district", label: "District" },
+              { key: "state", label: "State" },
+              { key: "currentTutor", label: "Current Tutor" },
+              { key: "timing", label: "Timing" },
+              { key: "monthlyAllowance", label: "Monthly Allowance" },
+              { key: "status", label: "Status" },
+              { key: "dateCreated", label: "Date Created" },
+              { key: "dateClosed", label: "Date Closed" },
+            ]}
+            visibleRows={formattedVisibleForExport}
+            fetchAll={fetchAllClassrooms}
+          />
           <AddButton
             label="Add Classroom"
             onClick={() => setCreateOpen(true)}
@@ -432,7 +509,7 @@ export default function ClassroomsPage() {
             filters={[...classroomFilters]}
             onFilterChange={(f) => {
               setFilters(f);
-              setPage(1); // reset paging on filters
+              setPage(1);
             }}
           />
         </div>
@@ -500,7 +577,7 @@ export default function ClassroomsPage() {
           editRow
             ? {
                 classroom_id: editRow.id,
-                centre_id: editRow.centreId, // allow modal to carry the id
+                centre_id: editRow.centreId,
                 centre_name: editRow.centre?.name || "",
                 section_code: editRow.section === "JR" ? "Junior" : "Senior",
                 street_address: editRow.streetAddress,

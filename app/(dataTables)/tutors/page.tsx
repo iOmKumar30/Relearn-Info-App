@@ -2,12 +2,15 @@
 
 import { useDebounce } from "@/app/hooks/useDebounce";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
+
+// Table columns – kept simple and consistent
 const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
@@ -26,10 +29,6 @@ type Row = {
   createdAt: string;
   currentRoles: string[];
 };
-
-/* const filters = [
-  // Reserved for future facets; kept to maintain toolbar consistency
-]; */
 
 export default function TutorsPage() {
   const role = "TUTOR";
@@ -52,7 +51,7 @@ export default function TutorsPage() {
     return url.toString();
   }, [role, page, pageSize, debouncedSearch]);
 
-  // useCallback to avoid infinite loop in useEffect
+  // Fetch data
   const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
@@ -72,6 +71,73 @@ export default function TutorsPage() {
     fetchRows();
   }, [fetchRows, page, debouncedSearch]);
 
+  // Raw rows for export (no JSX)
+  const rawRows = useMemo(() => data?.rows ?? [], [data]);
+
+  // Helper to build same URL with custom page/pageSize (for export-all)
+  const buildListUrl = useCallback(
+    (pageParam: number, pageSizeParam: number) => {
+      const url = new URL("/api/admin/users/by-role", window.location.origin);
+      url.searchParams.set("role", role);
+      url.searchParams.set("page", String(pageParam));
+      url.searchParams.set("pageSize", String(pageSizeParam));
+      if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      return url;
+    },
+    [role, debouncedSearch]
+  );
+
+  // Export: fetch all pages with current search
+  async function fetchAllTutors(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const url = buildListUrl(pageAll, pageSizeAll);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: Row[] = json?.rows || [];
+
+      out.push(
+        ...rows.map((u) => ({
+          name: u.name || "",
+          email: u.email,
+          phone: u.phone || "",
+          roles: (u.currentRoles || []).join(", "),
+          onboardingStatus: u.onboardingStatus,
+          createdAt: u.createdAt
+            ? new Date(u.createdAt).toLocaleDateString("en-GB")
+            : "",
+          address: u.address || "",
+        }))
+      );
+
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break; // safety
+    }
+
+    return out;
+  }
+
+  // Visible rows formatted for export (no JSX)
+  const formattedVisibleForExport = useMemo(() => {
+    return rawRows.map((u) => ({
+      name: u.name || "",
+      email: u.email,
+      phone: u.phone || "",
+      roles: (u.currentRoles || []).join(", "),
+      onboardingStatus: u.onboardingStatus,
+      createdAt: u.createdAt
+        ? new Date(u.createdAt).toLocaleDateString("en-GB")
+        : "",
+      address: u.address || "",
+    }));
+  }, [rawRows]);
+
+  // Data for visible table (with JSX)
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => ({
       ...u,
@@ -90,10 +156,9 @@ export default function TutorsPage() {
         </Badge>
       ),
     }));
-  }, [data]); // [3]
+  }, [data]);
 
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize)); // [2]
-
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
   const router = useRouter();
 
   return (
@@ -109,11 +174,23 @@ export default function TutorsPage() {
           }}
           placeholder="Search tutors..."
         />
-        {/* Future: Filter controls (reserved)
-        <div className="flex-1 flex justify-end">
-          <FilterDropdown filters={filters} onFilterChange={() => {}} />
+        <div className="flex-1 flex justify-end z-100">
+          <ExportXlsxButton
+            fileName="tutors"
+            sheetName="Tutors"
+            columns={[
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone" },
+              { key: "roles", label: "Current Roles" },
+              { key: "onboardingStatus", label: "Onboarding" },
+              { key: "createdAt", label: "Created" },
+              { key: "address", label: "Address" },
+            ]}
+            visibleRows={formattedVisibleForExport}
+            fetchAll={fetchAllTutors}
+          />
         </div>
-        */}
       </div>
 
       {error && (
@@ -130,7 +207,6 @@ export default function TutorsPage() {
         <DataTable
           columns={columns}
           rows={rows}
-          /* no actions */
           onRowClick={(row: any) => router.push(`/users/${row.id}`)}
           page={page}
           pageSize={pageSize}

@@ -1,6 +1,7 @@
 "use client";
 
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,15 +29,14 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [facHistory, setFacHistory] = useState<any[]>([]);
 
-  // Pagination states for classrooms (adjust as needed)
+  // Pagination states
   const [classroomPage] = useState(1);
   const [classroomPageSize] = useState(100);
 
-  // Pagination states for facilitator history (adjust as needed)
   const [facPage] = useState(1);
   const [facPageSize] = useState(100);
 
-  // facilitator assignments states
+  // facilitator assignment state
   const [showAddFac, setShowAddFac] = useState(false);
   const [selectedFac, setSelectedFac] = useState<{
     id: string;
@@ -96,15 +96,12 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       setClassrooms(classRes.value.rows || []);
     if (facRes.status === "fulfilled") setFacHistory(facRes.value.rows || []);
 
-    if (centreRes.status === "rejected") {
+    if (centreRes.status === "rejected")
       setError(centreRes.reason?.message || "Failed to load centre");
-    }
-    if (classRes.status === "rejected") {
+    if (classRes.status === "rejected")
       setError(classRes.reason?.message || "Failed to load classrooms");
-    }
-    if (facRes.status === "rejected") {
+    if (facRes.status === "rejected")
       setError(facRes.reason?.message || "Failed to load facilitator history");
-    }
 
     setLoading(false);
   }, [fetchCentre, fetchClassrooms, fetchFacilitatorHistory]);
@@ -163,10 +160,10 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         </Badge>
       ),
       dateCreated: r.dateCreated
-        ? new Date(r.dateCreated).toLocaleDateString()
+        ? new Date(r.dateCreated).toLocaleDateString("en-GB")
         : "",
       dateClosed: r.dateClosed
-        ? new Date(r.dateClosed).toLocaleDateString()
+        ? new Date(r.dateClosed).toLocaleDateString("en-GB")
         : "",
       monthlyAllowance: `₹ ${Number(r.monthlyAllowance || 0).toLocaleString(
         "en-IN"
@@ -189,8 +186,10 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       facilitator: x.user
         ? `${x.user.name ?? "Unnamed"} — ${x.user.email}`
         : x.userId,
-      start: x.startDate ? new Date(x.startDate).toLocaleDateString() : "",
-      end: x.endDate ? new Date(x.endDate).toLocaleDateString() : "",
+      start: x.startDate
+        ? new Date(x.startDate).toLocaleDateString("en-GB")
+        : "",
+      end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
       __raw: x,
     }));
   }, [facHistory]);
@@ -257,6 +256,65 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       </Button>
     );
 
+  // Export helpers (export all only)
+  async function exportAllClassroomsForCentre(): Promise<
+    Record<string, any>[]
+  > {
+    const out: Record<string, any>[] = [];
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    while (true) {
+      const url = new URL("/api/admin/classrooms", window.location.origin);
+      url.searchParams.set("centreId", centreId);
+      url.searchParams.set("page", String(pageAll));
+      url.searchParams.set("pageSize", String(pageSizeAll));
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: any[] = json?.rows || [];
+      out.push(
+        ...rows.map((r) => ({
+          code: r.code,
+          section: r.section,
+          timing: r.timing,
+          monthlyAllowance: r.monthlyAllowance,
+          status: r.status,
+          dateCreated: r.dateCreated
+            ? new Date(r.dateCreated).toLocaleDateString("en-GB")
+            : "",
+          dateClosed: r.dateClosed
+            ? new Date(r.dateClosed).toLocaleDateString("en-GB")
+            : "",
+        }))
+      );
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break;
+    }
+    return out;
+  }
+
+  async function exportAllFacilitatorHistory(): Promise<Record<string, any>[]> {
+    const url = new URL(
+      "/api/admin/assignments/facilitator-centre",
+      window.location.origin
+    );
+    url.searchParams.set("centreId", centreId);
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error(await res.text());
+    const json = await res.json();
+    const rows: any[] = json?.rows || [];
+    return rows.map((x) => ({
+      facilitator: x.user
+        ? `${x.user.name ?? "Unnamed"} — ${x.user.email}`
+        : x.userId,
+      start: x.startDate
+        ? new Date(x.startDate).toLocaleDateString("en-GB")
+        : "",
+      end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
+    }));
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -300,20 +358,41 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           <div>
             Associated:{" "}
             {centre.dateAssociated
-              ? new Date(centre.dateAssociated).toLocaleDateString()
+              ? new Date(centre.dateAssociated).toLocaleDateString("en-GB")
               : "—"}
           </div>
           <div>
             Left:{" "}
             {centre.dateLeft
-              ? new Date(centre.dateLeft).toLocaleDateString()
+              ? new Date(centre.dateLeft).toLocaleDateString("en-GB")
               : "—"}
           </div>
         </div>
       )}
 
       <div className="mt-6">
-        <h3 className="font-medium mb-2">Classrooms</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-medium">Classrooms</h3>
+          <div className="z-100">
+            {" "}
+            {/* export control should sit above popovers/menus */}
+            <ExportXlsxButton
+              fileName={`centre_${centre?.code || centreId}_classrooms`}
+              sheetName="Classrooms"
+              columns={[
+                { key: "code", label: "Classroom Code" },
+                { key: "section", label: "Section" },
+                { key: "timing", label: "Timing" },
+                { key: "monthlyAllowance", label: "Monthly Allowance" },
+                { key: "status", label: "Status" },
+                { key: "dateCreated", label: "Date Created" },
+                { key: "dateClosed", label: "Date Closed" },
+              ]}
+              visibleRows={[]} // not used here
+              fetchAll={exportAllClassroomsForCentre}
+            />
+          </div>
+        </div>
         <DataTable
           columns={classroomColumns}
           rows={classroomRows}
@@ -377,7 +456,22 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       )}
 
       <div className="mt-3">
-        <h3 className="font-medium mb-2">Facilitator History</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-medium">Facilitator History</h3>
+          <div className="z-100">
+            <ExportXlsxButton
+              fileName={`centre_${centre?.code || centreId}_facilitators`}
+              sheetName="Facilitator History"
+              columns={[
+                { key: "facilitator", label: "Facilitator" },
+                { key: "start", label: "Start" },
+                { key: "end", label: "End" },
+              ]}
+              visibleRows={[]} 
+              fetchAll={exportAllFacilitatorHistory}
+            />
+          </div>
+        </div>
         <DataTable
           columns={facColumns}
           rows={facRows}

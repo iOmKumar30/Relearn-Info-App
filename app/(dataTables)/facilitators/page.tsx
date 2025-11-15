@@ -2,6 +2,7 @@
 
 import { useDebounce } from "@/app/hooks/useDebounce";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; 
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Pagination } from "flowbite-react";
@@ -29,11 +30,8 @@ type Row = {
   currentRoles: string[];
 };
 
-/* const filters = [
-  // Reserved for future facets; kept to maintain toolbar consistency
-]; */
 export default function FacilitatorsPage() {
-  const role = "FACILITATOR"; // backend expects RoleName enum string
+  const role = "FACILITATOR"; // backend RoleName
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -42,16 +40,16 @@ export default function FacilitatorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
-  // Build URL for role-based listing (single role, plus q/page/pageSize)
+
+  // Build URL for role listing
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users/by-role", window.location.origin);
     url.searchParams.set("role", role);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
-    if (debouncedSearch) url.searchParams.set("q", debouncedSearch); // backend currently ignores q if not implemented; harmless
+    if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
     return url.toString();
   }, [role, page, pageSize, debouncedSearch]);
-  [1];
 
   const fetchRows = useCallback(async () => {
     try {
@@ -67,14 +65,77 @@ export default function FacilitatorsPage() {
       setLoading(false);
     }
   }, [buildUrl]);
-  [1];
 
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
-  [1];
 
-  // Render-friendly mapping: role badges and onboarding chip
+  // Raw rows for export
+  const rawRows = useMemo(() => data?.rows ?? [], [data]);
+
+  // Helper for export-all: same endpoint, larger paging
+  const buildListUrl = useCallback(
+    (pageParam: number, pageSizeParam: number) => {
+      const url = new URL("/api/admin/users/by-role", window.location.origin);
+      url.searchParams.set("role", role);
+      url.searchParams.set("page", String(pageParam));
+      url.searchParams.set("pageSize", String(pageSizeParam));
+      if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      return url;
+    },
+    [role, debouncedSearch]
+  );
+
+  async function fetchAllFacilitators(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const url = buildListUrl(pageAll, pageSizeAll);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: Row[] = json?.rows || [];
+
+      out.push(
+        ...rows.map((u) => ({
+          name: u.name || "",
+          email: u.email,
+          phone: u.phone || "",
+          roles: (u.currentRoles || []).join(", "),
+          onboardingStatus: u.onboardingStatus,
+          createdAt: u.createdAt
+            ? new Date(u.createdAt).toLocaleDateString("en-GB")
+            : "",
+          address: u.address || "",
+        }))
+      );
+
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break; // safety
+    }
+
+    return out;
+  }
+
+  // Visible rows formatted for export (no JSX)
+  const formattedVisibleForExport = useMemo(() => {
+    return rawRows.map((u) => ({
+      name: u.name || "",
+      email: u.email,
+      phone: u.phone || "",
+      roles: (u.currentRoles || []).join(", "),
+      onboardingStatus: u.onboardingStatus,
+      createdAt: u.createdAt
+        ? new Date(u.createdAt).toLocaleDateString("en-GB")
+        : "",
+      address: u.address || "",
+    }));
+  }, [rawRows]);
+
+  // Render-friendly mapping
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => ({
       ...u,
@@ -94,10 +155,8 @@ export default function FacilitatorsPage() {
       ),
     }));
   }, [data]);
-  [3];
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
-  [2];
   const router = useRouter();
 
   return (
@@ -113,17 +172,23 @@ export default function FacilitatorsPage() {
           }}
           placeholder="Search facilitators..."
         />
-        {/*
-                  <div className="flex-1 flex justify-end">
-                      No create/edit/delete actions on this page 
-                      <FilterDropdown
-                          filters={filters}
-                          onFilterChange={() => {
-                              
-                          }}
-                      />
-                  </div>
-              */}
+        <div className="flex-1 flex justify-end z-100">
+          <ExportXlsxButton
+            fileName="facilitators"
+            sheetName="Facilitators"
+            columns={[
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone" },
+              { key: "roles", label: "Current Roles" },
+              { key: "onboardingStatus", label: "Onboarding" },
+              { key: "createdAt", label: "Created" },
+              { key: "address", label: "Address" },
+            ]}
+            visibleRows={formattedVisibleForExport}
+            fetchAll={fetchAllFacilitators}
+          />
+        </div>
       </div>
 
       {error && (
