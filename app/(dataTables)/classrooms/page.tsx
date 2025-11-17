@@ -3,11 +3,13 @@
 import { useDebounce } from "@/app/hooks/useDebounce";
 import ClassroomCreateModal from "@/components/CreateModals/ClassroomCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
+import CentreSelectAll from "@/components/CrudControls/CentreSelectAll";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
+import StateSelect from "@/components/CrudControls/StateSelect";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
@@ -72,7 +74,29 @@ const classroomFilters: FilterOption[] = [
     type: "select",
     options: ["MORNING", "EVENING"],
   },
-  { key: "code", label: "Centre Code", type: "text" },
+  {
+    key: "centreCode",
+    label: "Centre Code",
+    type: "text",
+    customRenderer: ({ value, onChange }) => (
+      <CentreSelectAll
+        value={value || null}
+        onChange={(code) => onChange(code || "")}
+        placeholder="Select centre"
+      />
+    ),
+  },
+  {
+    key: "state",
+    label: "State",
+    type: "text",
+    customRenderer: ({ value, onChange }) => (
+      <StateSelect
+        value={value || null}
+        onChange={(fullName) => onChange(fullName || "")}
+      />
+    ),
+  },
 ];
 
 export default function ClassroomsPage() {
@@ -106,10 +130,12 @@ export default function ClassroomsPage() {
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
     if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
-    if (filters.code) url.searchParams.set("centreCode", filters.code);
+    if (filters.centreCode)
+      url.searchParams.set("centreCode", filters.centreCode);
     if (filters.section) url.searchParams.set("section", filters.section);
     if (filters.timing) url.searchParams.set("timing", filters.timing);
     if (filters.status) url.searchParams.set("status", filters.status);
+    if (filters.state) url.searchParams.set("state", filters.state);
     return url.toString();
   }, [page, pageSize, debouncedSearch, filters]);
 
@@ -143,10 +169,12 @@ export default function ClassroomsPage() {
       url.searchParams.set("page", String(pageParam));
       url.searchParams.set("pageSize", String(pageSizeParam));
       if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
-      if (filters.code) url.searchParams.set("centreCode", filters.code);
+      if (filters.centreCode)
+        url.searchParams.set("centreCode", filters.centreCode);
       if (filters.section) url.searchParams.set("section", filters.section);
       if (filters.timing) url.searchParams.set("timing", filters.timing);
       if (filters.status) url.searchParams.set("status", filters.status);
+      if (filters.state) url.searchParams.set("state", filters.state);
       return url;
     },
     [debouncedSearch, filters]

@@ -1,6 +1,7 @@
 "use client";
 
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
@@ -24,11 +25,11 @@ export default function ClassroomProfileClient({
     return res.json();
   }
 
-  async function fetchAssignments() {
+  async function fetchAssignments(page = 1, pageSize = 10) {
     const res = await fetch(
       `/api/admin/assignments/tutor?classroomId=${encodeURIComponent(
         classroomId
-      )}&page=1&pageSize=10`,
+      )}&page=${page}&pageSize=${pageSize}`,
       { cache: "no-store" }
     );
     if (!res.ok) throw new Error(await res.text());
@@ -60,8 +61,10 @@ export default function ClassroomProfileClient({
       tutor: x.user?.name
         ? `${x.user.name} — ${x.user.email}`
         : x.user?.email || x.userId,
-      start: x.startDate ? new Date(x.startDate).toLocaleDateString() : "",
-      end: x.endDate ? new Date(x.endDate).toLocaleDateString() : "",
+      start: x.startDate
+        ? new Date(x.startDate).toLocaleDateString("en-GB")
+        : "",
+      end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
       tag: x.isSubstitute ? "Substitute" : "Primary",
       __raw: x,
     }));
@@ -126,7 +129,45 @@ export default function ClassroomProfileClient({
       </Button>
     ) : null;
 
-  // Central full-page loader to prevent partial rendering
+  // Export all tutor assignments for this classroom
+  async function fetchAllTutorAssignments(): Promise<Record<string, any>[]> {
+    const pageSizeAll = 1000;
+    let pageAll = 1;
+    const out: Record<string, any>[] = [];
+
+    while (true) {
+      const res = await fetch(
+        `/api/admin/assignments/tutor?classroomId=${encodeURIComponent(
+          classroomId
+        )}&page=${pageAll}&pageSize=${pageSizeAll}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const rows: any[] = json?.rows || [];
+
+      out.push(
+        ...rows.map((x) => ({
+          tutor: x.user?.name
+            ? `${x.user.name} — ${x.user.email}`
+            : x.user?.email || x.userId,
+          start: x.startDate
+            ? new Date(x.startDate).toLocaleDateString("en-GB")
+            : "",
+          end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
+          type: x.isSubstitute ? "Substitute" : "Primary",
+        }))
+      );
+
+      if (rows.length < pageSizeAll) break;
+      pageAll += 1;
+      if (pageAll > 200) break;
+    }
+
+    return out;
+  }
+
+  // Central full-page loader
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-20">
@@ -189,7 +230,24 @@ export default function ClassroomProfileClient({
         </div>
       </div>
 
-      <h3 className="font-medium mb-2">Tutor Assignments</h3>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="font-medium">Tutor Assignments</h3>
+        <div className="z-100">
+          <ExportXlsxButton
+            fileName={`classroom_${classroom?.code || classroomId}_assignments`}
+            sheetName="Tutor Assignments"
+            columns={[
+              { key: "tutor", label: "Tutor" },
+              { key: "start", label: "Start" },
+              { key: "end", label: "End" },
+              { key: "type", label: "Type" },
+            ]}
+            visibleRows={[]} // export-all only
+            fetchAll={fetchAllTutorAssignments}
+          />
+        </div>
+      </div>
+
       <DataTable
         columns={columns}
         rows={rows}

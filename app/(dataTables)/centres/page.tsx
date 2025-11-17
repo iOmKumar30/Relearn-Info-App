@@ -8,6 +8,7 @@ import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
+import StateSelect from "@/components/CrudControls/StateSelect";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
@@ -57,7 +58,17 @@ const centreFilters: FilterOption[] = [
     type: "select",
     options: ["ACTIVE", "INACTIVE"],
   },
-  { key: "state", label: "State", type: "text" },
+  {
+    key: "state",
+    label: "State",
+    type: "text",
+    customRenderer: ({ value, onChange }) => (
+      <StateSelect
+        value={value || null}
+        onChange={(fullName) => onChange(fullName || "")}
+      />
+    ),
+  },
   { key: "city", label: "City", type: "text" },
   { key: "district", label: "District", type: "text" },
 ];
@@ -153,7 +164,7 @@ export default function CentresPage() {
           code: r.code,
           name: r.name,
           streetAddress: r.streetAddress,
-          facilitatorName: r.facilitator?.name || "", 
+          facilitatorName: r.facilitator?.name || "",
           facilitatorEmail: r.facilitator?.email || "",
           city: r.city,
           district: r.district,
@@ -168,7 +179,7 @@ export default function CentresPage() {
             : "",
         }))
       );
-      if (rows.length < pageSizeAll) break;  
+      if (rows.length < pageSizeAll) break;
       pageAll += 1;
       if (pageAll > 200) break;
     }

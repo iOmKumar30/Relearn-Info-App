@@ -93,8 +93,8 @@ export async function GET(req: Request) {
     statusParam === "ACTIVE" || statusParam === "INACTIVE"
       ? (statusParam as ClassroomStatus)
       : undefined;
+  const stateRaw = (searchParams.get("state") || "").trim();
 
-  // Text query facets
   const q = qRaw;
   const qUp = q.toUpperCase();
 
@@ -103,6 +103,15 @@ export async function GET(req: Request) {
     ...(section ? { section } : {}),
     ...(timing ? { timing } : {}),
     ...(status ? { status } : {}),
+    ...(stateRaw
+      ? {
+          OR: [
+            { state: { contains: stateRaw, mode: "insensitive" } }, // classroom.state
+            { centre: { state: { contains: stateRaw, mode: "insensitive" } } }, // centre.state
+          ],
+        }
+      : {}),
+
     ...(q
       ? {
           OR: [
