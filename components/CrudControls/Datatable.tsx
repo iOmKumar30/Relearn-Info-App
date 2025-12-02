@@ -1,3 +1,5 @@
+"use client";
+
 import { serialNumber } from "@/libs/pagination";
 import {
   Table,
@@ -7,6 +9,7 @@ import {
   TableHeadCell,
   TableRow,
 } from "flowbite-react";
+import { useEffect, useRef } from "react";
 
 type Column = { key: string; label: string };
 type Row = Record<string, any>;
@@ -16,8 +19,8 @@ interface DataTableProps {
   rows: Row[];
   actions?: (row: Row) => React.ReactNode;
   onRowClick?: (row: any) => void;
-  page: number; // NEW: current page number
-  pageSize: number; // NEW: rows per page
+  page: number; // current page number
+  pageSize: number; // rows per page
 }
 
 export default function DataTable({
@@ -30,9 +33,75 @@ export default function DataTable({
 }: DataTableProps) {
   const totalHeadCols = 1 + columns.length + (actions ? 1 : 0);
 
+  // Refs for the two scroll containers
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync scroll positions between top and bottom
+  useEffect(() => {
+    const topScroll = topScrollRef.current;
+    const bottomScroll = bottomScrollRef.current;
+    if (!topScroll || !bottomScroll) return;
+
+    // When top scrollbar is scrolled, update bottom
+    const handleTopScroll = () => {
+      if (bottomScroll.scrollLeft !== topScroll.scrollLeft) {
+        bottomScroll.scrollLeft = topScroll.scrollLeft;
+      }
+    };
+
+    // When bottom (main) container is scrolled, update top
+    const handleBottomScroll = () => {
+      if (topScroll.scrollLeft !== bottomScroll.scrollLeft) {
+        topScroll.scrollLeft = bottomScroll.scrollLeft;
+      }
+    };
+
+    topScroll.addEventListener("scroll", handleTopScroll);
+    bottomScroll.addEventListener("scroll", handleBottomScroll);
+
+    return () => {
+      topScroll.removeEventListener("scroll", handleTopScroll);
+      bottomScroll.removeEventListener("scroll", handleBottomScroll);
+    };
+  }, []);
+
+  // Update the top scrollbar width to match the table's scrollable width
+  useEffect(() => {
+    const topScroll = topScrollRef.current;
+    const bottomScroll = bottomScrollRef.current;
+    if (!topScroll || !bottomScroll) return;
+
+    const updateScrollWidth = () => {
+      const child = topScroll.firstElementChild as HTMLDivElement;
+      if (child) {
+        child.style.width = `${bottomScroll.scrollWidth}px`;
+      }
+    };
+
+    updateScrollWidth();
+    // Re-sync on window resize
+    window.addEventListener("resize", updateScrollWidth);
+    return () => window.removeEventListener("resize", updateScrollWidth);
+  }, [rows, columns]);
+
   return (
     <div className="rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-      <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
+      {/* Top horizontal scrollbar */}
+      <div
+        ref={topScrollRef}
+        className="overflow-x-auto overflow-y-hidden h-4 bg-gray-50 border-b border-gray-200"
+        style={{ overflowX: "auto", overflowY: "hidden" }}
+      >
+        {/* Invisible spacer div that mimics the table width */}
+        <div style={{ height: "1px" }} />
+      </div>
+
+      {/* Main table container with vertical + horizontal scroll */}
+      <div
+        ref={bottomScrollRef}
+        className="max-h-[600px] overflow-y-auto overflow-x-auto"
+      >
         <Table className="min-w-full">
           <TableHead
             clearTheme
