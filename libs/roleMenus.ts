@@ -34,6 +34,7 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Facilitators", href: "/facilitators", icon: UserCircleIcon },
     { label: "Tutors", href: "/tutors", icon: UserCircleIcon },
     { label: "Employees", href: "/employees", icon: UserCircleIcon },
+    { label: "Annual Members", href: "/members/annual", icon: UserCircleIcon },
     { label: "Pending Users", href: "/pending-users", icon: UserPlusIcon },
     {
       label: "Certificates",
@@ -63,6 +64,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Centres", href: "/centres", icon: BuildingStorefrontIcon },
     { label: "Classrooms", href: "/classrooms", icon: BuildingStorefrontIcon },
     { label: "Users", href: "/users", icon: UsersIcon },
+    { label: "Annual Members", href: "/members/annual", icon: UserCircleIcon },
+
     {
       label: "Donations",
       href: "https://rzp-payment-serverless.vercel.app",
@@ -85,6 +88,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
   RELF_EMPLOYEE: [
     { label: "Dashboard", href: "/dashboard", icon: ClipboardIcon },
     { label: "Facilitators", href: "/facilitators", icon: UserCircleIcon },
+    { label: "Annual Members", href: "/members/annual", icon: UserCircleIcon },
+
     {
       label: "Donations",
       href: "https://rzp-payment-serverless.vercel.app",

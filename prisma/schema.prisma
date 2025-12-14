@@ -225,7 +225,7 @@ model Employee {
 
 model Member {
   id          String       @id @default(uuid())
-  userId      String       @unique
+  userId      String       @unique // for 1:1 relationship with the user
   memberType  MemberType
   joiningDate DateTime
   leavingDate DateTime?
