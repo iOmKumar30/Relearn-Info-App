@@ -108,99 +108,105 @@ export async function POST(req: Request) {
 
     const joiningDate = joiningDateStr ? new Date(joiningDateStr) : new Date();
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Ensure Member Role
-      let memberRole = await tx.role.findUnique({
-        where: { name: RoleName.MEMBER },
-      });
-      if (!memberRole) {
-        memberRole = await tx.role.create({
-          data: {
-            name: RoleName.MEMBER,
-            description: "Annual / other members",
-          },
+    await prisma.$transaction(
+      async (tx) => {
+        // 1. Ensure Member Role
+        let memberRole = await tx.role.findUnique({
+          where: { name: RoleName.MEMBER },
         });
-      }
-
-      // 2. Find or Create User
-      let user = await tx.user.findUnique({ where: { email } });
-      if (!user) {
-        user = await tx.user.create({
-          data: {
-            name: name || null,
-            email,
-            phone: phone || null,
-            status: UserStatus.ACTIVE,
-            onboardingStatus: OnboardingStatus.ACTIVE,
-            activatedAt: new Date(),
-            emailCredential: { create: { email, passwordHash: hash } },
-          },
-        });
-      } else {
-        // Update user details if provided
-        const updates: any = {};
-        if (name && !user.name) updates.name = name;
-        if (phone && !user.phone) updates.phone = phone;
-        if (Object.keys(updates).length > 0) {
-          user = await tx.user.update({
-            where: { id: user.id },
-            data: updates,
+        if (!memberRole) {
+          memberRole = await tx.role.create({
+            data: {
+              name: RoleName.MEMBER,
+              description: "Annual / other members",
+            },
           });
         }
-      }
 
-      // 3. Assign Role
-      const hasRole = await tx.userRoleHistory.findFirst({
-        where: { userId: user.id, roleId: memberRole.id, endDate: null },
-      });
-      if (!hasRole) {
-        await tx.userRoleHistory.create({
-          data: {
-            userId: user.id,
-            roleId: memberRole.id,
-            startDate: new Date(),
-          },
-        });
-      }
+        // 2. Find or Create User
+        let user = await tx.user.findUnique({ where: { email } });
+        if (!user) {
+          user = await tx.user.create({
+            data: {
+              name: name || null,
+              email,
+              phone: phone || null,
+              status: UserStatus.ACTIVE,
+              onboardingStatus: OnboardingStatus.ACTIVE,
+              activatedAt: new Date(),
+              emailCredential: { create: { email, passwordHash: hash } },
+            },
+          });
+        } else {
+          // Update user details if provided
+          const updates: any = {};
+          if (name && !user.name) updates.name = name;
+          if (phone && !user.phone) updates.phone = phone;
+          if (Object.keys(updates).length > 0) {
+            user = await tx.user.update({
+              where: { id: user.id },
+              data: updates,
+            });
+          }
+        }
 
-      // 4. Create/Update Member Record
-      let member = await tx.member.findUnique({ where: { userId: user.id } });
-      if (!member) {
-        member = await tx.member.create({
-          data: {
-            userId: user.id,
-            memberType: MemberType.ANNUAL,
-            joiningDate,
-            pan: pan || null,
-            status: MemberStatus.ACTIVE,
-          },
+        // 3. Assign Role
+        const hasRole = await tx.userRoleHistory.findFirst({
+          where: { userId: user.id, roleId: memberRole.id, endDate: null },
         });
-      } else {
-        member = await tx.member.update({
-          where: { id: member.id },
-          data: {
-            memberType: MemberType.ANNUAL,
-            joiningDate,
-            pan: pan || member.pan,
-          },
-        });
-      }
+        if (!hasRole) {
+          await tx.userRoleHistory.create({
+            data: {
+              userId: user.id,
+              roleId: memberRole.id,
+              startDate: new Date(),
+            },
+          });
+        }
 
-      // 5. Handle Fees
-      for (const [label, dateStr] of Object.entries(feesInput)) {
-        if (!dateStr) continue;
-        const paidOn = new Date(dateStr as string);
-        if (isNaN(paidOn.getTime())) continue;
+        // 4. Create/Update Member Record
+        let member = await tx.member.findUnique({ where: { userId: user.id } });
+        if (!member) {
+          member = await tx.member.create({
+            data: {
+              userId: user.id,
+              memberType: MemberType.ANNUAL,
+              joiningDate,
+              pan: pan || null,
+              status: MemberStatus.ACTIVE,
+            },
+          });
+        } else {
+          member = await tx.member.update({
+            where: { id: member.id },
+            data: {
+              memberType: MemberType.ANNUAL,
+              joiningDate,
+              pan: pan || member.pan,
+            },
+          });
+        }
 
-        await tx.memberFee.upsert({
-          where: {
-            memberId_fiscalLabel: { memberId: member.id, fiscalLabel: label },
-          },
-          update: { paidOn },
-          create: { memberId: member.id, fiscalLabel: label, paidOn },
-        });
+        // 5. Handle Fees
+        for (const [label, dateStr] of Object.entries(feesInput)) {
+          if (!dateStr) continue;
+          const paidOn = new Date(dateStr as string);
+          if (isNaN(paidOn.getTime())) continue;
+
+          await tx.memberFee.upsert({
+            where: {
+              memberId_fiscalLabel: { memberId: member.id, fiscalLabel: label },
+            },
+            update: { paidOn },
+            create: { memberId: member.id, fiscalLabel: label, paidOn },
+          });
+        }
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
       }
-    });
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error: any) {

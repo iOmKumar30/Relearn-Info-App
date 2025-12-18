@@ -196,7 +196,7 @@ export default function AnnualMemberCreateModal({
 
           <hr className="my-4 border-gray-200" />
 
-          <h4 className="text-md font-medium text-gray-900 mb-2">
+          <h4 className="text-md font-medium text-white mb-2">
             Membership Fee Payments
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

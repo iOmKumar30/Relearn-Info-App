@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // PUT: Update Member details and fees
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> } 
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -25,55 +25,62 @@ export async function PUT(
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
     const joiningDateStr = body.joiningDate;
-    const feesInput = body.fees || {}; // { "2023-2024": "2023-01-01" }
+    const feesInput = body.fees || {};
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Get current member to find linked user
-      const member = await tx.member.findUnique({
-        where: { id },
-        include: { user: true },
-      });
-      if (!member) throw new Error("Member not found");
+    await prisma.$transaction(
+      async (tx) => {
+        const member = await tx.member.findUnique({
+          where: { id },
+          select: { userId: true }, 
+        });
+        if (!member) throw new Error("Member not found");
 
-      // 2. Update Member fields
-      await tx.member.update({
-        where: { id },
-        data: {
-          pan: pan || null,
-          joiningDate: joiningDateStr ? new Date(joiningDateStr) : undefined,
-        },
-      });
-
-      // 3. Update User fields (Name/Phone)
-      if (name || phone) {
-        await tx.user.update({
-          where: { id: member.userId },
+        await tx.member.update({
+          where: { id },
           data: {
-            name: name || undefined,
-            phone: phone || undefined,
+            pan: pan || null,
+            joiningDate: joiningDateStr ? new Date(joiningDateStr) : undefined,
           },
         });
-      }
 
-      // 4. Update Fees
-      // We iterate through all provided keys. If a date is provided, upsert.
-      // If explicit null/empty passed for a key that exists, we could delete, but usually we just overwrite valid dates.
-      for (const [label, dateStr] of Object.entries(feesInput)) {
-        if (!dateStr) {
-          // Optional: logic to remove fee if passed as empty string?
-          // For now, let's assume we only upsert valid dates.
-          continue;
+        if (name || phone) {
+          await tx.user.update({
+            where: { id: member.userId },
+            data: {
+              name: name || undefined,
+              phone: phone || undefined,
+            },
+          });
         }
-        const paidOn = new Date(dateStr as string);
-        if (isNaN(paidOn.getTime())) continue;
 
-        await tx.memberFee.upsert({
-          where: { memberId_fiscalLabel: { memberId: id, fiscalLabel: label } },
-          update: { paidOn },
-          create: { memberId: id, fiscalLabel: label, paidOn },
-        });
+        // Instead of waiting one-by-one, we map them to an array of promises
+        const feePromises = Object.entries(feesInput).map(
+          ([label, dateStr]) => {
+            if (!dateStr) return null; 
+            const paidOn = new Date(dateStr as string);
+            if (isNaN(paidOn.getTime())) return null;
+
+            return tx.memberFee.upsert({
+              where: {
+                memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
+              },
+              update: { paidOn },
+              create: { memberId: id, fiscalLabel: label, paidOn },
+            });
+          }
+        );
+
+        // Filter out nulls and await all at once
+        const validFeePromises = feePromises.filter((p) => p !== null);
+        if (validFeePromises.length > 0) {
+          await Promise.all(validFeePromises);
+        }
+      },
+      {
+        maxWait: 5000,
+        timeout: 20000,
       }
-    });
+    );
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -84,7 +91,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Remove Member record : keeps User, but removes Member role 
+// DELETE: Remove Member record : keeps User, but removes Member role
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
