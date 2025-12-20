@@ -3,6 +3,7 @@ import {
   ClipboardIcon,
   DocumentCheckIcon,
   DocumentCurrencyRupeeIcon,
+  DocumentTextIcon,
   UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
@@ -41,6 +42,12 @@ export const roleMenus: Record<Role, NavItem[]> = {
       href: "/admin/certificates",
       icon: DocumentCheckIcon,
     },
+    // Projects
+    {
+      label: "Projects",
+      href: "/projects",
+      icon: DocumentTextIcon,
+    },
     // Public donation page (plain external link)
     {
       label: "Donate",
@@ -65,7 +72,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Classrooms", href: "/classrooms", icon: BuildingStorefrontIcon },
     { label: "Users", href: "/users", icon: UsersIcon },
     { label: "Annual Members", href: "/members/annual", icon: UserCircleIcon },
-
+    {
+      label: "Projects",
+      href: "/projects",
+      icon: DocumentTextIcon,
+    },
     {
       label: "Donations",
       href: "https://rzp-payment-serverless.vercel.app",
@@ -83,6 +94,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
       icon: FaDonate as any,
       external: true,
     },
+    {
+      label: "Projects",
+      href: "/projects",
+      icon: DocumentTextIcon,
+    },
   ],
 
   RELF_EMPLOYEE: [
@@ -95,6 +111,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
       href: "https://rzp-payment-serverless.vercel.app",
       icon: FaDonate as any,
       external: true,
+    },
+    {
+      label: "Projects",
+      href: "/projects",
+      icon: DocumentTextIcon,
     },
   ],
 };

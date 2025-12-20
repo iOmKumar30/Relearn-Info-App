@@ -398,6 +398,33 @@ model MembershipCertificate {
   @@index([dateIssued])
 }
 
+model Project {
+  id            String        @id @default(uuid())
+  title         String
+  description   String?       @db.Text
+  status        ProjectStatus @default(ONGOING)
+  
+  // Specific Details
+  conclusion    String?       @db.Text
+  nextSteps     String?       @db.Text
+  mentors       String?       // "Mr. A, Mr. B, .. etc"
+  sponsoredBy   String?
+  year          String?       // "2024-26"
+  funds         Decimal?      @db.Decimal(10, 2) // In Lakhs
+  place         String?
+  targetGroup   String?
+  beneficiaries String?       // working peeps
+  
+  // File Storage
+  reportUrl     String?       // URL to the PDF on UploadThing
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status])
+  @@index([year])
+}
+
 enum CentreStatus {
   ACTIVE
   INACTIVE
@@ -479,4 +506,11 @@ enum KPIUnit {
   COUNT
   PERCENT
   LAKHS
+}
+
+enum ProjectStatus {
+  PLANNED
+  ONGOING
+  COMPLETED
+  ON_HOLD
 }
