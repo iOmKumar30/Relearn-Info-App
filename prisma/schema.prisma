@@ -137,7 +137,7 @@ model EmailCredential {
 
 model Account {
   id                String   @id @default(uuid())
-  userId            String 
+  userId            String
   provider          String
   providerAccountId String
   providerEmail     String?
@@ -398,32 +398,53 @@ model MembershipCertificate {
   @@index([dateIssued])
 }
 
+model ParticipationCertificate {
+  id            String  @id @default(cuid())
+  certificateNo String? @unique
+  name          String
+  aadhaar       String?
+  classYear     String // e.g. "B.Tech 3rd Year" / "Class 12"
+  institute     String // e.g. "IIT Bhubaneswar"
+
+  duration  String // e.g. "2 weeks", "100 hours"
+  startDate DateTime
+  endDate   DateTime
+
+  issueDate DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([aadhaar])
+}
+
 model Project {
-  id            String        @id @default(uuid())
-  title         String
-  description   String?       @db.Text
-  status        ProjectStatus @default(ONGOING)
-  
+  id          String        @id @default(uuid())
+  title       String
+  description String?       @db.Text
+  status      ProjectStatus @default(ONGOING)
+
   // Specific Details
-  conclusion    String?       @db.Text
-  nextSteps     String?       @db.Text
-  mentors       String?       // "Mr. A, Mr. B, .. etc"
+  conclusion    String?  @db.Text
+  nextSteps     String?  @db.Text
+  mentors       String? // "Mr. A, Mr. B, .. etc"
   sponsoredBy   String?
-  year          String?       // "2024-26"
-  funds         Decimal?      @db.Decimal(10, 2) // In Lakhs
+  year          String? // "2024-26"
+  funds         Decimal? @db.Decimal(10, 2) // In Lakhs
   place         String?
   targetGroup   String?
-  beneficiaries String?       // working peeps
-  
+  beneficiaries String? // working peeps
+
   // File Storage
-  reportUrl     String?       // URL to the PDF on UploadThing
-  proposalUrl     String?  // For "Project proposal document"
-  approvalUrl     String?  // For "Project approval document"
-  utilizationUrl  String?  // For "Utilization Certification"
-  rating          Int?     @default(0) // Star rating out of 5
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  reportUrl      String? // URL to the PDF on UploadThing
+  proposalUrl    String? // For "Project proposal document"
+  approvalUrl    String? // For "Project approval document"
+  utilizationUrl String? // For "Utilization Certification"
+  rating         Int?    @default(0) // Star rating out of 5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([year])

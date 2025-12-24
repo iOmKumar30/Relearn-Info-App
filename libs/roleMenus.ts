@@ -42,6 +42,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
       href: "/admin/certificates",
       icon: DocumentCheckIcon,
     },
+    {
+      label: "Participation Certificates",
+      href: "/admin/participation-certificates",
+      icon: DocumentCheckIcon,
+    },
     // Projects
     {
       label: "Projects",
