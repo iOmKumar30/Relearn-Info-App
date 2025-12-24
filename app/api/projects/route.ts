@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // create project 
+    // create project
     const project = await prisma.project.create({
       data: {
         title: body.title,
@@ -62,7 +62,11 @@ export async function POST(req: Request) {
         place: body.place,
         targetGroup: body.targetGroup,
         beneficiaries: body.beneficiaries,
-        reportUrl: body.reportUrl, // The URL from UploadThing
+        reportUrl: body.reportUrl, // The URL from UploadThing,
+        proposalUrl: body.proposalUrl, // The URL from UploadThing,
+        approvalUrl: body.approvalUrl, // The URL from UploadThing,
+        utilizationUrl: body.utilizationUrl, // The URL from UploadThing,
+        rating: body.rating,
       },
     });
 

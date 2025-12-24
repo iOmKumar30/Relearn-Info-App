@@ -16,6 +16,7 @@ import {
   HiDocumentText,
   HiLocationMarker,
   HiPencil,
+  HiStar,
   HiTrash,
   HiTrendingUp,
   HiUserGroup,
@@ -23,7 +24,6 @@ import {
 } from "react-icons/hi";
 
 // --- Custom "Card" Component to guarantee Light Theme ---
-// This replaces the Flowbite Card to prevent unwanted dark mode inheritance
 const LightCard = ({
   children,
   className = "",
@@ -37,6 +37,75 @@ const LightCard = ({
     {children}
   </div>
 );
+
+// --- Reusable Document Viewer Component ---
+const DocumentViewer = ({
+  title,
+  url,
+  iconColorClass,
+  onUploadClick,
+}: {
+  title: string;
+  url?: string;
+  iconColorClass: string;
+  onUploadClick: () => void;
+}) => {
+  return (
+    <LightCard className="overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b border-gray-100">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <div className={`p-2 rounded-lg ${iconColorClass}`}>
+              <HiDocumentText className="h-5 w-5" />
+            </div>
+            {title}
+          </h3>
+        </div>
+        {url && (
+          <Button
+            href={url}
+            as="a"
+            size="sm"
+            className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-200"
+            download
+            target="_blank"
+            rel="noreferrer"
+          >
+            <HiCloudDownload className="mr-2 h-4 w-4" /> Download PDF
+          </Button>
+        )}
+      </div>
+
+      <div className="bg-gray-50 p-6 min-h-[300px] flex items-center justify-center">
+        {url ? (
+          <iframe
+            src={`${url}#toolbar=0&view=FitH`}
+            className="w-full h-[600px] rounded-lg shadow-sm bg-white border border-gray-200"
+            title={`${title} PDF`}
+          />
+        ) : (
+          <div className="text-center py-8 flex flex-col items-center">
+            <div className="mx-auto h-16 w-16 bg-white border border-gray-200 rounded-full flex items-center justify-center mb-4 shadow-sm">
+              <HiDocumentText className="h-8 w-8 text-gray-300" />
+            </div>
+            <p className="text-gray-900 font-medium">No {title} uploaded</p>
+            <p className="text-sm text-gray-500 mb-6 mt-1">
+              Upload a PDF to view it here.
+            </p>
+            <Button
+              size="sm"
+              color="light"
+              onClick={onUploadClick}
+              className="bg-white border-gray-300 text-gray-700"
+            >
+              Upload via Edit
+            </Button>
+          </div>
+        )}
+      </div>
+    </LightCard>
+  );
+};
 
 const getStatusTheme = (status: string) => {
   switch (status) {
@@ -197,6 +266,15 @@ export default function ProjectDetailsPage({
               >
                 {project.status}
               </span>
+
+              {/* --- STAR RATING DISPLAY --- */}
+              <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
+                <HiStar className="h-4 w-4 text-yellow-400" />
+                <span className="text-xs font-bold text-yellow-700">
+                  {project.rating ? `${project.rating}/5` : "Unrated"}
+                </span>
+              </div>
+
               <span className="text-gray-300">|</span>
               <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
                 <HiCalendar className="h-4 w-4 text-gray-400" />
@@ -258,62 +336,39 @@ export default function ProjectDetailsPage({
               </div>
             </LightCard>
 
-            {/* Report Viewer Card */}
-            <LightCard className="overflow-hidden">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b border-gray-100">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <div className="p-2 bg-teal-50 rounded-lg text-teal-600">
-                      <HiCloudDownload className="h-5 w-5" />
-                    </div>
-                    Project Report
-                  </h3>
-                </div>
-                {project.reportUrl && (
-                  <Button
-                    href={project.reportUrl}
-                    as="a"
-                    size="sm"
-                    className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-200"
-                    download
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <HiCloudDownload className="mr-2 h-4 w-4" /> Download PDF
-                  </Button>
-                )}
-              </div>
+            {/* --- DOCUMENT SECTION (Ordered as Requested) --- */}
 
-              <div className="bg-gray-50 p-6 min-h-[300px] flex items-center justify-center">
-                {project.reportUrl ? (
-                  <iframe
-                    src={`${project.reportUrl}#toolbar=0&view=FitH`}
-                    className="w-full h-[600px] rounded-lg shadow-sm bg-white border border-gray-200"
-                    title="Project Report PDF"
-                  />
-                ) : (
-                  <div className="text-center py-8 flex flex-col items-center">
-                    <div className="mx-auto h-16 w-16 bg-white border border-gray-200 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                      <HiDocumentText className="h-8 w-8 text-gray-300" />
-                    </div>
-                    <p className="text-gray-900 font-medium">
-                      No report uploaded
-                    </p>
-                    <p className="text-sm text-gray-500 mb-6 mt-1">
-                      Upload a PDF to view it here.
-                    </p>
-                    <Button
-                      size="sm"
-                      color="light"
-                      onClick={() => setEditOpen(true)}
-                      className="bg-white border-gray-300 text-gray-700"
-                    >
-                      Upload via Edit
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </LightCard>
+            {/* 1. Project Proposal */}
+            <DocumentViewer
+              title="Project Proposal"
+              url={project.proposalUrl}
+              iconColorClass="bg-purple-50 text-purple-600"
+              onUploadClick={() => setEditOpen(true)}
+            />
+
+            {/* 2. Project Approval */}
+            <DocumentViewer
+              title="Project Approval"
+              url={project.approvalUrl}
+              iconColorClass="bg-green-50 text-green-600"
+              onUploadClick={() => setEditOpen(true)}
+            />
+
+            {/* 3. Project Report */}
+            <DocumentViewer
+              title="Project Report"
+              url={project.reportUrl}
+              iconColorClass="bg-teal-50 text-teal-600"
+              onUploadClick={() => setEditOpen(true)}
+            />
+
+            {/* 4. Utilization Certificate */}
+            <DocumentViewer
+              title="Utilization Certificate"
+              url={project.utilizationUrl}
+              iconColorClass="bg-orange-50 text-orange-600"
+              onUploadClick={() => setEditOpen(true)}
+            />
           </div>
 
           {/* RIGHT COLUMN (4 cols) */}
@@ -396,7 +451,7 @@ export default function ProjectDetailsPage({
                   <div className="flex items-center gap-2 mb-2">
                     <HiLocationMarker className="text-gray-400 w-4 h-4" />
                     <p className="text-xs text-gray-900 font-bold uppercase">
-                      Beneficiaries & Team
+                      Project Coordinators & Team
                     </p>
                   </div>
                   <p className="text-sm text-gray-600 pl-6 border-l-2 border-gray-100">

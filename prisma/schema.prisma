@@ -417,7 +417,11 @@ model Project {
   
   // File Storage
   reportUrl     String?       // URL to the PDF on UploadThing
-
+  proposalUrl     String?  // For "Project proposal document"
+  approvalUrl     String?  // For "Project approval document"
+  utilizationUrl  String?  // For "Utilization Certification"
+  rating          Int?     @default(0) // Star rating out of 5
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

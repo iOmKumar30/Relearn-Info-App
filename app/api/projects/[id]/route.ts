@@ -47,6 +47,10 @@ export async function PUT(
         targetGroup: body.targetGroup,
         beneficiaries: body.beneficiaries,
         reportUrl: body.reportUrl,
+        proposalUrl: body.proposalUrl, // The URL from UploadThing,
+        approvalUrl: body.approvalUrl, // The URL from UploadThing,
+        utilizationUrl: body.utilizationUrl, // The URL from UploadThing,
+        rating: body.rating,
       },
     });
     return NextResponse.json({ success: true });
