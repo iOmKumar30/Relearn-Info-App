@@ -13,11 +13,13 @@ import { ClipLoader } from "react-spinners";
 
 type Row = {
   id: string;
+  type: string;
   certificateNo: string;
   name: string;
   aadhaar?: string;
   classYear: string;
   institute: string;
+  eventName?: string; // Specific to Training
   duration: string;
   startDate: string;
   endDate: string;
@@ -25,7 +27,7 @@ type Row = {
   createdAt: string;
 };
 
-export default function ParticipationCertificatesPage() {
+export default function TrainingCertificatesPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -42,12 +44,12 @@ export default function ParticipationCertificatesPage() {
   const [pendingDelete, setPendingDelete] = useState<Row | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // --- FILTER BY TYPE: PARTICIPATION ---
+  // --- FILTER BY TYPE: TRAINING ---
   const url = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set("page", String(page));
     sp.set("pageSize", String(pageSize));
-    sp.set("type", "PARTICIPATION"); // <--- FILTER HERE
+    sp.set("type", "TRAINING"); // <--- FILTER HERE
     if (q.trim()) sp.set("q", q.trim());
     return `/api/admin/part-cert/list?${sp.toString()}`;
   }, [page, pageSize, q]);
@@ -83,7 +85,7 @@ export default function ParticipationCertificatesPage() {
       toast.error(msg);
       return;
     }
-    toast.success("Certificate Created");
+    toast.success("Training Certificate Created");
     load();
   };
 
@@ -114,8 +116,8 @@ export default function ParticipationCertificatesPage() {
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[#8b7e4e]">
-            Participation Certificates
+          <h1 className="text-xl font-semibold text-blue-700">
+            Training Certificates
           </h1>
           <div className="flex items-center gap-2">
             <div className="w-64">
@@ -125,16 +127,12 @@ export default function ParticipationCertificatesPage() {
                   setPage(1);
                   setQ(val);
                 }}
-                placeholder="Search name / institute..."
+                placeholder="Search employee / institute..."
               />
             </div>
-            <Button
-              color="light"
-              className="cursor-pointer"
-              onClick={() => setFormOpen(true)}
-            >
+            <Button color="blue" onClick={() => setFormOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Certificate
+              Create Training Cert
             </Button>
           </div>
         </div>
@@ -149,8 +147,9 @@ export default function ParticipationCertificatesPage() {
           <table className="min-w-full bg-white text-sm">
             <thead>
               <tr className="bg-gray-50 text-left">
-                <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">Employee Name</th>
                 <th className="px-3 py-2">Institute</th>
+                <th className="px-3 py-2">Event Name</th>
                 <th className="px-3 py-2">Date Issued</th>
                 <th className="px-3 py-2">Certificate No</th>
                 <th className="px-3 py-2">Actions</th>
@@ -170,11 +169,14 @@ export default function ParticipationCertificatesPage() {
                       {r.institute}
                     </span>
                   </td>
+                  <td className="px-3 py-2 font-medium text-blue-600">
+                    {r.eventName || "-"}
+                  </td>
                   <td className="px-3 py-2">
                     {new Date(r.issueDate).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
-                    <Badge color="gray">{r.certificateNo}</Badge>
+                    <Badge color="info">{r.certificateNo}</Badge>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -209,12 +211,12 @@ export default function ParticipationCertificatesPage() {
                 <tr>
                   <td
                     className="px-3 py-6 text-center text-gray-500"
-                    colSpan={5}
+                    colSpan={6}
                   >
                     {loading ? (
                       <ClipLoader size={40} />
                     ) : (
-                      "No participation certificates found."
+                      "No training certificates found."
                     )}
                   </td>
                 </tr>
@@ -248,8 +250,8 @@ export default function ParticipationCertificatesPage() {
         <CertificateFormModal
           open={formOpen}
           mode="create"
-          // --- PRE-FILL TYPE ---
-          initialValues={{ type: "PARTICIPATION" }}
+          // Pre-fill type as TRAINING so user doesn't have to select it
+          initialValues={{ type: "TRAINING" }}
           onClose={() => setFormOpen(false)}
           onSubmit={handleCreate}
         />
@@ -264,7 +266,7 @@ export default function ParticipationCertificatesPage() {
 
         <ConfirmDeleteModal
           open={!!pendingDelete}
-          title="Confirm Deletion"
+          title="Delete Training Certificate"
           message={
             pendingDelete
               ? `Delete certificate for "${pendingDelete.name}"? This cannot be undone.`

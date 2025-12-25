@@ -1,7 +1,7 @@
 "use client";
 
-import CertificateCard from "@/components/part-cert/CertificateCard"; // Adjust import path if needed
-import { downloadElementAsPDF } from "@/libs/pdf/downloadFromElement"; // Ensure this path is correct
+import CertificateCard from "@/components/part-cert/CertificateCard";
+import { downloadElementAsPDF } from "@/libs/pdf/downloadFromElement";
 import { Button } from "flowbite-react";
 import { useRef } from "react";
 import { HiDownload } from "react-icons/hi";
@@ -22,7 +22,6 @@ export default function CertificatePreviewModal({
   if (!open || !data) return null;
 
   const handleDownload = async () => {
-    // We target the ID we added to the CertificateCard wrapper
     const el = document.getElementById("certificate-root");
     if (!el) return;
 
@@ -55,17 +54,17 @@ export default function CertificatePreviewModal({
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-auto bg-gray-100 p-8">
           <div className="flex justify-center min-w-[1150px]">
-            {/* 
-               We wrap this in a ref div, though the download function 
-               targets the ID inside CertificateCard directly. 
-            */}
             <div ref={ref}>
               <CertificateCard
+                // Pass the new Type prop
+                type={data.type || "PARTICIPATION"}
                 certificateNo={data.certificateNo}
                 name={data.name}
                 aadhaar={data.aadhaar}
                 classYear={data.classYear}
                 institute={data.institute}
+                // Pass new Event Name prop (for Training)
+                eventName={data.eventName}
                 duration={data.duration}
                 startDate={data.startDate}
                 endDate={data.endDate}

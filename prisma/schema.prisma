@@ -398,17 +398,24 @@ model MembershipCertificate {
   @@index([dateIssued])
 }
 
+enum CertificateType {
+  PARTICIPATION
+  INTERNSHIP
+  TRAINING
+}
+
 model ParticipationCertificate {
-  id            String  @id @default(cuid())
-  certificateNo String? @unique
+  id            String          @id @default(cuid())
+  type          CertificateType @default(PARTICIPATION)
+  certificateNo String?         @unique
   name          String
   aadhaar       String?
-  classYear     String // e.g. "B.Tech 3rd Year" / "Class 12"
+  classYear     String? // e.g. "B.Tech 3rd Year" / "Class 12"
   institute     String // e.g. "IIT Bhubaneswar"
-
-  duration  String // e.g. "2 weeks", "100 hours"
-  startDate DateTime
-  endDate   DateTime
+  eventName     String?
+  duration      String // e.g. "2 weeks", "100 hours"
+  startDate     DateTime
+  endDate       DateTime
 
   issueDate DateTime @default(now())
 

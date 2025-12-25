@@ -20,11 +20,13 @@ export async function GET(
     where: { id },
     select: {
       id: true,
+      type: true, // Added
       certificateNo: true,
       name: true,
       aadhaar: true,
       classYear: true,
       institute: true,
+      eventName: true, // Added
       duration: true,
       startDate: true,
       endDate: true,

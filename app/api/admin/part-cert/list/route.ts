@@ -15,6 +15,7 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
+  const typeFilter = searchParams.get("type");
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
@@ -22,10 +23,11 @@ export async function GET(req: Request) {
   );
   const qRaw = (searchParams.get("q") || "").trim();
 
-  // Build where clause for ParticipationCertificate
-  const where: Parameters<
-    typeof prisma.participationCertificate.count
-  >[0]["where"] = {};
+  // Build where clause
+  const where: any = {};
+  if (typeFilter) {
+    where.type = typeFilter;
+  }
 
   if (qRaw) {
     where.OR = [
@@ -33,6 +35,8 @@ export async function GET(req: Request) {
       { certificateNo: { contains: qRaw, mode: "insensitive" } },
       { institute: { contains: qRaw, mode: "insensitive" } },
       { aadhaar: { contains: qRaw, mode: "insensitive" } },
+      // Added search by event name just in case
+      { eventName: { contains: qRaw, mode: "insensitive" } },
     ];
   }
 
@@ -44,14 +48,15 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        // Select all fields needed for the Preview Card
         select: {
           id: true,
+          type: true, // Added Type
           certificateNo: true,
           name: true,
           aadhaar: true,
           classYear: true,
           institute: true,
+          eventName: true, // Added Event Name
           duration: true,
           startDate: true,
           endDate: true,
@@ -63,7 +68,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ page, pageSize, total, rows });
   } catch (error) {
-    console.error("PART_CERT_LIST_ERROR", error);
+    console.error("CERT_LIST_ERROR", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
