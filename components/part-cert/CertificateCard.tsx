@@ -105,7 +105,7 @@ const CertificateCard = forwardRef<HTMLDivElement, Props>(
         {/* --- BLUE BORDER FRAME --- */}
         {/* Increased border width slightly visually if needed, but inset-4 is good. 
           The key is keeping content away from this border. */}
-        <div className="absolute inset-5 border-[12px] border-[#1e2e5c] pointer-events-none z-20"></div>
+        <div className="absolute inset-5 border-12 border-[#1e2e5c] pointer-events-none z-20"></div>
 
         {/* --- BACKGROUND WATERMARK --- */}
         <div className="absolute inset-0 flex items-center justify-center opacity-50 pointer-events-none z-0">

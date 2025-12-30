@@ -457,6 +457,46 @@ model Project {
   @@index([year])
 }
 
+model GstReceipt {
+  id            String   @id @default(uuid())
+  invoiceNo     String   @unique // e.g., RELF/25-26/001
+  invoiceDate   DateTime
+  dateOfSupply  String?
+  placeOfSupply String?
+  reverseCharge String?  @default("N")
+
+  // Bill To Details
+  billToName  String
+  billToGstin String? @default("NA")
+  billToState String  @default("Jharkhand")
+  billToCode  String? @default("20")
+
+  // Ship To Details
+  shipToName  String?
+  shipToGstin String? @default("NA")
+  shipToState String? @default("Jharkhand")
+  shipToCode  String? @default("20")
+
+  // Items stored as JSONB
+  // Structure: [{ description, sac, amount, discount, taxableValue, cgstRate, sgstRate, igstRate }]
+  items Json?
+
+  // Totals
+  totalAmount   Float
+  totalTax      Float
+  grandTotal    Float
+  amountInWords String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvoiceCounter {
+  id            String @id @default(uuid())
+  financialYear String @unique // e.g. "25-26"
+  currentSeq    Int    @default(0)
+}
+
 enum CentreStatus {
   ACTIVE
   INACTIVE

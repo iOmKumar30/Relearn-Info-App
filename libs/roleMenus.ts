@@ -38,8 +38,8 @@ export const roleMenus: Record<Role, NavItem[]> = {
     { label: "Annual Members", href: "/members/annual", icon: UserCircleIcon },
     { label: "Pending Users", href: "/pending-users", icon: UserPlusIcon },
     {
-      label: "Certificates",
-      href: "/admin/certificates",
+      label: "Membership Certificates",
+      href: "/admin/membership-certificates",
       icon: DocumentCheckIcon,
     },
     {
@@ -57,6 +57,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
       href: "/admin/internship-certificates",
       icon: DocumentCheckIcon,
     },
+    {
+      label: "GST Receipts",
+      href: "/admin/gst-receipt",
+      icon: DocumentCurrencyRupeeIcon
+    },
     // Projects
     {
       label: "Projects",
@@ -73,7 +78,7 @@ export const roleMenus: Record<Role, NavItem[]> = {
 
     // Donations admin (SSO flow via internal issuer endpoint)
     {
-      label: "Donations",
+      label: "Donors",
       href: "/api/admin/donations/sso",
       icon: DocumentCurrencyRupeeIcon,
       sso: true, // trigger SSO handler in sidebar
