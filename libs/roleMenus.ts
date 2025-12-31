@@ -62,6 +62,11 @@ export const roleMenus: Record<Role, NavItem[]> = {
       href: "/admin/gst-receipt",
       icon: DocumentCurrencyRupeeIcon
     },
+    {
+      label: "Donation Receipts",
+      href: "/admin/donation-receipt",
+      icon: DocumentCurrencyRupeeIcon
+    },
     // Projects
     {
       label: "Projects",

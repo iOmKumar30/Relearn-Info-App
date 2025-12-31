@@ -2,35 +2,29 @@
 
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import SearchBar from "@/components/CrudControls/SearchBar";
-import GstFormModal from "@/components/gst-receipt/GstFormModal";
-import GstPreviewModal from "@/components/gst-receipt/GstPreviewModal";
+import DonationFormModal from "@/components/donation/DonationFormModal";
+import DonationPreviewModal from "@/components/donation/DonationPreviewModal";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button } from "flowbite-react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react"; // 1. Import Pencil
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react"; // Added Pencil for Edit
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
-type GstRow = {
+// Matches your Donation Schema & API Response
+type DonationRow = {
   id: string;
-  invoiceNo: string;
-  invoiceDate: string;
-  billToName: string;
-  placeOfSupply: string;
-  totalAmount: number;
-  totalTax: number;
-  grandTotal: number;
-  createdAt: string;
-  items?: any[];
-  billToGstin?: string;
-  dateOfSupply?: string;
-  reverseCharge?: string;
-  // ... other fields
+  receiptNumber: string;
+  name: string;
+  amount: number;
+  date: string;
+  email: string;
+  transactionId: string;
+  // ... other fields present in response
 };
 
-export default function GstReceiptsPage() {
-  // ... (existing state declarations remain the same) ...
-  const [rows, setRows] = useState<GstRow[]>([]);
+export default function DonationReceiptsPage() {
+  const [rows, setRows] = useState<DonationRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -38,25 +32,28 @@ export default function GstReceiptsPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // --- MODAL STATES ---
   const [formOpen, setFormOpen] = useState(false);
-  const [editMode, setEditMode] = useState<"create" | "edit">("create");
-  const [selectedRow, setSelectedRow] = useState<GstRow | undefined>(undefined);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [selectedRow, setSelectedRow] = useState<DonationRow | null>(null);
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewRow, setPreviewRow] = useState<GstRow | null>(null);
+  const [previewRow, setPreviewRow] = useState<DonationRow | null>(null);
 
-  const [pendingDelete, setPendingDelete] = useState<GstRow | null>(null);
+  // --- DELETE STATES ---
+  const [pendingDelete, setPendingDelete] = useState<DonationRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // ... (url and load function remain the same) ...
+  // --- API URL ---
   const url = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set("page", String(page));
     sp.set("pageSize", String(pageSize));
     if (q.trim()) sp.set("q", q.trim());
-    return `/api/admin/gst-receipt/list?${sp.toString()}`;
+    return `/api/admin/donation-receipt/list?${sp.toString()}`;
   }, [page, pageSize, q]);
 
+  // --- LOAD DATA ---
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -67,7 +64,7 @@ export default function GstReceiptsPage() {
       setRows(json.rows || []);
       setTotal(json.total || 0);
     } catch (e: any) {
-      setErr(e?.message || "Failed to load receipts");
+      setErr(e?.message || "Failed to load donations");
     } finally {
       setLoading(false);
     }
@@ -77,21 +74,20 @@ export default function GstReceiptsPage() {
     load();
   }, [load]);
 
-  // --- UPDATED HANDLER ---
-  const handleCreateOrUpdate = async (data: any) => {
+  // --- CREATE / UPDATE HANDLER ---
+  const handleFormSubmit = async (data: any) => {
     try {
       let res;
-      if (editMode === "create") {
-        // CREATE Logic
-        res = await fetch("/api/admin/gst-receipt", {
+      if (formMode === "create") {
+        res = await fetch("/api/admin/donation-receipt", {
           method: "POST",
           body: JSON.stringify(data),
           headers: { "Content-Type": "application/json" },
         });
       } else {
-        // EDIT Logic
+        // Edit Mode
         if (!selectedRow?.id) return;
-        res = await fetch(`/api/admin/gst-receipt/${selectedRow.id}`, {
+        res = await fetch(`/api/admin/donation-receipt/${selectedRow.id}`, {
           method: "PUT",
           body: JSON.stringify(data),
           headers: { "Content-Type": "application/json" },
@@ -105,17 +101,53 @@ export default function GstReceiptsPage() {
       }
 
       toast.success(
-        editMode === "create" ? "Receipt Created" : "Receipt Updated"
+        formMode === "create" ? "Donation Receipt Created" : "Donation Updated"
       );
       load();
-      setFormOpen(false); // Close modal on success
-    } catch (e) {
-      toast.error("An error occurred");
+      setFormOpen(false);
+    } catch (e: any) {
+      toast.error("Something went wrong");
     }
   };
 
-  // ... (delete handlers remain the same) ...
-  const confirmDelete = useCallback((row: GstRow) => {
+  // --- OPEN EDIT ---
+  const openEdit = (row: DonationRow) => {
+    // You might want to fetch the full single row first if the list API
+    // doesn't return all fields (e.g. address/pan might be missing in list view).
+    // Assuming list view returns enough or we fetch:
+    fetchFullAndOpen(row.id, "edit");
+  };
+
+  // --- OPEN PREVIEW ---
+  const openPreview = (row: DonationRow) => {
+    fetchFullAndOpen(row.id, "preview");
+  };
+
+  // Helper to fetch full details before opening modal (ensures all fields like address exist)
+  const fetchFullAndOpen = async (id: string, type: "edit" | "preview") => {
+    const toastId = toast.loading("Loading details...");
+    try {
+      const res = await fetch(`/api/admin/donation-receipt/${id}`);
+      if (!res.ok) throw new Error("Failed");
+      const fullData = await res.json();
+      toast.dismiss(toastId);
+
+      if (type === "edit") {
+        setSelectedRow(fullData);
+        setFormMode("edit");
+        setFormOpen(true);
+      } else {
+        setPreviewRow(fullData);
+        setPreviewOpen(true);
+      }
+    } catch (e) {
+      toast.dismiss(toastId);
+      toast.error("Could not load details");
+    }
+  };
+
+  // --- DELETE HANDLERS ---
+  const confirmDelete = useCallback((row: DonationRow) => {
     setPendingDelete(row);
   }, []);
 
@@ -124,7 +156,7 @@ export default function GstReceiptsPage() {
     try {
       setDeletingId(pendingDelete.id);
       const res = await fetch(
-        `/api/admin/gst-receipt/${encodeURIComponent(pendingDelete.id)}`,
+        `/api/admin/donation-receipt/${encodeURIComponent(pendingDelete.id)}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error(await res.text());
@@ -132,54 +164,19 @@ export default function GstReceiptsPage() {
       setPendingDelete(null);
       await load();
     } catch (e: any) {
-      toast.error(e?.message || "Failed to delete receipt");
+      toast.error(e?.message || "Failed to delete");
     } finally {
       setDeletingId(null);
     }
   }, [pendingDelete, load]);
 
-  const openCreate = () => {
-    setEditMode("create");
-    setSelectedRow(undefined);
-    setFormOpen(true);
-  };
-
-  // 2. Add openEdit Helper
-  const openEdit = async (row: GstRow) => {
-    // Fetch full details to get 'items' array which might be missing in list view
-    const toastId = toast.loading("Loading details...");
-    try {
-      const res = await fetch(`/api/admin/gst-receipt/${row.id}`);
-      if (!res.ok) throw new Error("Failed");
-      const fullData = await res.json();
-      toast.dismiss(toastId);
-
-      setSelectedRow(fullData);
-      setEditMode("edit");
-      setFormOpen(true);
-    } catch (e) {
-      toast.dismiss(toastId);
-      toast.error("Could not load receipt details");
-    }
-  };
-
-  const openPreview = async (row: GstRow) => {
-    try {
-      const res = await fetch(`/api/admin/gst-receipt/${row.id}`);
-      if (!res.ok) throw new Error("Failed to load details");
-      const fullData = await res.json();
-      setPreviewRow(fullData);
-      setPreviewOpen(true);
-    } catch (e) {
-      toast.error("Could not load receipt details");
-    }
-  };
-
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-[#8b7e4e]">GST Receipts</h1>
+          <h1 className="text-xl font-semibold text-[#8b7e4e]">
+            Donation Receipts
+          </h1>
           <div className="flex items-center gap-2">
             <div className="w-64">
               <SearchBar
@@ -188,13 +185,17 @@ export default function GstReceiptsPage() {
                   setPage(1);
                   setQ(val);
                 }}
-                placeholder="Search Invoice No / Bill To..."
+                placeholder="Search Name / Receipt No..."
               />
             </div>
             <Button
               color="light"
               className="cursor-pointer"
-              onClick={openCreate}
+              onClick={() => {
+                setFormMode("create");
+                setSelectedRow(null);
+                setFormOpen(true);
+              }}
             >
               <Plus className="mr-2 h-4 w-4" />
               Create Receipt
@@ -212,10 +213,11 @@ export default function GstReceiptsPage() {
           <table className="min-w-full bg-white text-sm">
             <thead>
               <tr className="bg-gray-50 text-left">
-                <th className="px-3 py-2">Invoice No</th>
+                <th className="px-3 py-2">Receipt No</th>
                 <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Bill To</th>
-                <th className="px-3 py-2">Grand Total</th>
+                <th className="px-3 py-2">Donor Name</th>
+                <th className="px-3 py-2">Amount</th>
+                <th className="px-3 py-2">Txn ID</th>
                 <th className="px-3 py-2">Actions</th>
               </tr>
             </thead>
@@ -223,16 +225,22 @@ export default function GstReceiptsPage() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-gray-50">
                   <td className="px-3 py-2 font-mono text-xs">
-                    <Badge color="gray">{r.invoiceNo}</Badge>
+                    <Badge color="gray">{r.receiptNumber}</Badge>
                   </td>
                   <td className="px-3 py-2">
-                    {new Date(r.invoiceDate).toLocaleDateString("en-GB")}
+                    {new Date(r.date).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-3 py-2 font-medium text-gray-900">
-                    {r.billToName}
+                    {r.name}
+                    <div className="text-xs text-gray-500 font-normal">
+                      {r.email}
+                    </div>
                   </td>
-                  <td className="px-3 py-2 font-bold">
-                    ₹{r.grandTotal?.toFixed(2)}
+                  <td className="px-3 py-2 font-bold text-green-600">
+                    ₹{Number(r.amount).toLocaleString("en-IN")}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-500">
+                    {r.transactionId}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -246,7 +254,6 @@ export default function GstReceiptsPage() {
                         View
                       </Button>
 
-                      {/* 3. Add Edit Button */}
                       <Button
                         size="xs"
                         color="light"
@@ -275,12 +282,12 @@ export default function GstReceiptsPage() {
                 <tr>
                   <td
                     className="px-3 py-6 text-center text-gray-500"
-                    colSpan={5}
+                    colSpan={6}
                   >
                     {loading ? (
                       <ClipLoader size={40} />
                     ) : (
-                      "No GST receipts found."
+                      "No donation receipts found."
                     )}
                   </td>
                 </tr>
@@ -289,7 +296,7 @@ export default function GstReceiptsPage() {
           </table>
         </div>
 
-        {/* ... Pagination ... */}
+        {/* Pagination */}
         <div className="mt-3 flex items-center justify-end gap-2 text-sm">
           <span>
             Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
@@ -312,17 +319,17 @@ export default function GstReceiptsPage() {
           </Button>
         </div>
 
-        <GstFormModal
+        {/* Modals */}
+        <DonationFormModal
           open={formOpen}
-          mode={editMode}
+          mode={formMode}
           initialValues={selectedRow}
           onClose={() => setFormOpen(false)}
-          onSubmit={handleCreateOrUpdate}
+          onSubmit={handleFormSubmit}
         />
 
-        {/* ... Preview and Delete Modals ... */}
         {previewRow && (
-          <GstPreviewModal
+          <DonationPreviewModal
             open={previewOpen}
             onClose={() => setPreviewOpen(false)}
             data={previewRow}
@@ -334,7 +341,7 @@ export default function GstReceiptsPage() {
           title="Confirm Deletion"
           message={
             pendingDelete
-              ? `Delete receipt "${pendingDelete.invoiceNo}"? This cannot be undone.`
+              ? `Delete receipt "${pendingDelete.receiptNumber}"? This cannot be undone.`
               : ""
           }
           confirmLabel="Delete"
