@@ -16,71 +16,129 @@ export const dynamic = "force-dynamic";
 
 // GET: List Annual Members with search & pagination
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
-    return new NextResponse("Unauthorized", { status: 401 });
-  if (!(await isAdmin(session.user.id)))
-    return new NextResponse("Forbidden", { status: 403 });
+  try {
+    const session = await getServerSession(authOptions);
 
-  const { searchParams } = new URL(req.url);
-  const page = Math.max(1, Number(searchParams.get("page") || 1));
-  const pageSize = Math.min(
-    100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
-  );
-  const q = (searchParams.get("q") || "").trim();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    if (!(await isAdmin(session.user.id))) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-  const where: any = {
-    memberType: MemberType.ANNUAL,
-    ...(q
-      ? {
-          OR: [
-            { pan: { contains: q, mode: "insensitive" } },
-            {
-              user: {
-                OR: [
-                  { name: { contains: q, mode: "insensitive" } },
-                  { email: { contains: q, mode: "insensitive" } },
-                  { phone: { contains: q, mode: "insensitive" } },
-                ],
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(searchParams.get("pageSize") || 20))
+    );
+    const q = (searchParams.get("q") || "").trim();
+
+    // NEW: Get filter params
+    const fiscalYearsParam = searchParams.get("fiscalYears");
+    const pendingOnly = searchParams.get("pendingOnly") === "true";
+
+    const where: any = {
+      memberType: MemberType.ANNUAL,
+      ...(q
+        ? {
+            OR: [
+              { pan: { contains: q, mode: "insensitive" } },
+              {
+                user: {
+                  OR: [
+                    { name: { contains: q, mode: "insensitive" } },
+                    { email: { contains: q, mode: "insensitive" } },
+                    { phone: { contains: q, mode: "insensitive" } },
+                  ],
+                },
               },
-            },
-          ],
-        }
-      : {}),
-  };
-
-  const [total, members] = await Promise.all([
-    prisma.member.count({ where }),
-    prisma.member.findMany({
-      where,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        user: { select: { id: true, name: true, email: true, phone: true } },
-        fees: true,
-      },
-      orderBy: { user: { name: "asc" } },
-    }),
-  ]);
-
-  // Transform for frontend: Map fees array to a keyed object (e.g. { "2023-2024": "2023-05-10" })
-  const rows = members.map((m) => {
-    const feesMap: Record<string, string> = {};
-    m.fees.forEach((f) => {
-      if (f.paidOn) {
-        feesMap[f.fiscalLabel] = f.paidOn.toISOString();
-      }
-    });
-    return {
-      ...m,
-      feesMap,
+            ],
+          }
+        : {}),
     };
-  });
 
-  return NextResponse.json({ rows, total, page, pageSize });
+    // If pendingOnly is true, we must fetch ALL matching records first to filter in memory,
+    // because filtering "missing related records" (fees) for dynamic years is complex in simple Prisma queries.
+    // If NOT pendingOnly, we can use pagination at the database level for efficiency.
+
+    let dbSkip: number | undefined = (page - 1) * pageSize;
+    let dbTake: number | undefined = pageSize;
+
+    if (pendingOnly && fiscalYearsParam) {
+      // If we are filtering by pending payment, we need to fetch all potentially matching members
+      // (filtered by search q) and then filter them in code.
+      // Pagination will happen AFTER code filtering.
+      dbSkip = undefined;
+      dbTake = undefined;
+    }
+
+    const [totalCountDb, members] = await Promise.all([
+      prisma.member.count({ where }),
+      prisma.member.findMany({
+        where,
+        skip: dbSkip,
+        take: dbTake,
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          fees: true,
+        },
+        orderBy: { user: { name: "asc" } },
+      }),
+    ]);
+
+    // Transform for frontend
+    let rows = members.map((m) => {
+      const feesMap: Record<string, string> = {};
+      m.fees.forEach((f) => {
+        if (f.paidOn) {
+          feesMap[f.fiscalLabel] = f.paidOn.toISOString();
+        }
+      });
+      return {
+        ...m,
+        feesMap,
+      };
+    });
+
+    // NEW: Apply Pending Payment Filter (In-Memory)
+    if (pendingOnly && fiscalYearsParam) {
+      const selectedYears = fiscalYearsParam.split(",");
+
+      rows = rows.filter((row) => {
+        // Keep row if for ANY selected year, there is NO payment record in feesMap
+        return selectedYears.some((year) => !row.feesMap[year]);
+      });
+    }
+
+    // Recalculate pagination if we did in-memory filtering
+    let finalRows = rows;
+    let finalTotal = totalCountDb;
+
+    if (pendingOnly && fiscalYearsParam) {
+      finalTotal = rows.length;
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      finalRows = rows.slice(startIndex, endIndex);
+    }
+
+    return NextResponse.json({
+      rows: finalRows,
+      total: finalTotal,
+      page,
+      pageSize,
+    });
+  } catch (error: any) {
+    console.error("ANNUAL_MEMBERS_GET_ERROR", error);
+    return new NextResponse(
+      JSON.stringify({
+        message: "Internal Server Error",
+        error: error.message,
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
-
 // POST: Create Annual Member
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
