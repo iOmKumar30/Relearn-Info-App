@@ -1,4 +1,3 @@
-import LogoutButton from "@/components/LogoutButton";
 import SidebarLayout from "@/components/Sidebar";
 import { authOptions } from "@/libs/authOptions";
 import { Role } from "@/libs/roleMenus";
@@ -18,7 +17,6 @@ export default async function Layout({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <LogoutButton />
       <SidebarLayout roles={roles}>{children}</SidebarLayout>
     </>
   );

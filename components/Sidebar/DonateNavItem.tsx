@@ -1,4 +1,3 @@
-// components/Sidebar/DonateNavItem.tsx
 "use client";
 import { DocumentCurrencyRupeeIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
