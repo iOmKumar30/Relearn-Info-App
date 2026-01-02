@@ -562,6 +562,7 @@ enum MemberType {
   INTERN
   HONORARY
   LIFE
+  FOUNDER
 }
 
 enum MemberStatus {

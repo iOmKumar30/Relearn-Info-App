@@ -86,8 +86,11 @@ export const roleMenus: Record<Role, NavEntry[]> = {
           label: "Members",
           icon: UserCircleIcon,
           children: [
-            { type: "item", label: "Annual Members", href: "/members/annual" },
+            { type: "item", label: "Founder Memebrs", href: "/members/founder" },
+            { type: "item", label: "Honorary Members", href: "/members/honorary" },
             { type: "item", label: "Life Members", href: "/members/life" },
+            { type: "item", label: "Annual Members", href: "/members/annual" }
+
           ],
         },
       ],

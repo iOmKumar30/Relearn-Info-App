@@ -1,49 +1,46 @@
 "use client";
 
 import { useDebounce } from "@/app/hooks/useDebounce";
-import AnnualMemberCreateModal from "@/components/CreateModals/AnnualMemberCreateModal";
+import LifeMemberCreateModal from "@/components/CreateModals/LifeMemberCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
-import FiscalYearSelectModal from "@/components/CrudControls/FiscalYearSelectModal";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import { Button, Spinner } from "flowbite-react"; // Added Spinner import
-import { Filter, X } from "lucide-react";
+import FiscalYearSelectModal from "@/components/CrudControls/FiscalYearSelectModal";
+import { Button, Spinner } from "flowbite-react"; // Added Spinner
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { Filter, X } from "lucide-react";
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 
-export default function AnnualMembersPage() {
+export default function LifeMembersPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 600);
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  // Initialize loading to true so it shows spinner immediately on first mount
+  // Initialize loading to true
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ rows: any[]; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal States
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
 
-  // NEW: Fiscal Year Filter States
+  // Filters
   const [fiscalYearModalOpen, setFiscalYearModalOpen] = useState(false);
   const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
   const [pendingPaymentMode, setPendingPaymentMode] = useState(false);
 
-  // All available fiscal years (sorted descending)
-  const allFiscalYears = useMemo(() => {
-    return getDynamicFiscalYears(2020).reverse(); // Descending order
-  }, []);
+  const allFiscalYears = useMemo(
+    () => getDynamicFiscalYears(2020).reverse(),
+    []
+  );
 
-  // Fetch logic
   const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
@@ -52,18 +49,11 @@ export default function AnnualMembersPage() {
         pageSize: String(pageSize),
         q: debouncedSearch,
       });
-
-      // Add fiscal year filter if active
-      if (selectedFiscalYears.length > 0) {
+      if (selectedFiscalYears.length > 0)
         params.set("fiscalYears", selectedFiscalYears.join(","));
-      }
+      if (pendingPaymentMode) params.set("pendingOnly", "true");
 
-      // Add pending payment filter
-      if (pendingPaymentMode) {
-        params.set("pendingOnly", "true");
-      }
-
-      const res = await fetch(`/api/admin/members/annual?${params}`);
+      const res = await fetch(`/api/admin/members/life?${params}`);
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       setData(json);
@@ -84,68 +74,52 @@ export default function AnnualMembersPage() {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Create Handler
   const handleCreate = async (formData: any) => {
-    const res = await fetch("/api/admin/members/annual", {
+    await fetch("/api/admin/members/life", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     });
-    if (!res.ok) throw new Error(await res.text());
     await fetchMembers();
   };
 
-  // Update Handler
   const handleUpdate = async (id: string, formData: any) => {
-    const res = await fetch(`/api/admin/members/annual/${id}`, {
+    await fetch(`/api/admin/members/life/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     });
-    if (!res.ok) throw new Error(await res.text());
     await fetchMembers();
   };
 
-  // Delete Handler
   const handleDelete = async () => {
     if (!deleteRow) return;
-    const res = await fetch(`/api/admin/members/annual/${deleteRow.id}`, {
+    await fetch(`/api/admin/members/life/${deleteRow.id}`, {
       method: "DELETE",
     });
-    if (!res.ok) throw new Error(await res.text());
     setDeleteOpen(false);
     setDeleteRow(null);
     await fetchMembers();
   };
 
-  // NEW: Handle Fiscal Year Selection
   const handleApplyFiscalYears = (years: string[]) => {
-    // Sort selected years in descending order
-    const sorted = years.sort((a, b) => b.localeCompare(a));
-    setSelectedFiscalYears(sorted);
-    setPage(1); // Reset to first page
+    setSelectedFiscalYears(years.sort((a, b) => b.localeCompare(a)));
+    setPage(1);
   };
-
-  // NEW: Open Fiscal Year Modal for Normal View
   const handleSelectColumns = () => {
     setPendingPaymentMode(false);
     setFiscalYearModalOpen(true);
   };
-
-  // NEW: Open Fiscal Year Modal for Pending Payment Filter
   const handlePendingPayment = () => {
     setPendingPaymentMode(true);
     setFiscalYearModalOpen(true);
   };
-
-  // NEW: Clear Filters
   const handleClearFilter = () => {
     setSelectedFiscalYears([]);
     setPendingPaymentMode(false);
     setPage(1);
   };
 
-  // Prepare Columns (only selected fiscal years or all if none selected)
   const columns = useMemo(() => {
     const baseCols = [
       { key: "name", label: "Name" },
@@ -154,26 +128,16 @@ export default function AnnualMembersPage() {
       { key: "pan", label: "PAN" },
       { key: "joiningDate", label: "Joining Date" },
     ];
-
-    // Only show selected fiscal years, or none if empty
     const yearsToShow =
       selectedFiscalYears.length > 0 ? selectedFiscalYears : [];
-
-    const feeCols = yearsToShow.map((yr) => ({
-      key: `fee_${yr}`,
-      label: yr,
-    }));
-
+    const feeCols = yearsToShow.map((yr) => ({ key: `fee_${yr}`, label: yr }));
     return [...baseCols, ...feeCols, { key: "actions", label: "Actions" }];
   }, [selectedFiscalYears]);
 
-  // Prepare Rows
   const rows = useMemo(() => {
     if (!data?.rows) return [];
     return data.rows.map((row) => {
       const feesMap = row.feesMap || {};
-
-      // Flatten fee dates for SELECTED fiscal years only
       const feeCells: any = {};
       selectedFiscalYears.forEach((yr) => {
         const dateStr = feesMap[yr];
@@ -181,7 +145,6 @@ export default function AnnualMembersPage() {
           ? new Date(dateStr).toLocaleDateString("en-GB")
           : "—";
       });
-
       return {
         id: row.id,
         name: row.user?.name || "—",
@@ -195,53 +158,42 @@ export default function AnnualMembersPage() {
     });
   }, [data, selectedFiscalYears]);
 
-  // Actions Renderer
-  const renderActions = (row: any) => {
-    const rawData = row.__raw;
-    return (
-      <div className="flex gap-2">
-        <Button
-          size="xs"
-          color="light"
-          onClick={() => {
-            setEditRow(rawData);
-            setEditOpen(true);
-          }}
-        >
-          Edit
-        </Button>
-        <Button
-          size="xs"
-          color="failure"
-          onClick={() => {
-            setDeleteRow(rawData);
-            setDeleteOpen(true);
-          }}
-        >
-          Delete
-        </Button>
-      </div>
-    );
-  };
+  const renderActions = (row: any) => (
+    <div className="flex gap-2">
+      <Button
+        size="xs"
+        color="light"
+        onClick={() => {
+          setEditRow(row.__raw);
+          setEditOpen(true);
+        }}
+      >
+        Edit
+      </Button>
+      <Button
+        size="xs"
+        color="failure"
+        onClick={() => {
+          setDeleteRow(row.__raw);
+          setDeleteOpen(true);
+        }}
+      >
+        Delete
+      </Button>
+    </div>
+  );
 
-  // Helper for Export All
   const fetchAllForExport = async () => {
     const params = new URLSearchParams({
       page: "1",
       pageSize: "2000",
       q: debouncedSearch,
     });
-
-    if (selectedFiscalYears.length > 0) {
+    if (selectedFiscalYears.length > 0)
       params.set("fiscalYears", selectedFiscalYears.join(","));
-    }
-    if (pendingPaymentMode) {
-      params.set("pendingOnly", "true");
-    }
-
-    const res = await fetch(`/api/admin/members/annual?${params}`);
+    if (pendingPaymentMode) params.set("pendingOnly", "true");
+    const res = await fetch(`/api/admin/members/life?${params}`);
     const json = await res.json();
-
     return json.rows.map((r: any) => {
       const yearsToExport =
         selectedFiscalYears.length > 0 ? selectedFiscalYears : allFiscalYears;
@@ -266,8 +218,9 @@ export default function AnnualMembersPage() {
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Annual Members</h2>
-
+        <h2 className="text-2xl font-semibold mb-4 text-green-700">
+          Life Members
+        </h2>
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <SearchBar
             value={search}
@@ -275,50 +228,40 @@ export default function AnnualMembersPage() {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search name, email, PAN..."
+            placeholder="Search life members..."
           />
           <div className="flex-1 flex justify-end gap-3">
-            {/* NEW: Select Columns Button */}
             <Button color="light" size="sm" onClick={handleSelectColumns}>
-              <Filter className="w-4 h-4 mr-2" />
-              Select Columns
+              <Filter className="w-4 h-4 mr-2" /> Select Columns
             </Button>
-
-            {/* NEW: Pending Payment Button */}
             <Button color="warning" size="sm" onClick={handlePendingPayment}>
               Pending Payment
             </Button>
-
-            {/* NEW: Clear Filter Button (shown only when filter is active) */}
             {isFilterActive && (
               <Button color="failure" size="sm" onClick={handleClearFilter}>
-                <X className="w-4 h-4 mr-2" />
-                Clear Filter
+                <X className="w-4 h-4 mr-2" /> Clear Filter
               </Button>
             )}
-
             <ExportXlsxButton
-              fileName="AnnualMembers"
-              sheetName="Annual Members"
+              fileName="LifeMembers"
+              sheetName="Life Members"
               fetchAll={fetchAllForExport}
               visibleRows={rows}
               columns={[]}
             />
-            <AddButton label="Add Member" onClick={() => setCreateOpen(true)} />
+            <AddButton
+              label="Add Life Member"
+              onClick={() => setCreateOpen(true)}
+            />
           </div>
         </div>
 
-        {/* Show Active Filter Info */}
         {isFilterActive && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Active Filter:</strong>{" "}
-              {pendingPaymentMode
-                ? `Showing members with pending payments for: ${selectedFiscalYears.join(
-                    ", "
-                  )}`
-                : `Showing columns: ${selectedFiscalYears.join(", ")}`}
-            </p>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            <strong>Active Filter:</strong>{" "}
+            {pendingPaymentMode
+              ? `Showing pending payments: ${selectedFiscalYears.join(", ")}`
+              : `Showing columns: ${selectedFiscalYears.join(", ")}`}
           </div>
         )}
 
@@ -327,7 +270,7 @@ export default function AnnualMembersPage() {
         {/* LOADING STATE HANDLING */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <Spinner size="xl" aria-label="Loading members" />
+            <Spinner size="xl" aria-label="Loading life members" />
             <p className="mt-2 text-gray-500 text-sm">Loading data...</p>
           </div>
         ) : (
@@ -340,7 +283,6 @@ export default function AnnualMembersPage() {
               pageSize={pageSize}
             />
 
-            {/* Pagination Controls */}
             <div className="flex justify-end gap-2 mt-4">
               <Button
                 size="xs"
@@ -354,7 +296,7 @@ export default function AnnualMembersPage() {
               <Button
                 size="xs"
                 color="gray"
-                disabled={rows.length < pageSize}
+                disabled={!data || data.rows.length < pageSize}
                 onClick={() => setPage((p) => p + 1)}
               >
                 Next
@@ -363,15 +305,13 @@ export default function AnnualMembersPage() {
           </>
         )}
 
-        {/* Modals */}
-        <AnnualMemberCreateModal
+        <LifeMemberCreateModal
           open={createOpen}
           mode="create"
           onClose={() => setCreateOpen(false)}
           onCreate={handleCreate}
         />
-
-        <AnnualMemberCreateModal
+        <LifeMemberCreateModal
           open={editOpen}
           mode="edit"
           initialValues={editRow}
@@ -381,11 +321,10 @@ export default function AnnualMembersPage() {
           }}
           onUpdate={handleUpdate}
         />
-
         <ConfirmDeleteModal
           open={deleteOpen}
           title="Delete Member"
-          message={`Are you sure you want to delete member ${deleteRow?.name}? This action cannot be undone.`}
+          message={`Delete ${deleteRow?.name}?`}
           confirmLabel="Delete"
           onConfirm={handleDelete}
           onCancel={() => {
@@ -393,8 +332,6 @@ export default function AnnualMembersPage() {
             setDeleteRow(null);
           }}
         />
-
-        {/* NEW: Fiscal Year Selection Modal */}
         <FiscalYearSelectModal
           open={fiscalYearModalOpen}
           availableYears={allFiscalYears}
