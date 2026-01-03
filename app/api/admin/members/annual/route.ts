@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// GET: List Annual Members with search & pagination
+// GET: List Annual Members with search & pagination & amounts
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -34,7 +34,6 @@ export async function GET(req: Request) {
     );
     const q = (searchParams.get("q") || "").trim();
 
-    // NEW: Get filter params
     const fiscalYearsParam = searchParams.get("fiscalYears");
     const pendingOnly = searchParams.get("pendingOnly") === "true";
 
@@ -58,17 +57,10 @@ export async function GET(req: Request) {
         : {}),
     };
 
-    // If pendingOnly is true, we must fetch ALL matching records first to filter in memory,
-    // because filtering "missing related records" (fees) for dynamic years is complex in simple Prisma queries.
-    // If NOT pendingOnly, we can use pagination at the database level for efficiency.
-
     let dbSkip: number | undefined = (page - 1) * pageSize;
     let dbTake: number | undefined = pageSize;
 
     if (pendingOnly && fiscalYearsParam) {
-      // If we are filtering by pending payment, we need to fetch all potentially matching members
-      // (filtered by search q) and then filter them in code.
-      // Pagination will happen AFTER code filtering.
       dbSkip = undefined;
       dbTake = undefined;
     }
@@ -81,7 +73,7 @@ export async function GET(req: Request) {
         take: dbTake,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true } },
-          fees: true,
+          fees: true, // Fetches amounts as well
         },
         orderBy: { user: { name: "asc" } },
       }),
@@ -90,23 +82,29 @@ export async function GET(req: Request) {
     // Transform for frontend
     let rows = members.map((m) => {
       const feesMap: Record<string, string> = {};
+      const feesMapFull: Record<string, any> = {}; // New detailed map
+
       m.fees.forEach((f) => {
         if (f.paidOn) {
-          feesMap[f.fiscalLabel] = f.paidOn.toISOString();
+          const isoDate = f.paidOn.toISOString();
+          feesMap[f.fiscalLabel] = isoDate; // Keep for backward compatibility/filter
+          feesMapFull[f.fiscalLabel] = {
+            paidOn: isoDate,
+            amount: f.amount ? Number(f.amount) : null,
+          };
         }
       });
       return {
         ...m,
         feesMap,
+        feesMapFull,
       };
     });
 
-    // NEW: Apply Pending Payment Filter (In-Memory)
+    // Apply Pending Payment Filter (In-Memory)
     if (pendingOnly && fiscalYearsParam) {
       const selectedYears = fiscalYearsParam.split(",");
-
       rows = rows.filter((row) => {
-        // Keep row if for ANY selected year, there is NO payment record in feesMap
         return selectedYears.some((year) => !row.feesMap[year]);
       });
     }
@@ -139,7 +137,8 @@ export async function GET(req: Request) {
     );
   }
 }
-// POST: Create Annual Member
+
+// POST: Create Annual Member with Fees & Amounts
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -155,8 +154,10 @@ export async function POST(req: Request) {
       .toLowerCase();
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
-    const joiningDateStr = body.joiningDate; // ISO string
-    // fees is an object: { "2023-2024": "2023-01-01", ... }
+    const joiningDateStr = body.joiningDate;
+
+    // feesInput is expected to be object: { "2023-2024": { date: "...", amount: 1000 } }
+    // But logic handles string format too for safety
     const feesInput = body.fees || {};
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
@@ -245,18 +246,36 @@ export async function POST(req: Request) {
           });
         }
 
-        // 5. Handle Fees
-        for (const [label, dateStr] of Object.entries(feesInput)) {
+        // 5. Handle Fees (Date + Amount)
+        for (const [label, feeData] of Object.entries(feesInput)) {
+          let dateStr: string | null = null;
+          let amountVal: number | null = null;
+
+          // Support both simple string format and new object format
+          if (typeof feeData === "string") {
+            dateStr = feeData;
+          } else if (typeof feeData === "object" && feeData !== null) {
+            dateStr = (feeData as any).date;
+            amountVal = (feeData as any).amount
+              ? Number((feeData as any).amount)
+              : null;
+          }
+
           if (!dateStr) continue;
-          const paidOn = new Date(dateStr as string);
+          const paidOn = new Date(dateStr);
           if (isNaN(paidOn.getTime())) continue;
 
           await tx.memberFee.upsert({
             where: {
               memberId_fiscalLabel: { memberId: member.id, fiscalLabel: label },
             },
-            update: { paidOn },
-            create: { memberId: member.id, fiscalLabel: label, paidOn },
+            update: { paidOn, amount: amountVal },
+            create: {
+              memberId: member.id,
+              fiscalLabel: label,
+              paidOn,
+              amount: amountVal,
+            },
           });
         }
       },

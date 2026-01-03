@@ -12,7 +12,9 @@ import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// GET: List Honorary Members (Supports filtering)
+export const dynamic = "force-dynamic";
+
+// GET: List Honorary Members (Supports filtering & Amount)
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,7 +54,7 @@ export async function GET(req: Request) {
         : {}),
     };
 
-    // Filter Logic (Same as Annual)
+    // Filter Logic
     let dbSkip: number | undefined = (page - 1) * pageSize;
     let dbTake: number | undefined = pageSize;
 
@@ -69,18 +71,28 @@ export async function GET(req: Request) {
         take: dbTake,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true } },
-          fees: true,
+          fees: true, // Fetches amounts as well
         },
         orderBy: { user: { name: "asc" } },
       }),
     ]);
 
+    // Transform for frontend
     let rows = members.map((m) => {
       const feesMap: Record<string, string> = {};
+      const feesMapFull: Record<string, any> = {}; // New detailed map
+
       m.fees.forEach((f) => {
-        if (f.paidOn) feesMap[f.fiscalLabel] = f.paidOn.toISOString();
+        if (f.paidOn) {
+          const isoDate = f.paidOn.toISOString();
+          feesMap[f.fiscalLabel] = isoDate;
+          feesMapFull[f.fiscalLabel] = {
+            paidOn: isoDate,
+            amount: f.amount ? Number(f.amount) : null,
+          };
+        }
       });
-      return { ...m, feesMap };
+      return { ...m, feesMap, feesMapFull };
     });
 
     if (pendingOnly && fiscalYearsParam) {
@@ -111,7 +123,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: Create Honorary Member
+// POST: Create Honorary Member (With Amount)
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !(await isAdmin(session.user.id)))
@@ -126,6 +138,8 @@ export async function POST(req: Request) {
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
     const joiningDateStr = body.joiningDate;
+
+    // feesInput can be old string format or new { date, amount } object
     const feesInput = body.fees || {};
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
@@ -202,16 +216,35 @@ export async function POST(req: Request) {
           });
         }
 
-        for (const [label, dateStr] of Object.entries(feesInput)) {
+        // Handle Fees (Date + Amount)
+        for (const [label, feeData] of Object.entries(feesInput)) {
+          let dateStr: string | null = null;
+          let amountVal: number | null = null;
+
+          if (typeof feeData === "string") {
+            dateStr = feeData;
+          } else if (typeof feeData === "object" && feeData !== null) {
+            dateStr = (feeData as any).date;
+            amountVal = (feeData as any).amount
+              ? Number((feeData as any).amount)
+              : null;
+          }
+
           if (!dateStr) continue;
-          const paidOn = new Date(dateStr as string);
+          const paidOn = new Date(dateStr);
           if (isNaN(paidOn.getTime())) continue;
+
           await tx.memberFee.upsert({
             where: {
               memberId_fiscalLabel: { memberId: member.id, fiscalLabel: label },
             },
-            update: { paidOn },
-            create: { memberId: member.id, fiscalLabel: label, paidOn },
+            update: { paidOn, amount: amountVal },
+            create: {
+              memberId: member.id,
+              fiscalLabel: label,
+              paidOn,
+              amount: amountVal,
+            },
           });
         }
       },

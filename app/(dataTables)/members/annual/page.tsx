@@ -9,7 +9,7 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import FiscalYearSelectModal from "@/components/CrudControls/FiscalYearSelectModal";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import { Button, Spinner } from "flowbite-react"; // Added Spinner import
+import { Button, Spinner } from "flowbite-react";
 import { Filter, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -33,7 +33,7 @@ export default function AnnualMembersPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
 
-  // NEW: Fiscal Year Filter States
+  // Fiscal Year Filter States
   const [fiscalYearModalOpen, setFiscalYearModalOpen] = useState(false);
   const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
   const [pendingPaymentMode, setPendingPaymentMode] = useState(false);
@@ -118,27 +118,26 @@ export default function AnnualMembersPage() {
     await fetchMembers();
   };
 
-  // NEW: Handle Fiscal Year Selection
+  // Handle Fiscal Year Selection
   const handleApplyFiscalYears = (years: string[]) => {
-    // Sort selected years in descending order
     const sorted = years.sort((a, b) => b.localeCompare(a));
     setSelectedFiscalYears(sorted);
     setPage(1); // Reset to first page
   };
 
-  // NEW: Open Fiscal Year Modal for Normal View
+  // Open Fiscal Year Modal for Normal View
   const handleSelectColumns = () => {
     setPendingPaymentMode(false);
     setFiscalYearModalOpen(true);
   };
 
-  // NEW: Open Fiscal Year Modal for Pending Payment Filter
+  // Open Fiscal Year Modal for Pending Payment Filter
   const handlePendingPayment = () => {
     setPendingPaymentMode(true);
     setFiscalYearModalOpen(true);
   };
 
-  // NEW: Clear Filters
+  // Clear Filters
   const handleClearFilter = () => {
     setSelectedFiscalYears([]);
     setPendingPaymentMode(false);
@@ -155,7 +154,6 @@ export default function AnnualMembersPage() {
       { key: "joiningDate", label: "Joining Date" },
     ];
 
-    // Only show selected fiscal years, or none if empty
     const yearsToShow =
       selectedFiscalYears.length > 0 ? selectedFiscalYears : [];
 
@@ -171,15 +169,31 @@ export default function AnnualMembersPage() {
   const rows = useMemo(() => {
     if (!data?.rows) return [];
     return data.rows.map((row) => {
-      const feesMap = row.feesMap || {};
+      // Use full fees map to access both date and amount
+      const feesMapFull = row.feesMapFull || {};
 
-      // Flatten fee dates for SELECTED fiscal years only
       const feeCells: any = {};
       selectedFiscalYears.forEach((yr) => {
-        const dateStr = feesMap[yr];
-        feeCells[`fee_${yr}`] = dateStr
-          ? new Date(dateStr).toLocaleDateString("en-GB")
-          : "—";
+        const feeData = feesMapFull[yr];
+
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amountStr = feeData.amount ? `(₹${feeData.amount})` : "";
+
+          // Render detailed cell
+          feeCells[`fee_${yr}`] = (
+            <div className="flex flex-col items-start text-xs">
+              <span className="font-medium text-gray-900">{dateStr}</span>
+              {amountStr && (
+                <span className="text-green-600 font-semibold">
+                  {amountStr}
+                </span>
+              )}
+            </div>
+          );
+        } else {
+          feeCells[`fee_${yr}`] = <span className="text-gray-400">—</span>;
+        }
       });
 
       return {
@@ -190,7 +204,7 @@ export default function AnnualMembersPage() {
         pan: row.pan || "—",
         joiningDate: new Date(row.joiningDate).toLocaleDateString("en-GB"),
         ...feeCells,
-        __raw: row,
+        __raw: row, // Keep full row data for editing
       };
     });
   }, [data, selectedFiscalYears]);
@@ -252,10 +266,17 @@ export default function AnnualMembersPage() {
         PAN: r.pan,
         "Joining Date": new Date(r.joiningDate).toLocaleDateString("en-GB"),
       };
+
+      const feesMapFull = r.feesMapFull || {};
       yearsToExport.forEach((yr) => {
-        flat[yr] = r.feesMap?.[yr]
-          ? new Date(r.feesMap[yr]).toLocaleDateString("en-GB")
-          : "";
+        const feeData = feesMapFull[yr];
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amtStr = feeData.amount ? ` (₹${feeData.amount})` : "";
+          flat[yr] = `${dateStr}${amtStr}`;
+        } else {
+          flat[yr] = "";
+        }
       });
       return flat;
     });
@@ -266,7 +287,9 @@ export default function AnnualMembersPage() {
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Annual Members</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-purple-700">
+          Annual Members
+        </h2>
 
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <SearchBar
@@ -278,18 +301,15 @@ export default function AnnualMembersPage() {
             placeholder="Search name, email, PAN..."
           />
           <div className="flex-1 flex justify-end gap-3">
-            {/* NEW: Select Columns Button */}
             <Button color="light" size="sm" onClick={handleSelectColumns}>
               <Filter className="w-4 h-4 mr-2" />
               Select Columns
             </Button>
 
-            {/* NEW: Pending Payment Button */}
             <Button color="warning" size="sm" onClick={handlePendingPayment}>
               Pending Payment
             </Button>
 
-            {/* NEW: Clear Filter Button (shown only when filter is active) */}
             {isFilterActive && (
               <Button color="failure" size="sm" onClick={handleClearFilter}>
                 <X className="w-4 h-4 mr-2" />
@@ -308,7 +328,6 @@ export default function AnnualMembersPage() {
           </div>
         </div>
 
-        {/* Show Active Filter Info */}
         {isFilterActive && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
@@ -324,7 +343,6 @@ export default function AnnualMembersPage() {
 
         {error && <div className="text-red-600 mb-4">{error}</div>}
 
-        {/* LOADING STATE HANDLING */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Spinner size="xl" aria-label="Loading members" />
@@ -340,7 +358,6 @@ export default function AnnualMembersPage() {
               pageSize={pageSize}
             />
 
-            {/* Pagination Controls */}
             <div className="flex justify-end gap-2 mt-4">
               <Button
                 size="xs"
@@ -354,7 +371,7 @@ export default function AnnualMembersPage() {
               <Button
                 size="xs"
                 color="gray"
-                disabled={rows.length < pageSize}
+                disabled={!data || data.rows.length < pageSize}
                 onClick={() => setPage((p) => p + 1)}
               >
                 Next
@@ -363,7 +380,6 @@ export default function AnnualMembersPage() {
           </>
         )}
 
-        {/* Modals */}
         <AnnualMemberCreateModal
           open={createOpen}
           mode="create"
@@ -394,7 +410,6 @@ export default function AnnualMembersPage() {
           }}
         />
 
-        {/* NEW: Fiscal Year Selection Modal */}
         <FiscalYearSelectModal
           open={fiscalYearModalOpen}
           availableYears={allFiscalYears}

@@ -6,13 +6,13 @@ import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
+import FiscalYearSelectModal from "@/components/CrudControls/FiscalYearSelectModal";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import FiscalYearSelectModal from "@/components/CrudControls/FiscalYearSelectModal";
-import { Button, Spinner } from "flowbite-react"; // Added Spinner
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Filter, X } from "lucide-react";
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
+import { Button, Spinner } from "flowbite-react";
+import { Filter, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function HonoraryMembersPage() {
   const [search, setSearch] = useState("");
@@ -137,14 +137,33 @@ export default function HonoraryMembersPage() {
   const rows = useMemo(() => {
     if (!data?.rows) return [];
     return data.rows.map((row) => {
-      const feesMap = row.feesMap || {};
+      // Use full fees map to access both date and amount
+      const feesMapFull = row.feesMapFull || {};
+
       const feeCells: any = {};
       selectedFiscalYears.forEach((yr) => {
-        const dateStr = feesMap[yr];
-        feeCells[`fee_${yr}`] = dateStr
-          ? new Date(dateStr).toLocaleDateString("en-GB")
-          : "—";
+        const feeData = feesMapFull[yr];
+
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amountStr = feeData.amount ? `(₹${feeData.amount})` : "";
+
+          // Render detailed cell
+          feeCells[`fee_${yr}`] = (
+            <div className="flex flex-col items-start text-xs">
+              <span className="font-medium text-gray-900">{dateStr}</span>
+              {amountStr && (
+                <span className="text-green-600 font-semibold">
+                  {amountStr}
+                </span>
+              )}
+            </div>
+          );
+        } else {
+          feeCells[`fee_${yr}`] = <span className="text-gray-400">—</span>;
+        }
       });
+
       return {
         id: row.id,
         name: row.user?.name || "—",
@@ -204,10 +223,17 @@ export default function HonoraryMembersPage() {
         PAN: r.pan,
         "Joining Date": new Date(r.joiningDate).toLocaleDateString("en-GB"),
       };
+
+      const feesMapFull = r.feesMapFull || {};
       yearsToExport.forEach((yr) => {
-        flat[yr] = r.feesMap?.[yr]
-          ? new Date(r.feesMap[yr]).toLocaleDateString("en-GB")
-          : "";
+        const feeData = feesMapFull[yr];
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amtStr = feeData.amount ? ` (₹${feeData.amount})` : "";
+          flat[yr] = `${dateStr}${amtStr}`;
+        } else {
+          flat[yr] = "";
+        }
       });
       return flat;
     });

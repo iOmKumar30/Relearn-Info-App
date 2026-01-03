@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// PUT: Update Honorary Member details and fees (with amount)
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -47,20 +48,38 @@ export async function PUT(
           });
         }
 
-        const feePromises = Object.entries(feesInput).map(
-          ([label, dateStr]) => {
-            if (!dateStr) return null;
-            const paidOn = new Date(dateStr as string);
-            if (isNaN(paidOn.getTime())) return null;
-            return tx.memberFee.upsert({
-              where: {
-                memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
-              },
-              update: { paidOn },
-              create: { memberId: id, fiscalLabel: label, paidOn },
-            });
+        // Handle Fees: parse both legacy string and new object { date, amount }
+        const feePromises = Object.entries(feesInput).map(([label, data]) => {
+          let dateStr: string | null = null;
+          let amountVal: number | null = null;
+
+          if (typeof data === "string") {
+            dateStr = data;
+          } else if (typeof data === "object" && data !== null) {
+            dateStr = (data as any).date;
+            amountVal = (data as any).amount
+              ? Number((data as any).amount)
+              : null;
           }
-        );
+
+          if (!dateStr) return null;
+          const paidOn = new Date(dateStr);
+          if (isNaN(paidOn.getTime())) return null;
+
+          return tx.memberFee.upsert({
+            where: {
+              memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
+            },
+            update: { paidOn, amount: amountVal },
+            create: {
+              memberId: id,
+              fiscalLabel: label,
+              paidOn,
+              amount: amountVal,
+            },
+          });
+        });
+
         const validFeePromises = feePromises.filter((p) => p !== null);
         if (validFeePromises.length > 0) await Promise.all(validFeePromises);
       },
@@ -73,6 +92,7 @@ export async function PUT(
   }
 }
 
+// DELETE: Remove Member record
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

@@ -1,6 +1,8 @@
 "use client";
 
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
+import { DEFAULT_MEMBER_FEES } from "@/libs/memberConstants";
+import { MemberType } from "@prisma/client";
 import {
   Button,
   Label,
@@ -11,13 +13,15 @@ import {
 } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 
+// 1. Updated Form State Type
+type FeeEntry = { date: string; amount: string };
 type FormState = {
   name: string;
   email: string;
   phone: string;
   pan: string;
   joiningDate: string;
-  fees: Record<string, string>;
+  fees: Record<string, FeeEntry>; // { "2023-2024": { date: "...", amount: "25000" } }
 };
 
 const EMPTY_FORM: FormState = {
@@ -34,8 +38,8 @@ type Props = {
   onClose: () => void;
   mode?: "create" | "edit";
   initialValues?: any;
-  onCreate?: (payload: FormState) => Promise<void>;
-  onUpdate?: (id: string, payload: FormState) => Promise<void>;
+  onCreate?: (payload: any) => Promise<void>;
+  onUpdate?: (id: string, payload: any) => Promise<void>;
 };
 
 export default function LifeMemberCreateModal({
@@ -49,6 +53,7 @@ export default function LifeMemberCreateModal({
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const fiscalYears = useMemo(() => getDynamicFiscalYears(2020), []);
+  const defaultFee = DEFAULT_MEMBER_FEES[MemberType.LIFE];
 
   useEffect(() => {
     if (!open) return;
@@ -58,9 +63,18 @@ export default function LifeMemberCreateModal({
       const email = initialValues.user?.email || initialValues.email || "";
       const phone = initialValues.user?.phone || initialValues.phone || "";
 
-      let feesObj: Record<string, string> = {};
-      if (initialValues.feesMap) {
-        feesObj = initialValues.feesMap;
+      // Transform incoming fee map
+      let feesObj: Record<string, FeeEntry> = {};
+
+      if (initialValues.feesMapFull) {
+        Object.entries(initialValues.feesMapFull).forEach(([fy, data]: any) => {
+          feesObj[fy] = {
+            date: data.paidOn
+              ? new Date(data.paidOn).toISOString().slice(0, 10)
+              : "",
+            amount: data.amount ? String(data.amount) : String(defaultFee),
+          };
+        });
       }
 
       setForm({
@@ -79,28 +93,57 @@ export default function LifeMemberCreateModal({
         joiningDate: new Date().toISOString().slice(0, 10),
       });
     }
-  }, [open, mode, initialValues]);
+  }, [open, mode, initialValues, defaultFee]);
 
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleFeeChange = (fiscalLabel: string, dateVal: string) => {
-    setForm((prev) => ({
-      ...prev,
-      fees: { ...prev.fees, [fiscalLabel]: dateVal },
-    }));
+  const handleFeeChange = (
+    fiscalLabel: string,
+    field: "date" | "amount",
+    value: string
+  ) => {
+    setForm((prev) => {
+      const currentEntry = prev.fees[fiscalLabel] || {
+        date: "",
+        amount: String(defaultFee),
+      };
+      return {
+        ...prev,
+        fees: {
+          ...prev.fees,
+          [fiscalLabel]: { ...currentEntry, [field]: value },
+        },
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    // Transform fees to payload
+    const feePayload: Record<string, { date: string; amount: number }> = {};
+    Object.entries(form.fees).forEach(([fy, entry]) => {
+      if (entry.date) {
+        feePayload[fy] = {
+          date: entry.date,
+          amount: Number(entry.amount) || defaultFee,
+        };
+      }
+    });
+
+    const payload = {
+      ...form,
+      fees: feePayload,
+    };
+
     try {
       if (mode === "create" && onCreate) {
-        await onCreate(form);
+        await onCreate(payload);
       } else if (mode === "edit" && onUpdate && initialValues?.id) {
-        await onUpdate(initialValues.id, form);
+        await onUpdate(initialValues.id, payload);
       }
       onClose();
     } catch (err) {
@@ -113,34 +156,31 @@ export default function LifeMemberCreateModal({
   const isEdit = mode === "edit";
 
   return (
-    <Modal show={open} onClose={onClose} size="4xl">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="6xl"
+      position="center"
+      dismissible
+      className="backdrop-blur-sm"
+    >
       <ModalHeader>
         {isEdit ? "Edit Life Member" : "Add Life Member"}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* User Details */}
             <div>
-              <div className="mb-2 block">
-                <Label htmlFor="name">Full Name</Label>
-              </div>
+              <Label>Full Name</Label>
               <TextInput
-                id="name"
-                placeholder="Full Name"
                 value={form.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 required={!isEdit}
               />
             </div>
             <div>
-              <div className="mb-2 block">
-                <Label htmlFor="email">Email Address</Label>
-              </div>
+              <Label>Email</Label>
               <TextInput
-                id="email"
-                type="email"
-                placeholder="name@example.com"
                 value={form.email}
                 onChange={(e) => handleChange("email", e.target.value)}
                 required
@@ -148,35 +188,22 @@ export default function LifeMemberCreateModal({
               />
             </div>
             <div>
-              <div className="mb-2 block">
-                <Label htmlFor="phone">Phone Number</Label>
-              </div>
+              <Label>Phone</Label>
               <TextInput
-                id="phone"
-                placeholder="Mobile Number"
                 value={form.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
               />
             </div>
-
-            {/* Member Details */}
             <div>
-              <div className="mb-2 block">
-                <Label htmlFor="pan">PAN Number</Label>
-              </div>
+              <Label>PAN</Label>
               <TextInput
-                id="pan"
-                placeholder="ABCDE1234F"
                 value={form.pan}
                 onChange={(e) => handleChange("pan", e.target.value)}
               />
             </div>
             <div>
-              <div className="mb-2 block">
-                <Label htmlFor="joiningDate">Joining Date</Label>
-              </div>
+              <Label>Joining Date</Label>
               <TextInput
-                id="joiningDate"
                 type="date"
                 value={form.joiningDate}
                 onChange={(e) => handleChange("joiningDate", e.target.value)}
@@ -187,25 +214,45 @@ export default function LifeMemberCreateModal({
 
           <hr className="my-4 border-gray-200" />
 
-          <h4 className="text-md font-medium text-gray-900 mb-2">
+          <h4 className="text-md font-medium text-white mb-2">
             Membership Fee / Contribution Record
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {fiscalYears.map((label) => {
-              const val = form.fees[label]
-                ? new Date(form.fees[label]).toISOString().slice(0, 10)
-                : "";
+              const entry = form.fees[label] || {
+                date: "",
+                amount: String(defaultFee),
+              };
               return (
-                <div key={label}>
-                  <div className="mb-2 block">
-                    <Label htmlFor={`fee-${label}`}>{label}</Label>
+                <div key={label} className="p-3 border rounded bg-gray-50">
+                  <div className="mb-2 font-semibold text-sm text-gray-700">
+                    {label}
                   </div>
-                  <TextInput
-                    id={`fee-${label}`}
-                    type="date"
-                    value={val}
-                    onChange={(e) => handleFeeChange(label, e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <TextInput
+                        type="date"
+                        className="text-xs"
+                        sizing="sm"
+                        value={entry.date}
+                        onChange={(e) =>
+                          handleFeeChange(label, "date", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="w-24">
+                      <TextInput
+                        type="number"
+                        placeholder="Amt"
+                        className="text-xs"
+                        sizing="sm"
+                        value={entry.amount}
+                        onChange={(e) =>
+                          handleFeeChange(label, "amount", e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}

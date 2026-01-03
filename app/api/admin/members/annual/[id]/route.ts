@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// PUT: Update Member details and fees
+// PUT: Update Member details and fees (with amount)
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +31,7 @@ export async function PUT(
       async (tx) => {
         const member = await tx.member.findUnique({
           where: { id },
-          select: { userId: true }, 
+          select: { userId: true },
         });
         if (!member) throw new Error("Member not found");
 
@@ -53,24 +53,38 @@ export async function PUT(
           });
         }
 
-        // Instead of waiting one-by-one, we map them to an array of promises
-        const feePromises = Object.entries(feesInput).map(
-          ([label, dateStr]) => {
-            if (!dateStr) return null; 
-            const paidOn = new Date(dateStr as string);
-            if (isNaN(paidOn.getTime())) return null;
+        // Handle Fees: parse both legacy string and new object { date, amount }
+        const feePromises = Object.entries(feesInput).map(([label, data]) => {
+          let dateStr: string | null = null;
+          let amountVal: number | null = null;
 
-            return tx.memberFee.upsert({
-              where: {
-                memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
-              },
-              update: { paidOn },
-              create: { memberId: id, fiscalLabel: label, paidOn },
-            });
+          if (typeof data === "string") {
+            dateStr = data;
+          } else if (typeof data === "object" && data !== null) {
+            dateStr = (data as any).date;
+            amountVal = (data as any).amount
+              ? Number((data as any).amount)
+              : null;
           }
-        );
 
-        // Filter out nulls and await all at once
+          if (!dateStr) return null;
+          const paidOn = new Date(dateStr);
+          if (isNaN(paidOn.getTime())) return null;
+
+          return tx.memberFee.upsert({
+            where: {
+              memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
+            },
+            update: { paidOn, amount: amountVal },
+            create: {
+              memberId: id,
+              fiscalLabel: label,
+              paidOn,
+              amount: amountVal,
+            },
+          });
+        });
+
         const validFeePromises = feePromises.filter((p) => p !== null);
         if (validFeePromises.length > 0) {
           await Promise.all(validFeePromises);
@@ -91,7 +105,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Remove Member record : keeps User, but removes Member role
+// DELETE: Remove Member record (keeps User, but removes Member role)
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -106,7 +120,6 @@ export async function DELETE(
 
   try {
     // Cascade delete in schema will handle fees.
-    // We do NOT delete the User, just the Member record.
     await prisma.member.delete({
       where: { id },
     });
