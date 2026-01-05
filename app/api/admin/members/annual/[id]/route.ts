@@ -1,5 +1,6 @@
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
+import { swapMemberIdPrefix } from "@/libs/memberIdUtils";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -7,6 +8,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 // PUT: Update Member details and fees (with amount)
+// PUT: Update Annual Member
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -27,14 +29,20 @@ export async function PUT(
     const joiningDateStr = body.joiningDate;
     const feesInput = body.fees || {};
 
+    // Expect typeHistory array from frontend
+    const typeHistoryInput = Array.isArray(body.typeHistory)
+      ? body.typeHistory
+      : [];
+
     await prisma.$transaction(
       async (tx) => {
         const member = await tx.member.findUnique({
           where: { id },
-          select: { userId: true },
+          select: { userId: true, memberId: true, memberType: true }, // Select memberId & type to check later
         });
         if (!member) throw new Error("Member not found");
 
+        // 1. Update Basic Member Info
         await tx.member.update({
           where: { id },
           data: {
@@ -43,6 +51,7 @@ export async function PUT(
           },
         });
 
+        // 2. Update User Info
         if (name || phone) {
           await tx.user.update({
             where: { id: member.userId },
@@ -53,7 +62,83 @@ export async function PUT(
           });
         }
 
-        // Handle Fees: parse both legacy string and new object { date, amount }
+        // 3. Handle Type History Sync
+        // A. Get existing DB records to determine what to delete
+        const existingHistory = await tx.memberTypeHistory.findMany({
+          where: { memberId: id },
+          select: { id: true },
+        });
+        const existingIds = existingHistory.map((h) => h.id);
+        const incomingIds = typeHistoryInput
+          .filter((h: any) => h.id)
+          .map((h: any) => h.id);
+
+        // B. Delete records not in payload
+        const idsToDelete = existingIds.filter(
+          (dbId) => !incomingIds.includes(dbId)
+        );
+        if (idsToDelete.length > 0) {
+          await tx.memberTypeHistory.deleteMany({
+            where: { id: { in: idsToDelete } },
+          });
+        }
+
+        // C. Upsert (Create or Update) records from payload
+        for (const entry of typeHistoryInput) {
+          const payload = {
+            memberId: id,
+            memberType: entry.memberType,
+            startDate: entry.startDate ? new Date(entry.startDate) : new Date(),
+            endDate: entry.endDate ? new Date(entry.endDate) : null,
+            changedBy: session.user.id,
+          };
+
+          if (entry.id) {
+            // Update existing
+            await tx.memberTypeHistory.update({
+              where: { id: entry.id },
+              data: payload,
+            });
+          } else {
+            // Create new
+            await tx.memberTypeHistory.create({
+              data: payload,
+            });
+          }
+        }
+
+        // D. Auto-Correct current MemberType based on latest Active History
+        const activeRecord = await tx.memberTypeHistory.findFirst({
+          where: { memberId: id, endDate: null },
+        });
+
+        const latestHistory = await tx.memberTypeHistory.findFirst({
+          where: { memberId: id },
+          orderBy: { startDate: "desc" },
+        });
+
+        const targetType =
+          activeRecord?.memberType || latestHistory?.memberType;
+
+        if (targetType) {
+          const updateData: any = { memberType: targetType };
+
+          // --- NEW LOGIC START: Swap ID Prefix if Type Changed ---
+          if (targetType !== member.memberType) {
+            const newMemberId = swapMemberIdPrefix(member.memberId, targetType);
+            if (newMemberId !== member.memberId) {
+              updateData.memberId = newMemberId;
+            }
+          }
+          // --- NEW LOGIC END ---
+
+          await tx.member.update({
+            where: { id },
+            data: updateData,
+          });
+        }
+
+        // 4. Handle Fees
         const feePromises = Object.entries(feesInput).map(([label, data]) => {
           let dateStr: string | null = null;
           let amountVal: number | null = null;
@@ -104,7 +189,6 @@ export async function PUT(
     });
   }
 }
-
 // DELETE: Remove Member record (keeps User, but removes Member role)
 export async function DELETE(
   req: Request,

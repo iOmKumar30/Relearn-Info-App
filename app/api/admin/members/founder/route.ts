@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
+import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import {
@@ -28,6 +29,7 @@ export async function GET(req: Request) {
       ...(q
         ? {
             OR: [
+              { memberId: { contains: q, mode: "insensitive" } },
               { pan: { contains: q, mode: "insensitive" } },
               {
                 user: {
@@ -84,6 +86,8 @@ export async function POST(req: Request) {
 
     await prisma.$transaction(
       async (tx) => {
+        const memberId = await generateNextMemberId(tx, "FOUNDER");
+
         // 1. Ensure Member Role Exists
         let memberRole = await tx.role.findUnique({
           where: { name: RoleName.MEMBER },
@@ -157,6 +161,7 @@ export async function POST(req: Request) {
           member = await tx.member.create({
             data: {
               userId: user.id,
+              memberId,
               memberType: MemberType.FOUNDER,
               joiningDate,
               pan: pan || null,

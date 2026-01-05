@@ -224,18 +224,20 @@ model Employee {
 }
 
 model Member {
-  id          String       @id @default(uuid())
-  userId      String       @unique // for 1:1 relationship with the user
+  id          String              @id @default(uuid())
+  memberId    String?             @unique
+  userId      String              @unique // for 1:1 relationship with the user
   memberType  MemberType
   joiningDate DateTime
   leavingDate DateTime?
-  status      MemberStatus @default(ACTIVE)
-  feeAmount   Decimal?     @db.Decimal(12, 2)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  pan         String?      @db.VarChar(10)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      MemberStatus        @default(ACTIVE)
+  feeAmount   Decimal?            @db.Decimal(12, 2)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  pan         String?             @db.VarChar(10)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   fees        MemberFee[]
+  typeHistory MemberTypeHistory[]
 
   @@index([status])
   @@index([memberType])
@@ -253,6 +255,76 @@ model MemberFee {
 
   @@unique([memberId, fiscalLabel])
   @@index([fiscalLabel])
+}
+
+model MemberTypeHistory {
+  id       String @id @default(cuid())
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  memberType MemberType // ANNUAL, LIFE, HONORARY
+
+  startDate DateTime  @default(now())
+  endDate   DateTime? // NULL means currently active
+
+  changedBy String? // Optional: Store User ID of admin who made change
+  createdAt DateTime @default(now())
+
+  @@index([memberId])
+}
+
+model Intern {
+  id        String   @id @default(cuid())
+  memberId  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Personal Info ---
+  name        String
+  email       String?
+  mobile      String?
+  address     String?   @db.Text
+  gender      Gender?
+  dateOfBirth DateTime?
+
+  educationCompleted String? // e.g. "BCA"
+  institution        String? // e.g. "NMIMS, Mumbai"
+  ongoingCourse      String? // e.g. "MBA"
+
+  areasOfInterest String? // e.g. "Teaching & Training"
+  joiningDate     DateTime? // "From which date you are ready to join"
+  completionDate  DateTime? // "Date of your completion of internship"
+
+  preferredHoursPerDay String? // e.g. "4 HOURS" - keeping as String to allow text like "4-5 hours"
+  workingMode          WorkingMode? // WoS, WFH, Hybrid
+
+  associatedAfter Boolean? @default(false) // "Would you like to be associated..."
+  comments        String?  @db.Text
+
+  status InternStatus? @default(ACTIVE)
+
+  feeAmount     Int? // e.g. 1000
+  feePaidDate   DateTime?
+  paymentStatus PaymentStatus? @default(PENDING)
+}
+
+enum InternStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  PENDING_START
+}
+
+enum WorkingMode {
+  ONSITE // Work on site (WoS)
+  REMOTE // Work from home (WFH)
+  HYBRID
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  WAIVED
 }
 
 model Student {
@@ -586,4 +658,9 @@ enum ProjectStatus {
   ONGOING
   COMPLETED
   ON_HOLD
+}
+
+model GlobalSequence {
+  id      String @id @default("member_seq") // Single row ID
+  current Int    @default(0)
 }

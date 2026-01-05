@@ -9,19 +9,38 @@ import {
   Modal,
   ModalBody,
   ModalHeader,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow,
   TextInput,
 } from "flowbite-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 // 1. Updated Form State Type
 type FeeEntry = { date: string; amount: string };
+
+// New History Entry Type
+type HistoryEntry = {
+  id?: string; // Optional for new rows
+  memberType: MemberType;
+  startDate: string;
+  endDate: string;
+};
+
 type FormState = {
   name: string;
   email: string;
   phone: string;
   pan: string;
   joiningDate: string;
-  fees: Record<string, FeeEntry>; // { "2023-2024": { date: "...", amount: "1000" } }
+  fees: Record<string, FeeEntry>;
+  memberType: MemberType;
+  history: HistoryEntry[];
 };
 
 const EMPTY_FORM: FormState = {
@@ -31,6 +50,8 @@ const EMPTY_FORM: FormState = {
   pan: "",
   joiningDate: "",
   fees: {},
+  memberType: MemberType.ANNUAL, // Default
+  history: [],
 };
 
 type Props = {
@@ -52,8 +73,14 @@ export default function AnnualMemberCreateModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // Track original type to detect changes on submit
+  const [originalType, setOriginalType] = useState<MemberType>(
+    MemberType.ANNUAL
+  );
+
   const fiscalYears = useMemo(() => getDynamicFiscalYears(2020), []);
   const defaultFee = DEFAULT_MEMBER_FEES[MemberType.ANNUAL];
+  const isEdit = mode === "edit";
 
   useEffect(() => {
     if (!open) return;
@@ -63,11 +90,8 @@ export default function AnnualMemberCreateModal({
       const email = initialValues.user?.email || initialValues.email || "";
       const phone = initialValues.user?.phone || initialValues.phone || "";
 
-      // Transform incoming fee map (which might be simple date string or object from API)
+      // Transform incoming fee map
       let feesObj: Record<string, FeeEntry> = {};
-
-      // Assuming initialValues.feesMapFull contains { "2023-2024": { paidOn: "...", amount: 1000 } }
-      // We will need to update the API/Page to pass this detailed map.
       if (initialValues.feesMapFull) {
         Object.entries(initialValues.feesMapFull).forEach(([fy, data]: any) => {
           feesObj[fy] = {
@@ -79,6 +103,21 @@ export default function AnnualMemberCreateModal({
         });
       }
 
+      // Transform History
+      const historyRows = (initialValues.typeHistory || []).map((h: any) => ({
+        id: h.id,
+        memberType: h.memberType,
+        startDate: h.startDate
+          ? new Date(h.startDate).toISOString().slice(0, 10)
+          : "",
+        endDate: h.endDate
+          ? new Date(h.endDate).toISOString().slice(0, 10)
+          : "",
+      }));
+
+      const currentType = initialValues.memberType || MemberType.ANNUAL;
+
+      setOriginalType(currentType); // Store original type
       setForm({
         name,
         email,
@@ -88,6 +127,8 @@ export default function AnnualMemberCreateModal({
           ? new Date(initialValues.joiningDate).toISOString().slice(0, 10)
           : "",
         fees: feesObj,
+        memberType: currentType,
+        history: historyRows,
       });
     } else {
       setForm({
@@ -97,7 +138,7 @@ export default function AnnualMemberCreateModal({
     }
   }, [open, mode, initialValues, defaultFee]);
 
-  const handleChange = (field: keyof FormState, value: string) => {
+  const handleChange = (field: keyof FormState, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -121,12 +162,40 @@ export default function AnnualMemberCreateModal({
     });
   };
 
+  // --- History Handlers ---
+  const addHistoryRow = () => {
+    setForm((prev) => ({
+      ...prev,
+      history: [
+        ...prev.history,
+        { memberType: MemberType.ANNUAL, startDate: "", endDate: "" },
+      ],
+    }));
+  };
+
+  const removeHistoryRow = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      history: prev.history.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateHistoryRow = (
+    index: number,
+    field: keyof HistoryEntry,
+    value: string
+  ) => {
+    setForm((prev) => {
+      const newHistory = [...prev.history];
+      newHistory[index] = { ...newHistory[index], [field]: value };
+      return { ...prev, history: newHistory };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Transform fees to payload
-    // Only include fees where date is set
     const feePayload: Record<string, { date: string; amount: number }> = {};
     Object.entries(form.fees).forEach(([fy, entry]) => {
       if (entry.date) {
@@ -137,9 +206,39 @@ export default function AnnualMemberCreateModal({
       }
     });
 
+    // --- AUTO-GENERATE HISTORY ON TYPE CHANGE ---
+    let finalHistory = [...form.history];
+
+    // Logic: If user changed the type dropdown, enforce history updates
+    if (isEdit && form.memberType !== originalType) {
+      const today = new Date().toISOString().slice(0, 10);
+
+      // 1. Close current active history (the one with no end date)
+      finalHistory = finalHistory.map((h) => {
+        if (!h.endDate) {
+          return { ...h, endDate: today };
+        }
+        return h;
+      });
+
+      // 2. Add new history entry for the selected type
+      finalHistory.push({
+        memberType: form.memberType,
+        startDate: today,
+        endDate: "", // Open-ended
+      });
+    }
+
+    const historyPayload = finalHistory.map((h) => ({
+      ...h,
+      startDate: h.startDate ? new Date(h.startDate).toISOString() : null,
+      endDate: h.endDate ? new Date(h.endDate).toISOString() : null,
+    }));
+
     const payload = {
       ...form,
       fees: feePayload,
+      typeHistory: historyPayload,
     };
 
     try {
@@ -156,8 +255,6 @@ export default function AnnualMemberCreateModal({
     }
   };
 
-  const isEdit = mode === "edit";
-
   return (
     <Modal
       show={open}
@@ -167,12 +264,12 @@ export default function AnnualMemberCreateModal({
       dismissible
       className="backdrop-blur-sm"
     >
-      {" "}
       <ModalHeader>
         {isEdit ? "Edit Annual Member" : "Add Annual Member"}
       </ModalHeader>
       <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* --- Identity Section --- */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Full Name</Label>
@@ -214,14 +311,39 @@ export default function AnnualMemberCreateModal({
                 required
               />
             </div>
+
+            {/* Member Type Selector */}
+            {isEdit && (
+              <div className="p-2">
+                <Label
+                  htmlFor="memberType"
+                  className="text-green-800 font-semibold"
+                >
+                  Current Member Type
+                </Label>
+                <Select
+                  id="memberType"
+                  value={form.memberType}
+                  onChange={(e) => handleChange("memberType", e.target.value)}
+                  className="mt-1"
+                >
+                  <option value={MemberType.ANNUAL}>Annual</option>
+                  <option value={MemberType.LIFE}>Life</option>
+                  <option value={MemberType.HONORARY}>Honorary</option>
+                </Select>
+                <p className="text-xs text-green-600 mt-1">
+                  Changing this will auto-update history upon save.
+                </p>
+              </div>
+            )}
           </div>
 
           <hr className="my-4 border-gray-200" />
 
+          {/* --- Fees Section --- */}
           <h4 className="text-md font-medium text-white mb-2">
             Membership Fee Payments
           </h4>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {fiscalYears.map((label) => {
               const entry = form.fees[label] || {
@@ -261,6 +383,94 @@ export default function AnnualMemberCreateModal({
                 </div>
               );
             })}
+          </div>
+
+          {/* --- Member Type History Section --- */}
+          <hr className="my-6 border-gray-200" />
+
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-md font-medium text-white">
+              Member Type History
+            </h4>
+            <Button size="xs" color="light" onClick={addHistoryRow}>
+              <Plus className="w-4 h-4 mr-1" /> Add History
+            </Button>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeadCell>Member Type</TableHeadCell>
+                  <TableHeadCell>Start Date</TableHeadCell>
+                  <TableHeadCell>End Date</TableHeadCell>
+                  <TableHeadCell>Actions</TableHeadCell>
+                </TableRow>
+              </TableHead>
+              <TableBody className="divide-y">
+                {form.history.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-gray-500 py-4"
+                    >
+                      No history records found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  form.history.map((row, index) => (
+                    <TableRow key={index} className="bg-white">
+                      <TableCell>
+                        <Select
+                          value={row.memberType}
+                          onChange={(e) =>
+                            updateHistoryRow(
+                              index,
+                              "memberType",
+                              e.target.value
+                            )
+                          }
+                          sizing="sm"
+                        >
+                          <option value={MemberType.ANNUAL}>Annual</option>
+                          <option value={MemberType.LIFE}>Life</option>
+                          <option value={MemberType.HONORARY}>Honorary</option>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <TextInput
+                          type="date"
+                          sizing="sm"
+                          value={row.startDate}
+                          onChange={(e) =>
+                            updateHistoryRow(index, "startDate", e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextInput
+                          type="date"
+                          sizing="sm"
+                          value={row.endDate}
+                          onChange={(e) =>
+                            updateHistoryRow(index, "endDate", e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          color="failure"
+                          size="xs"
+                          onClick={() => removeHistoryRow(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex justify-end gap-2 mt-6">

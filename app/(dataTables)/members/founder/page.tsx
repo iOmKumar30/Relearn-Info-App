@@ -7,8 +7,9 @@ import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import { Button, Spinner } from "flowbite-react"; // Added Spinner
+import { Button, Spinner } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function FounderMembersPage() {
   const [search, setSearch] = useState("");
@@ -30,10 +31,12 @@ export default function FounderMembersPage() {
       const res = await fetch(
         `/api/admin/members/founder?q=${debouncedSearch}`
       );
+      if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       setData(json.rows || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error("Could not load founder members");
     } finally {
       setLoading(false);
     }
@@ -44,35 +47,75 @@ export default function FounderMembersPage() {
   }, [fetchMembers]);
 
   const handleCreate = async (formData: any) => {
-    await fetch("/api/admin/members/founder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    await fetchMembers();
+    const loadingToast = toast.loading("Creating founder...");
+    try {
+      const res = await fetch("/api/admin/members/founder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Founder member created successfully", {
+        id: loadingToast,
+      });
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to create founder: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   const handleUpdate = async (id: string, formData: any) => {
-    await fetch(`/api/admin/members/founder/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    await fetchMembers();
+    const loadingToast = toast.loading("Updating founder...");
+    try {
+      const res = await fetch(`/api/admin/members/founder/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Founder member updated successfully", {
+        id: loadingToast,
+      });
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to update founder: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteRow) return;
-    await fetch(`/api/admin/members/founder/${deleteRow.id}`, {
-      method: "DELETE",
-    });
-    setDeleteOpen(false);
-    setDeleteRow(null);
-    await fetchMembers();
+    const loadingToast = toast.loading("Deleting founder...");
+    try {
+      const res = await fetch(`/api/admin/members/founder/${deleteRow.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Founder member deleted successfully", {
+        id: loadingToast,
+      });
+      setDeleteOpen(false);
+      setDeleteRow(null);
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to delete founder: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   const columns = useMemo(
     () => [
+      { key: "memberId", label: "ID" },
       { key: "name", label: "Name" },
       { key: "email", label: "Email" },
       { key: "phone", label: "Mobile" },
@@ -86,6 +129,7 @@ export default function FounderMembersPage() {
   const rows = useMemo(() => {
     return data.map((row) => ({
       id: row.id,
+      memberId: row.memberId,
       name: row.user?.name || "—",
       email: row.user?.email || "—",
       phone: row.user?.phone || "—",
@@ -124,7 +168,10 @@ export default function FounderMembersPage() {
 
   return (
     <RBACGate roles={["ADMIN"]}>
-      <div className="p-6">
+      <div className="p-6 relative">
+        {/* Toast Container */}
+        <Toaster position="top-right" reverseOrder={false} />
+
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Founder Members
         </h2>

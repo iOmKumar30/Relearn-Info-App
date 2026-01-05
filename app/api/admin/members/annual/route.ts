@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
+import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import {
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
       ...(q
         ? {
             OR: [
+              { memberId: { contains: q, mode: "insensitive" } },
               { pan: { contains: q, mode: "insensitive" } },
               {
                 user: {
@@ -73,7 +75,8 @@ export async function GET(req: Request) {
         take: dbTake,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true } },
-          fees: true, // Fetches amounts as well
+          fees: true, 
+          typeHistory: true,
         },
         orderBy: { user: { name: "asc" } },
       }),
@@ -139,6 +142,7 @@ export async function GET(req: Request) {
 }
 
 // POST: Create Annual Member with Fees & Amounts
+// POST: Create Annual Member with Fees & Amounts
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -157,7 +161,6 @@ export async function POST(req: Request) {
     const joiningDateStr = body.joiningDate;
 
     // feesInput is expected to be object: { "2023-2024": { date: "...", amount: 1000 } }
-    // But logic handles string format too for safety
     const feesInput = body.fees || {};
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
@@ -169,6 +172,8 @@ export async function POST(req: Request) {
 
     await prisma.$transaction(
       async (tx) => {
+        const memberId = await generateNextMemberId(tx, "ANNUAL");
+
         // 1. Ensure Member Role
         let memberRole = await tx.role.findUnique({
           where: { name: RoleName.MEMBER },
@@ -229,6 +234,7 @@ export async function POST(req: Request) {
           member = await tx.member.create({
             data: {
               userId: user.id,
+              memberId,
               memberType: MemberType.ANNUAL,
               joiningDate,
               pan: pan || null,
@@ -246,12 +252,29 @@ export async function POST(req: Request) {
           });
         }
 
+        // 4.5. Initial History Record (NEW)
+        // Check if history exists (important if we are updating an existing member who got converted)
+        const existingHistory = await tx.memberTypeHistory.findFirst({
+          where: { memberId: member.id, endDate: null },
+        });
+
+        if (!existingHistory) {
+          await tx.memberTypeHistory.create({
+            data: {
+              memberId: member.id,
+              memberType: MemberType.ANNUAL,
+              startDate: joiningDate, // Start from their joining date
+              endDate: null, // Active
+              changedBy: session.user.id,
+            },
+          });
+        }
+
         // 5. Handle Fees (Date + Amount)
         for (const [label, feeData] of Object.entries(feesInput)) {
           let dateStr: string | null = null;
           let amountVal: number | null = null;
 
-          // Support both simple string format and new object format
           if (typeof feeData === "string") {
             dateStr = feeData;
           } else if (typeof feeData === "object" && feeData !== null) {

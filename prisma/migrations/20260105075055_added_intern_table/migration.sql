@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Intern" ALTER COLUMN "joiningDate" DROP NOT NULL,
+ALTER COLUMN "associatedAfter" DROP NOT NULL,
+ALTER COLUMN "status" DROP NOT NULL,
+ALTER COLUMN "paymentStatus" DROP NOT NULL;

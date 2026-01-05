@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
+import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import {
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
       ...(q
         ? {
             OR: [
+              { memberId: { contains: q, mode: "insensitive" } },
               { pan: { contains: q, mode: "insensitive" } },
               {
                 user: {
@@ -71,7 +73,9 @@ export async function GET(req: Request) {
         take: dbTake,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true } },
-          fees: true, // Fetches amounts as well
+          fees: true,
+          typeHistory: true,
+          
         },
         orderBy: { user: { name: "asc" } },
       }),
@@ -124,6 +128,7 @@ export async function GET(req: Request) {
 }
 
 // POST: Create Life Member (With Amount)
+// POST: Create Life Member
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !(await isAdmin(session.user.id)))
@@ -150,6 +155,8 @@ export async function POST(req: Request) {
 
     await prisma.$transaction(
       async (tx) => {
+        const memberId = await generateNextMemberId(tx, "LIFE");
+
         let memberRole = await tx.role.findUnique({
           where: { name: RoleName.MEMBER },
         });
@@ -199,6 +206,7 @@ export async function POST(req: Request) {
           member = await tx.member.create({
             data: {
               userId: user.id,
+              memberId,
               memberType: MemberType.LIFE, // <--- TARGET TYPE
               joiningDate,
               pan: pan || null,
@@ -212,6 +220,23 @@ export async function POST(req: Request) {
               memberType: MemberType.LIFE,
               joiningDate,
               pan: pan || member.pan,
+            },
+          });
+        }
+
+        // 4.5. Initial History Record (NEW)
+        const existingHistory = await tx.memberTypeHistory.findFirst({
+          where: { memberId: member.id, endDate: null },
+        });
+
+        if (!existingHistory) {
+          await tx.memberTypeHistory.create({
+            data: {
+              memberId: member.id,
+              memberType: MemberType.LIFE,
+              startDate: joiningDate, // Start from their joining date
+              endDate: null, // Active
+              changedBy: session.user.id,
             },
           });
         }

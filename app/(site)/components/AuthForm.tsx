@@ -9,7 +9,7 @@ import Input from "@/components/Inputs/Input";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import AuthSocialButton from "./AuthSocialButton";
 
 type Variant = "LOGIN" | "REGISTER";
@@ -26,8 +26,7 @@ export function AuthForm() {
       if (roles.includes("PENDING")) {
         router.push("/pending");
       } else {
-  
-        router.push("/dashboard")
+        router.push("/dashboard");
       }
     }
   }, [status, session, router]);
@@ -57,23 +56,34 @@ export function AuthForm() {
     setIsLoading(true);
 
     if (variant === "REGISTER") {
+      const loadingToast = toast.loading("Registering...");
       axios
         .post("/api/register", data)
-        .then(() => signIn("credentials", data))
-        .catch(() => toast.error("Something went wrong"))
+        .then(() => {
+          toast.success("Registration successful!", { id: loadingToast });
+          signIn("credentials", data);
+        })
+        .catch((error) => {
+          toast.error("Something went wrong during registration.", {
+            id: loadingToast,
+          });
+        })
         .finally(() => setIsLoading(false));
     }
+
     if (variant === "LOGIN") {
+      const loadingToast = toast.loading("Signing in...");
       signIn("credentials", {
         ...data,
         redirect: false,
       })
         .then((callback) => {
           if (callback?.error) {
-            toast.error("Invalid credentials");
+            toast.error("Invalid credentials", { id: loadingToast });
           }
           if (callback?.ok && !callback.error) {
-            toast.success("Logged in!");
+            toast.success("Logged in successfully!", { id: loadingToast });
+            router.push("/dashboard");
           }
         })
         .finally(() => setIsLoading(false));
@@ -82,14 +92,15 @@ export function AuthForm() {
 
   const socialAction = (action: string) => {
     setIsLoading(true);
+    const loadingToast = toast.loading("Redirecting to social login...");
 
     signIn(action, { redirect: false })
       .then((callback) => {
         if (callback?.error) {
-          toast.error("Invalid credentials");
+          toast.error("Social login failed", { id: loadingToast });
         }
         if (callback?.ok && !callback.error) {
-          toast.success("Logged in!");
+          toast.success("Logged in successfully!", { id: loadingToast });
         }
       })
       .finally(() => setIsLoading(false));
@@ -97,6 +108,9 @@ export function AuthForm() {
 
   return (
     <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      {/* Toast Container */}
+      <Toaster position="top-right" reverseOrder={false} />
+
       <div
         className="
           bg-white

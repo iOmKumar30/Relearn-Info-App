@@ -12,6 +12,7 @@ import RBACGate from "@/components/RBACGate";
 import { Button, Spinner } from "flowbite-react";
 import { Filter, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 
@@ -47,6 +48,7 @@ export default function AnnualMembersPage() {
   const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null); // Clear previous errors
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
@@ -68,7 +70,9 @@ export default function AnnualMembersPage() {
       const json = await res.json();
       setData(json);
     } catch (err: any) {
+      console.error(err);
       setError(err.message || "Failed to fetch members");
+      toast.error("Could not load annual members data");
     } finally {
       setLoading(false);
     }
@@ -86,36 +90,66 @@ export default function AnnualMembersPage() {
 
   // Create Handler
   const handleCreate = async (formData: any) => {
-    const res = await fetch("/api/admin/members/annual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await fetchMembers();
+    const loadingToast = toast.loading("Creating member...");
+    try {
+      const res = await fetch("/api/admin/members/annual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Annual member created successfully", { id: loadingToast });
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to create member: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   // Update Handler
   const handleUpdate = async (id: string, formData: any) => {
-    const res = await fetch(`/api/admin/members/annual/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await fetchMembers();
+    const loadingToast = toast.loading("Updating member...");
+    try {
+      const res = await fetch(`/api/admin/members/annual/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Annual member updated successfully", { id: loadingToast });
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to update member: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   // Delete Handler
   const handleDelete = async () => {
     if (!deleteRow) return;
-    const res = await fetch(`/api/admin/members/annual/${deleteRow.id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) throw new Error(await res.text());
-    setDeleteOpen(false);
-    setDeleteRow(null);
-    await fetchMembers();
+    const loadingToast = toast.loading("Deleting member...");
+    try {
+      const res = await fetch(`/api/admin/members/annual/${deleteRow.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Annual member deleted successfully", { id: loadingToast });
+      setDeleteOpen(false);
+      setDeleteRow(null);
+      await fetchMembers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to delete member: ${err.message}`, {
+        id: loadingToast,
+      });
+    }
   };
 
   // Handle Fiscal Year Selection
@@ -147,6 +181,7 @@ export default function AnnualMembersPage() {
   // Prepare Columns (only selected fiscal years or all if none selected)
   const columns = useMemo(() => {
     const baseCols = [
+      { key: "memberId", label: "ID" },
       { key: "name", label: "Name" },
       { key: "email", label: "Email" },
       { key: "phone", label: "Mobile" },
@@ -198,6 +233,7 @@ export default function AnnualMembersPage() {
 
       return {
         id: row.id,
+        memberId: row.memberId,
         name: row.user?.name || "—",
         email: row.user?.email || "—",
         phone: row.user?.phone || "—",
@@ -286,7 +322,10 @@ export default function AnnualMembersPage() {
 
   return (
     <RBACGate roles={["ADMIN"]}>
-      <div className="p-6">
+      <div className="p-6 relative">
+        {/* Toast Container */}
+        <Toaster position="top-right" reverseOrder={false} />
+
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Annual Members
         </h2>
@@ -341,7 +380,11 @@ export default function AnnualMembersPage() {
           </div>
         )}
 
-        {error && <div className="text-red-600 mb-4">{error}</div>}
+        {error && (
+          <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
