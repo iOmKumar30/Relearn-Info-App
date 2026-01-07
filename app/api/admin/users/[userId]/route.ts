@@ -37,6 +37,7 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
     },
+    cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!u) return new NextResponse("Not Found", { status: 404 });
 
@@ -116,6 +117,7 @@ export async function DELETE(
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true },
+    cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!user) return new NextResponse("Not Found", { status: 404 });
 

@@ -39,6 +39,7 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
     },
+    cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!row) return new NextResponse("Not Found", { status: 404 });
   return NextResponse.json(row);
@@ -100,11 +101,7 @@ export async function PUT(
         (data.centreId !== undefined && data.centreId !== current.centreId) ||
         (data.section !== undefined && data.section !== current.section)
       ) {
-        const newCode = await generateClassroomCode(
-          tx,
-          newCentreId,
-          newSection
-        );
+        const newCode = await generateClassroomCode(tx, newCentreId);
         codeUpdate = { code: newCode };
       }
 
@@ -156,6 +153,7 @@ export async function DELETE(
   // prevent delete if student history exists
   const hasHistory = await prisma.studentClassroomAssignment.count({
     where: { classroomId: id },
+    cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (hasHistory > 0) {
     return new NextResponse(

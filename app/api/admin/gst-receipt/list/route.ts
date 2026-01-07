@@ -73,6 +73,7 @@ export async function GET(req: Request) {
           shipToCode: true,
           amountInWords: true,
         },
+        cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 

@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       orderBy: { createdAt: "desc" },
+      cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

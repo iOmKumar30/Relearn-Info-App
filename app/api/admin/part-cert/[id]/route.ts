@@ -33,6 +33,7 @@ export async function GET(
       issueDate: true,
       createdAt: true,
     },
+    cacheStrategy: { ttl: 60, swr: 60 }
   });
 
   if (!row) return new NextResponse("Not Found", { status: 404 });

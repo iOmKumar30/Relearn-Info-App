@@ -101,7 +101,7 @@ export async function GET(req: Request) {
   ]);
 
   // Flatten for convenience: expose facilitator as a single object or null
-  const shaped = rows.map((c) => {
+  const shaped = rows.map((c:any) => {
     const currentFac = c.facilitatorLinks?.[0]
       ? {
           assignmentId: c.facilitatorLinks[0].id,

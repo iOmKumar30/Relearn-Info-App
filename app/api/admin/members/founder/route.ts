@@ -51,6 +51,7 @@ export async function GET(req: Request) {
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
       orderBy: { user: { name: "asc" } },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     return NextResponse.json({ rows: members });

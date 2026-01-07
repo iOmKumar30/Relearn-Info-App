@@ -64,10 +64,11 @@ export async function GET(req: Request) {
           select: { role: { select: { name: true } } },
         },
       },
+      cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 
-  const rows = users.map((u) => ({
+  const rows = users.map((u:any) => ({
     id: u.id,
     email: u.email,
     name: u.name,

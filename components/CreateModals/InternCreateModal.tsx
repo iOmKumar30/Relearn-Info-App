@@ -10,7 +10,6 @@ import {
   Select,
   Textarea,
   TextInput,
-  ToggleSwitch,
 } from "flowbite-react";
 import { useEffect, useState } from "react";
 
@@ -79,7 +78,11 @@ export default function InternCreateModal({
       const payload = { ...formData };
 
       // Convert numeric fee
-      if (payload.feeAmount) payload.feeAmount = parseInt(payload.feeAmount);
+      // Convert numeric fee ("" -> null, "1000" -> 1000)
+      payload.feeAmount =
+        payload.feeAmount === "" || payload.feeAmount == null
+          ? null
+          : parseInt(payload.feeAmount);
 
       // Handle dates: empty string -> null
       ["dateOfBirth", "joiningDate", "completionDate", "feePaidDate"].forEach(
@@ -116,12 +119,10 @@ export default function InternCreateModal({
         {mode === "create" ? "Add New Intern" : "Edit Intern Details"}
       </ModalHeader>
 
-      {/* Scrollable Body with Max Height */}
       <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
         <form id="intern-form" onSubmit={handleSubmit} className="space-y-6">
-          {/* Section 1: Personal Info */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+          <div className="p-2">
+            <h3 className="text-sm font-bold text-white uppercase mb-3 flex items-center gap-2">
               Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -191,8 +192,8 @@ export default function InternCreateModal({
           </div>
 
           {/* Section 2: Education & Interest */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-bold text-gray-500 uppercase mb-3">
+          <div className="p-2">
+            <h3 className="text-sm font-bold text-white uppercase mb-3">
               Education & Interests
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -242,8 +243,8 @@ export default function InternCreateModal({
           </div>
 
           {/* Section 3: Internship Details */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-bold text-gray-500 uppercase mb-3">
+          <div className="p-2">
+            <h3 className="text-sm font-bold text-white uppercase mb-3">
               Internship Meta
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -267,7 +268,7 @@ export default function InternCreateModal({
                   value={formData.workingMode || ""}
                   onChange={(e) => handleChange("workingMode", e.target.value)}
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select</option>
                   <option value="ONSITE">On-Site</option>
                   <option value="REMOTE">Remote (WFH)</option>
                   <option value="HYBRID">Hybrid</option>
@@ -304,21 +305,30 @@ export default function InternCreateModal({
                   }
                 />
               </div>
-              <div className="flex items-end pb-2">
-                <ToggleSwitch
-                  checked={formData.associatedAfter || false}
-                  label="Interested in Future Association?"
-                  onChange={(checked) =>
-                    handleChange("associatedAfter", checked)
+              <div>
+                <Label htmlFor="associatedAfter">
+                  Interested in Future Association?
+                </Label>
+                <Select
+                  id="associatedAfter"
+                  value={formData.associatedAfter ? "YES" : "NO"}
+                  onChange={(e) =>
+                    handleChange("associatedAfter", e.target.value === "YES")
                   }
-                />
+                >
+                  <option value="" disabled hidden>
+                    Select
+                  </option>
+                  <option value="NO">No</option>
+                  <option value="YES">Yes</option>
+                </Select>
               </div>
             </div>
           </div>
 
           {/* Section 4: Payment */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h3 className="text-sm font-bold text-blue-700 uppercase mb-3">
+          <div className="p-2">
+            <h3 className="text-sm font-bold text-white uppercase mb-3">
               Payment Info
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

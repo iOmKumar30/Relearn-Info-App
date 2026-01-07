@@ -14,6 +14,7 @@ export async function GET(
   const { id } = await params;
   const project = await prisma.project.findUnique({
     where: { id },
+    cacheStrategy: { ttl: 60, swr: 60 },
   });
 
   if (!project) return new NextResponse("Project not found", { status: 404 });

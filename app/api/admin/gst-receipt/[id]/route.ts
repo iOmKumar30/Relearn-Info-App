@@ -27,6 +27,7 @@ export async function GET(
       where: { id },
       // Select all fields or specify specific ones if needed
       // Ideally, we want 'items' (JSON) included for the edit form
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     if (!row) {

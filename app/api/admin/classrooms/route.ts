@@ -54,6 +54,7 @@ export async function GET(req: Request) {
       const centres = await prisma.centre.findMany({
         where: { code: { in: codes } },
         select: { id: true },
+        cacheStrategy: { ttl: 60, swr: 60 },
       });
       centreIdsFromCodes = centres.map((c) => c.id);
     }
@@ -194,6 +195,7 @@ export async function GET(req: Request) {
           },
         },
       },
+      cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

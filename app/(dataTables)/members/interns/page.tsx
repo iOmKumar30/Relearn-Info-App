@@ -46,7 +46,6 @@ export default function InternsPage() {
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to fetch interns");
-      // Optional: Toast for fetch error if you want it to be very visible
       toast.error("Could not load interns data");
     } finally {
       setLoading(false);
@@ -174,7 +173,9 @@ export default function InternsPage() {
     return data.rows.map((row) => ({
       id: row.id,
       memberId: (
-        <span className="text-xs text-gray-500">{row.memberId || "-"}</span>
+        <span className="text-md text-black font-bold">
+          {row.memberId || "-"}
+        </span>
       ),
       name: (
         <div>
@@ -188,20 +189,27 @@ export default function InternsPage() {
         </div>
       ),
       contact: (
-        <div className="flex flex-col text-sm max-w-[200px]">
+        <div className="flex flex-col text-sm">
+          {/* Email Fix: Forced width with truncation */}
           {row.email && (
-            <span className="text-blue-600 truncate" title={row.email}>
+            <div
+              className="text-blue-600 font-medium truncate w-[180px]"
+              title={row.email}
+            >
               {row.email}
-            </span>
+            </div>
           )}
-          {row.mobile && <span className="text-gray-500">{row.mobile}</span>}
+
+          {row.mobile && <div className="text-gray-500">{row.mobile}</div>}
+
           {row.address && (
             <Tooltip content={row.address}>
-              <span className="text-xs text-gray-400 truncate cursor-help">
+              <div className="text-xs text-gray-400 truncate cursor-help w-[180px]">
                 {row.address}
-              </span>
+              </div>
             </Tooltip>
           )}
+
           {!row.email && !row.mobile && (
             <span className="text-gray-400">-</span>
           )}
@@ -216,9 +224,11 @@ export default function InternsPage() {
               <span className="block">Completed: {row.educationCompleted}</span>
             )}
             {row.areasOfInterest && (
-              <span className="block italic text-gray-400">
-                Int: {row.areasOfInterest}
-              </span>
+              <Tooltip content={row.areasOfInterest}>
+                <div className="text-xs text-gray-400 truncate cursor-help w-[180px]">
+                  {row.areasOfInterest}
+                </div>
+              </Tooltip>
             )}
           </div>
         </div>

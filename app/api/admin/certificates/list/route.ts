@@ -49,6 +49,7 @@ export async function GET(req: Request) {
         certificateNo: true,
         createdAt: true,
       },
+      cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

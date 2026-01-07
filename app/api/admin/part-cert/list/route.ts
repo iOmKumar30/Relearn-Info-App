@@ -63,6 +63,7 @@ export async function GET(req: Request) {
           issueDate: true,
           createdAt: true,
         },
+        cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 

@@ -75,14 +75,14 @@ export async function GET(req: Request) {
           user: { select: { id: true, name: true, email: true, phone: true } },
           fees: true,
           typeHistory: true,
-          
         },
         orderBy: { user: { name: "asc" } },
+        cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 
     // Transform for frontend
-    let rows = members.map((m) => {
+    let rows = members.map((m: any) => {
       const feesMap: Record<string, string> = {};
       const feesMapFull: Record<string, any> = {}; // New detailed map
 
@@ -131,8 +131,10 @@ export async function GET(req: Request) {
 // POST: Create Life Member
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !(await isAdmin(session.user.id)))
+  if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const body = await req.json();
@@ -143,32 +145,81 @@ export async function POST(req: Request) {
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
     const joiningDateStr = body.joiningDate;
-
-    // feesInput can be old string format or new { date, amount } object
     const feesInput = body.fees || {};
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
 
+    // --- OPTIMIZATION STEP 1: PRE-CALCULATIONS (CPU Bound) ---
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
     const hash = await bcrypt.hash(defaultPassword, 10);
     const joiningDate = joiningDateStr ? new Date(joiningDateStr) : new Date();
 
+    // Prepare Fee Upserts
+    const feeUpserts = Object.entries(feesInput)
+      .map(([label, feeData]) => {
+        let dateStr: string | null = null;
+        let amountVal: number | null = null;
+
+        if (typeof feeData === "string") {
+          dateStr = feeData;
+        } else if (typeof feeData === "object" && feeData !== null) {
+          dateStr = (feeData as any).date;
+          amountVal = (feeData as any).amount
+            ? Number((feeData as any).amount)
+            : null;
+        }
+        if (!dateStr) return null;
+        const paidOn = new Date(dateStr);
+        if (isNaN(paidOn.getTime())) return null;
+
+        return {
+          label,
+          paidOn,
+          amount: amountVal,
+        };
+      })
+      .filter(Boolean);
+
+    // --- OPTIMIZATION STEP 2: READS OUTSIDE TRANSACTION ---
+    // Fetch Role, User, and Member concurrently
+    const [existingMemberRole, existingUser] = await Promise.all([
+      prisma.role.findUnique({
+        where: { name: RoleName.MEMBER },
+        cacheStrategy: { ttl: 60, swr: 60 },
+      }),
+      prisma.user.findUnique({
+        where: { email },
+        include: { member: true },
+        cacheStrategy: { ttl: 60, swr: 60 },
+        // Include member to avoid separate query later
+      }),
+    ]);
+
+    // Pre-check if member already exists on this user
+    const existingMember = existingUser?.member || null;
+
+    // --- OPTIMIZATION STEP 3: TRANSACTION (WRITES ONLY) ---
     await prisma.$transaction(
       async (tx) => {
+        // A. ID Generation (Must remain inside TX for safety)
         const memberId = await generateNextMemberId(tx, "LIFE");
 
-        let memberRole = await tx.role.findUnique({
-          where: { name: RoleName.MEMBER },
-        });
-        if (!memberRole) {
-          memberRole = await tx.role.create({
-            data: { name: RoleName.MEMBER, description: "Members" },
+        // B. Ensure Role Exists
+        let roleId = existingMemberRole?.id;
+        if (!roleId) {
+          const newRole = await tx.role.create({
+            data: {
+              name: RoleName.MEMBER,
+              description: "Members",
+            },
           });
+          roleId = newRole.id;
         }
 
-        let user = await tx.user.findUnique({ where: { email } });
-        if (!user) {
-          user = await tx.user.create({
+        // C. Find or Create User
+        let userId = existingUser?.id;
+        if (!existingUser) {
+          const newUser = await tx.user.create({
             data: {
               name: name || null,
               email,
@@ -179,101 +230,108 @@ export async function POST(req: Request) {
               emailCredential: { create: { email, passwordHash: hash } },
             },
           });
+          userId = newUser.id;
         } else {
+          // Update user details if needed
           const updates: any = {};
-          if (name && !user.name) updates.name = name;
-          if (phone && !user.phone) updates.phone = phone;
+          if (name && !existingUser.name) updates.name = name;
+          if (phone && !existingUser.phone) updates.phone = phone;
+
           if (Object.keys(updates).length > 0) {
-            await tx.user.update({ where: { id: user.id }, data: updates });
+            await tx.user.update({
+              where: { id: existingUser.id },
+              data: updates,
+            });
           }
         }
 
-        const hasRole = await tx.userRoleHistory.findFirst({
-          where: { userId: user.id, roleId: memberRole.id, endDate: null },
+        // D. Assign Role (Upsert preferred over findFirst + create)
+        const hasActiveRole = await tx.userRoleHistory.findFirst({
+          where: { userId, roleId, endDate: null },
+          select: { id: true },
         });
-        if (!hasRole) {
+
+        if (!hasActiveRole) {
           await tx.userRoleHistory.create({
             data: {
-              userId: user.id,
-              roleId: memberRole.id,
+              userId: userId!, // Bang ok because we ensured it exists above
+              roleId: roleId!,
               startDate: new Date(),
             },
           });
         }
 
-        let member = await tx.member.findUnique({ where: { userId: user.id } });
-        if (!member) {
-          member = await tx.member.create({
+        // E. Create/Update Member Record
+        let memberRecordId: string;
+        if (!existingMember) {
+          const newMember = await tx.member.create({
             data: {
-              userId: user.id,
+              userId: userId!,
               memberId,
-              memberType: MemberType.LIFE, // <--- TARGET TYPE
+              memberType: MemberType.LIFE,
               joiningDate,
               pan: pan || null,
               status: MemberStatus.ACTIVE,
             },
           });
+          memberRecordId = newMember.id;
         } else {
-          member = await tx.member.update({
-            where: { id: member.id },
+          const updatedMember = await tx.member.update({
+            where: { id: existingMember.id },
             data: {
               memberType: MemberType.LIFE,
               joiningDate,
-              pan: pan || member.pan,
+              pan: pan || existingMember.pan,
             },
           });
+          memberRecordId = updatedMember.id;
         }
 
-        // 4.5. Initial History Record (NEW)
-        const existingHistory = await tx.memberTypeHistory.findFirst({
-          where: { memberId: member.id, endDate: null },
+        // F. Initial History Record (Upsert logic)
+        const hasActiveHistory = await tx.memberTypeHistory.findFirst({
+          where: { memberId: memberRecordId, endDate: null },
+          select: { id: true },
         });
 
-        if (!existingHistory) {
+        if (!hasActiveHistory) {
           await tx.memberTypeHistory.create({
             data: {
-              memberId: member.id,
+              memberId: memberRecordId,
               memberType: MemberType.LIFE,
-              startDate: joiningDate, // Start from their joining date
-              endDate: null, // Active
+              startDate: joiningDate,
+              endDate: null,
               changedBy: session.user.id,
             },
           });
         }
 
-        // Handle Fees (Date + Amount)
-        for (const [label, feeData] of Object.entries(feesInput)) {
-          let dateStr: string | null = null;
-          let amountVal: number | null = null;
-
-          if (typeof feeData === "string") {
-            dateStr = feeData;
-          } else if (typeof feeData === "object" && feeData !== null) {
-            dateStr = (feeData as any).date;
-            amountVal = (feeData as any).amount
-              ? Number((feeData as any).amount)
-              : null;
-          }
-
-          if (!dateStr) continue;
-          const paidOn = new Date(dateStr);
-          if (isNaN(paidOn.getTime())) continue;
-
-          await tx.memberFee.upsert({
-            where: {
-              memberId_fiscalLabel: { memberId: member.id, fiscalLabel: label },
-            },
-            update: { paidOn, amount: amountVal },
-            create: {
-              memberId: member.id,
-              fiscalLabel: label,
-              paidOn,
-              amount: amountVal,
-            },
-          });
+        // G. Handle Fees (Parallel Upserts)
+        if (feeUpserts.length > 0) {
+          await Promise.all(
+            feeUpserts.map((fee: any) =>
+              tx.memberFee.upsert({
+                where: {
+                  memberId_fiscalLabel: {
+                    memberId: memberRecordId,
+                    fiscalLabel: fee.label,
+                  },
+                },
+                update: { paidOn: fee.paidOn, amount: fee.amount },
+                create: {
+                  memberId: memberRecordId,
+                  fiscalLabel: fee.label,
+                  paidOn: fee.paidOn,
+                  amount: fee.amount,
+                },
+              })
+            )
+          );
         }
       },
-      { maxWait: 5000, timeout: 10000 }
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      }
     );
 
     return NextResponse.json({ success: true }, { status: 201 });

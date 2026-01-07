@@ -9,13 +9,16 @@ export const dynamic = "force-dynamic";
 // PUT: Update Intern
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await ctx.params; // <-- get id from URL
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
+
   if (!(await isAdmin(session.user.id))) {
     return new NextResponse("Forbidden", { status: 403 });
   }
@@ -23,11 +26,11 @@ export async function PUT(
   try {
     const body = await req.json();
 
-    // Remove system fields to prevent Prisma errors
-    const { id, createdAt, updatedAt, ...updateData } = body;
+    // never trust the body id — ignore it
+    const { createdAt, updatedAt, id: _ignore, ...updateData } = body;
 
     const intern = await prisma.intern.update({
-      where: { id: params.id },
+      where: { id }, // <-- SAFE
       data: updateData,
     });
 

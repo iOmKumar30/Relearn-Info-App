@@ -16,6 +16,7 @@ export async function GET(
   try {
     const donation = await prisma.donation.findUnique({
       where: { id: params.id },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     if (!donation) {

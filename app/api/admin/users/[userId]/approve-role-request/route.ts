@@ -30,6 +30,7 @@ export async function POST(
           select: { role: { select: { name: true } } },
         },
       },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     // better not to use react hooks in api routes
@@ -61,6 +62,7 @@ export async function POST(
     const dbRoles = await prisma.role.findMany({
       where: { name: { in: uniqueRoles } },
       select: { id: true, name: true },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
     if (dbRoles.length !== uniqueRoles.length) {
       return new NextResponse("One or more roles are invalid", { status: 400 });
@@ -69,6 +71,7 @@ export async function POST(
     const pendingRole = await prisma.role.findUnique({
       where: { name: RoleName.PENDING },
       select: { id: true },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     const result = await prisma.$transaction(async (tx) => {

@@ -1,5 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
-import getFinancialYear from "@/libs/getFinancialYear"; 
+import getFinancialYear from "@/libs/getFinancialYear";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
@@ -137,6 +137,7 @@ export async function GET(req: Request) {
         ],
       },
       orderBy: { createdAt: "desc" },
+      cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     return NextResponse.json({ rows });

@@ -27,20 +27,86 @@ export async function PUT(
     const joiningDateStr = body.joiningDate;
     const feesInput = body.fees || {};
 
-    // Expect typeHistory array from frontend
     const typeHistoryInput = Array.isArray(body.typeHistory)
       ? body.typeHistory
       : [];
 
+    // --- OPTIMIZATION STEP 1: READ EVERYTHING OUTSIDE TRANSACTION ---
+
+    // 1. Fetch Member & History in parallel
+    const [member, existingHistory] = await Promise.all([
+      prisma.member.findUnique({
+        where: { id },
+        select: { userId: true, memberId: true, memberType: true },
+        cacheStrategy: { ttl: 60, swr: 60 }
+      }),
+      prisma.memberTypeHistory.findMany({
+        where: { memberId: id },
+        select: { id: true }, // Only need IDs for deletion logic
+        cacheStrategy: { ttl: 60, swr: 60 }
+      }),
+    ]);
+
+    if (!member) return new NextResponse("Member not found", { status: 404 });
+
+    // --- OPTIMIZATION STEP 2: PRE-CALCULATE LOGIC (CPU Bound) ---
+
+    // A. Logic for History Deletions
+    const existingIds = existingHistory.map((h) => h.id);
+    const incomingIds = typeHistoryInput
+      .filter((h: any) => h.id)
+      .map((h: any) => h.id);
+    const idsToDelete = existingIds.filter(
+      (dbId) => !incomingIds.includes(dbId)
+    );
+
+    // B. Logic for Target Member Type
+    // Instead of querying DB again, we calculate it from the INCOMING payload.
+    // Sort input by date descending to find the latest/active one.
+    const sortedInput = [...typeHistoryInput].sort(
+      (a, b) =>
+        new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    );
+    // Find one without endDate (Active), or default to the most recent start date
+    const activeEntry = sortedInput.find((h) => !h.endDate) || sortedInput[0];
+    const targetType = activeEntry?.memberType;
+
+    // C. Logic for Fees (Prepare the Upsert objects)
+    const feeUpserts = Object.entries(feesInput)
+      .map(([label, data]) => {
+        let dateStr: string | null = null;
+        let amountVal: number | null = null;
+
+        if (typeof data === "string") {
+          dateStr = data;
+        } else if (typeof data === "object" && data !== null) {
+          dateStr = (data as any).date;
+          amountVal = (data as any).amount
+            ? Number((data as any).amount)
+            : null;
+        }
+        if (!dateStr) return null;
+        const paidOn = new Date(dateStr);
+        if (isNaN(paidOn.getTime())) return null;
+
+        return {
+          where: { memberId_fiscalLabel: { memberId: id, fiscalLabel: label } },
+          update: { paidOn, amount: amountVal },
+          create: {
+            memberId: id,
+            fiscalLabel: label,
+            paidOn,
+            amount: amountVal,
+          },
+        };
+      })
+      .filter(Boolean); // Filter out nulls
+
+    // --- OPTIMIZATION STEP 3: TRANSACTION (WRITES ONLY) ---
+    // Fast execution because no waiting for reads
+
     await prisma.$transaction(
       async (tx) => {
-        const member = await tx.member.findUnique({
-          where: { id },
-          // Updated Select: Need memberId and memberType to check for changes
-          select: { userId: true, memberId: true, memberType: true },
-        });
-        if (!member) throw new Error("Member not found");
-
         // 1. Update Basic Member Info
         await tx.member.update({
           where: { id },
@@ -58,28 +124,14 @@ export async function PUT(
           });
         }
 
-        // 3. Handle Type History Sync
-        // A. Get existing DB records to determine what to delete
-        const existingHistory = await tx.memberTypeHistory.findMany({
-          where: { memberId: id },
-          select: { id: true },
-        });
-        const existingIds = existingHistory.map((h) => h.id);
-        const incomingIds = typeHistoryInput
-          .filter((h: any) => h.id)
-          .map((h: any) => h.id);
-
-        // B. Delete records not in payload
-        const idsToDelete = existingIds.filter(
-          (dbId) => !incomingIds.includes(dbId)
-        );
+        // 3. Delete Removed History
         if (idsToDelete.length > 0) {
           await tx.memberTypeHistory.deleteMany({
             where: { id: { in: idsToDelete } },
           });
         }
 
-        // C. Upsert (Create or Update) records from payload
+        // 4. Upsert (Create/Update) History
         for (const entry of typeHistoryInput) {
           const payload = {
             memberId: id,
@@ -90,44 +142,28 @@ export async function PUT(
           };
 
           if (entry.id) {
-            // Update existing
             await tx.memberTypeHistory.update({
               where: { id: entry.id },
               data: payload,
             });
           } else {
-            // Create new
             await tx.memberTypeHistory.create({
               data: payload,
             });
           }
         }
 
-        // D. Auto-Correct current MemberType based on latest Active History
-        // Prioritize Active (endDate: null), then latest startDate
-        const activeRecord = await tx.memberTypeHistory.findFirst({
-          where: { memberId: id, endDate: null },
-        });
-
-        const latestHistory = await tx.memberTypeHistory.findFirst({
-          where: { memberId: id },
-          orderBy: { startDate: "desc" },
-        });
-
-        const targetType =
-          activeRecord?.memberType || latestHistory?.memberType;
-
+        // 5. Update Member Type & ID (Using pre-calculated targetType)
         if (targetType) {
           const updateData: any = { memberType: targetType };
 
-          // --- LOGIC START: Swap ID Prefix if Type Changed ---
+          // Swap Logic
           if (targetType !== member.memberType) {
             const newMemberId = swapMemberIdPrefix(member.memberId, targetType);
             if (newMemberId && newMemberId !== member.memberId) {
               updateData.memberId = newMemberId;
             }
           }
-          // --- LOGIC END ---
 
           await tx.member.update({
             where: { id },
@@ -135,42 +171,15 @@ export async function PUT(
           });
         }
 
-        // 4. Handle Fees
-        const feePromises = Object.entries(feesInput).map(([label, data]) => {
-          let dateStr: string | null = null;
-          let amountVal: number | null = null;
-
-          if (typeof data === "string") {
-            dateStr = data;
-          } else if (typeof data === "object" && data !== null) {
-            dateStr = (data as any).date;
-            amountVal = (data as any).amount
-              ? Number((data as any).amount)
-              : null;
-          }
-
-          if (!dateStr) return null;
-          const paidOn = new Date(dateStr);
-          if (isNaN(paidOn.getTime())) return null;
-
-          return tx.memberFee.upsert({
-            where: {
-              memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
-            },
-            update: { paidOn, amount: amountVal },
-            create: {
-              memberId: id,
-              fiscalLabel: label,
-              paidOn,
-              amount: amountVal,
-            },
-          });
-        });
-
-        const validFeePromises = feePromises.filter((p) => p !== null);
-        if (validFeePromises.length > 0) await Promise.all(validFeePromises);
+        // 6. Handle Fees (Parallel Upserts)
+        if (feeUpserts.length > 0) {
+          await Promise.all(feeUpserts.map((f: any) => tx.memberFee.upsert(f)));
+        }
       },
-      { maxWait: 5000, timeout: 20000 }
+      {
+        maxWait: 5000,
+        timeout: 10000, // Safe to lower back to 10s
+      }
     );
 
     return NextResponse.json({ success: true });
