@@ -2,6 +2,7 @@ import { authOptions } from "@/libs/authOptions";
 import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { toUTCDate } from "@/libs/toUTCDate";
 import {
   MemberStatus,
   MemberType,
@@ -53,8 +54,11 @@ export async function GET(req: Request) {
       orderBy: { user: { name: "asc" } },
       cacheStrategy: { ttl: 60, swr: 60 },
     });
-
-    return NextResponse.json({ rows: members });
+    const rows = members.map((m: any) => ({
+      ...m,
+      joiningDate: m.joiningDate?.toISOString().slice(0, 10), // "2021-06-15"
+    }));
+    return NextResponse.json({ rows });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
   }
@@ -76,14 +80,14 @@ export async function POST(req: Request) {
       .toLowerCase();
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
-    const joiningDateStr = body.joiningDate; // ISO string
+    const joiningDate = body.joiningDate
+      ? toUTCDate(body.joiningDate)
+      : new Date();
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
 
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
     const hash = await bcrypt.hash(defaultPassword, 10);
-
-    const joiningDate = joiningDateStr ? new Date(joiningDateStr) : new Date();
 
     await prisma.$transaction(
       async (tx) => {

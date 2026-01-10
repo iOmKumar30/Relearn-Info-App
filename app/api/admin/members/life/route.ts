@@ -2,6 +2,7 @@ import { authOptions } from "@/libs/authOptions";
 import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { toUTCDate } from "@/libs/toUTCDate";
 import {
   MemberStatus,
   MemberType,
@@ -88,15 +89,20 @@ export async function GET(req: Request) {
 
       m.fees.forEach((f) => {
         if (f.paidOn) {
-          const isoDate = f.paidOn.toISOString();
-          feesMap[f.fiscalLabel] = isoDate;
+          const dateOnly = f.paidOn.toISOString().slice(0, 10);
+          feesMap[f.fiscalLabel] = dateOnly;
           feesMapFull[f.fiscalLabel] = {
-            paidOn: isoDate,
+            paidOn: dateOnly,
             amount: f.amount ? Number(f.amount) : null,
           };
         }
       });
-      return { ...m, feesMap, feesMapFull };
+      return {
+        ...m,
+        joiningDate: m.joiningDate?.toISOString().slice(0, 10),
+        feesMap,
+        feesMapFull,
+      };
     });
 
     if (pendingOnly && fiscalYearsParam) {
@@ -123,7 +129,14 @@ export async function GET(req: Request) {
       pageSize,
     });
   } catch (error: any) {
-    return new NextResponse(error.message, { status: 500 });
+    console.error("LIFE_MEMBERS_GET_ERROR", error);
+    return new NextResponse(
+      JSON.stringify({
+        message: "Internal Server Error",
+        error: error.message,
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
 
@@ -152,7 +165,7 @@ export async function POST(req: Request) {
     // --- OPTIMIZATION STEP 1: PRE-CALCULATIONS (CPU Bound) ---
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
     const hash = await bcrypt.hash(defaultPassword, 10);
-    const joiningDate = joiningDateStr ? new Date(joiningDateStr) : new Date();
+    const joiningDate = joiningDateStr ? toUTCDate(joiningDateStr) : new Date();
 
     // Prepare Fee Upserts
     const feeUpserts = Object.entries(feesInput)
@@ -169,7 +182,7 @@ export async function POST(req: Request) {
             : null;
         }
         if (!dateStr) return null;
-        const paidOn = new Date(dateStr);
+        const paidOn = toUTCDate(dateStr);
         if (isNaN(paidOn.getTime())) return null;
 
         return {

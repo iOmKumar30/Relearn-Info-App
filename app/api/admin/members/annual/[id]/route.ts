@@ -2,6 +2,7 @@ import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import { swapMemberIdPrefix } from "@/libs/memberIdUtils";
 import prisma from "@/libs/prismadb";
+import { toUTCDate } from "@/libs/toUTCDate";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -31,7 +32,9 @@ export async function PUT(
     const name = String(body.name || "").trim();
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
-    const joiningDateStr = body.joiningDate;
+    const joiningDate = body.joiningDate
+      ? toUTCDate(body.joiningDate)
+      : undefined;
     const feesInput = body.fees || {};
 
     // Expect typeHistory array from frontend
@@ -51,7 +54,7 @@ export async function PUT(
       prisma.memberTypeHistory.findMany({
         where: { memberId: id },
         select: { id: true },
-        cacheStrategy: { ttl: 60, swr: 60 }
+        cacheStrategy: { ttl: 60, swr: 60 },
         // We only need IDs to check for deletion
       }),
     ]);
@@ -69,10 +72,15 @@ export async function PUT(
     );
 
     // Sort input by date descending
-    const sortedInput = [...typeHistoryInput].sort(
-      (a, b) =>
-        new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-    );
+    const sortedInput = [...typeHistoryInput].sort((a: any, b: any) => {
+      const aDate = a.startDate
+        ? new Date(`${a.startDate}T00:00:00.000Z`).getTime()
+        : 0;
+      const bDate = b.startDate
+        ? new Date(`${b.startDate}T00:00:00.000Z`).getTime()
+        : 0;
+      return bDate - aDate;
+    });
     const activeEntry = sortedInput.find((h) => !h.endDate) || sortedInput[0];
     const targetType = activeEntry?.memberType;
 
@@ -91,7 +99,7 @@ export async function PUT(
             : null;
         }
         if (!dateStr) return null;
-        const paidOn = new Date(dateStr);
+        const paidOn = toUTCDate(dateStr);
         if (isNaN(paidOn.getTime())) return null;
 
         return {
@@ -114,7 +122,7 @@ export async function PUT(
           where: { id },
           data: {
             pan: pan || null,
-            joiningDate: joiningDateStr ? new Date(joiningDateStr) : undefined,
+            joiningDate,
           },
         });
 
@@ -138,11 +146,13 @@ export async function PUT(
 
         // D. Upsert History
         for (const entry of typeHistoryInput) {
+          const startDate = toUTCDate(entry.startDate);
+          const endDate = toUTCDate(entry.endDate);
           const payload = {
             memberId: id,
             memberType: entry.memberType,
-            startDate: entry.startDate ? new Date(entry.startDate) : new Date(),
-            endDate: entry.endDate ? new Date(entry.endDate) : null,
+            startDate, 
+            endDate,
             changedBy: session.user.id,
           };
 

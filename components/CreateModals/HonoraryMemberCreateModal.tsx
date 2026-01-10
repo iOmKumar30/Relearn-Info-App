@@ -2,6 +2,7 @@
 
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 import { DEFAULT_MEMBER_FEES } from "@/libs/memberConstants";
+import { toLocalDateInput } from "@/libs/toLocalDateInput";
 import { MemberType } from "@prisma/client";
 import {
   Button,
@@ -95,9 +96,7 @@ export default function HonoraryMemberCreateModal({
       if (initialValues.feesMapFull) {
         Object.entries(initialValues.feesMapFull).forEach(([fy, data]: any) => {
           feesObj[fy] = {
-            date: data.paidOn
-              ? new Date(data.paidOn).toISOString().slice(0, 10)
-              : "",
+            date: data.paidOn ? toLocalDateInput(data.paidOn) : "",
             amount: data.amount ? String(data.amount) : String(defaultFee),
           };
         });
@@ -107,12 +106,8 @@ export default function HonoraryMemberCreateModal({
       const historyRows = (initialValues.typeHistory || []).map((h: any) => ({
         id: h.id,
         memberType: h.memberType,
-        startDate: h.startDate
-          ? new Date(h.startDate).toISOString().slice(0, 10)
-          : "",
-        endDate: h.endDate
-          ? new Date(h.endDate).toISOString().slice(0, 10)
-          : "",
+        startDate: h.startDate ? toLocalDateInput(h.startDate) : "",
+        endDate: h.endDate ? toLocalDateInput(h.endDate) : "",
       }));
 
       const currentType = initialValues.memberType || MemberType.HONORARY;
@@ -124,7 +119,7 @@ export default function HonoraryMemberCreateModal({
         phone,
         pan: initialValues.pan || "",
         joiningDate: initialValues.joiningDate
-          ? new Date(initialValues.joiningDate).toISOString().slice(0, 10)
+          ? toLocalDateInput(initialValues.joiningDate)
           : "",
         fees: feesObj,
         memberType: currentType,
@@ -232,8 +227,8 @@ export default function HonoraryMemberCreateModal({
     // Prepare History Payload
     const historyPayload = finalHistory.map((h) => ({
       ...h,
-      startDate: h.startDate ? new Date(h.startDate).toISOString() : null,
-      endDate: h.endDate ? new Date(h.endDate).toISOString() : null,
+      startDate: h.startDate ? `${h.startDate}T00:00:00.000Z` : null,
+      endDate: h.endDate ? `${h.endDate}T00:00:00.000Z` : null,
     }));
 
     const payload = {

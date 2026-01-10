@@ -2,6 +2,7 @@ import { authOptions } from "@/libs/authOptions";
 import { generateNextMemberId } from "@/libs/idGenerator";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { toUTCDate } from "@/libs/toUTCDate";
 import {
   MemberStatus,
   MemberType,
@@ -84,22 +85,23 @@ export async function GET(req: Request) {
     ]);
 
     // Transform for frontend
-    let rows = members.map((m:any) => {
+    let rows = members.map((m: any) => {
       const feesMap: Record<string, string> = {};
       const feesMapFull: Record<string, any> = {}; // New detailed map
 
       m.fees.forEach((f) => {
         if (f.paidOn) {
-          const isoDate = f.paidOn.toISOString();
-          feesMap[f.fiscalLabel] = isoDate; // Keep for backward compatibility/filter
+          const dateOnly = f.paidOn.toISOString().slice(0, 10);
+          feesMap[f.fiscalLabel] = dateOnly; // Keep for backward compatibility/filter
           feesMapFull[f.fiscalLabel] = {
-            paidOn: isoDate,
+            paidOn: dateOnly,
             amount: f.amount ? Number(f.amount) : null,
           };
         }
       });
       return {
         ...m,
+        joiningDate: m.joiningDate?.toISOString().slice(0, 10),
         feesMap,
         feesMapFull,
       };
@@ -167,7 +169,7 @@ export async function POST(req: Request) {
     // --- OPTIMIZATION STEP 1: PRE-CALCULATIONS (CPU Bound) ---
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
     const hash = await bcrypt.hash(defaultPassword, 10);
-    const joiningDate = joiningDateStr ? new Date(joiningDateStr) : new Date();
+    const joiningDate = joiningDateStr ? toUTCDate(joiningDateStr) : new Date();
 
     // Prepare Fee Upserts
     const feeUpserts = Object.entries(feesInput)
@@ -184,7 +186,7 @@ export async function POST(req: Request) {
             : null;
         }
         if (!dateStr) return null;
-        const paidOn = new Date(dateStr);
+        const paidOn = toUTCDate(dateStr);
         if (isNaN(paidOn.getTime())) return null;
 
         return {

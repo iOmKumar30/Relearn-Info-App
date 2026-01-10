@@ -1,6 +1,7 @@
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { toUTCDate } from "@/libs/toUTCDate";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -24,7 +25,9 @@ export async function PUT(
     const name = String(body.name || "").trim();
     const phone = String(body.phone || "").trim();
     const pan = String(body.pan || "").trim();
-    const joiningDateStr = body.joiningDate;
+    const joiningDate = body.joiningDate
+      ? toUTCDate(body.joiningDate)
+      : undefined;
 
     await prisma.$transaction(
       async (tx) => {
@@ -40,7 +43,7 @@ export async function PUT(
           where: { id },
           data: {
             pan: pan || null,
-            joiningDate: joiningDateStr ? new Date(joiningDateStr) : undefined,
+            joiningDate,
           },
         });
 
