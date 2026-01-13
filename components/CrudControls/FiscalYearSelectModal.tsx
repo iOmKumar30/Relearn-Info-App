@@ -45,29 +45,44 @@ export default function FiscalYearSelectModal({
   };
 
   return (
-    <Modal show={open} onClose={onClose} size="md">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="md"
+      dismissible
+      className="backdrop-blur-sm"
+      position="center"
+    >
       <ModalHeader>Select Fiscal Years</ModalHeader>
       <ModalBody>
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
           {availableYears.map((year) => (
-            <div key={year} className="flex items-center gap-2">
+            <div
+              key={year}
+              className="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
               <Checkbox
                 id={`year-${year}`}
                 checked={selected.includes(year)}
                 onChange={() => toggleYear(year)}
               />
-              <Label htmlFor={`year-${year}`} className="cursor-pointer">
+              <Label
+                htmlFor={`year-${year}`}
+                className="flex-1 cursor-pointer select-none"
+              >
                 {year}
               </Label>
             </div>
           ))}
         </div>
 
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button color="gray" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleApply}>Apply</Button>
+          <Button color="blue" onClick={handleApply}>
+            Apply
+          </Button>
         </div>
       </ModalBody>
     </Modal>

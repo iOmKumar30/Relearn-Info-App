@@ -1,7 +1,15 @@
 "use client";
 
 import StateSelect from "@/components/CrudControls/StateSelect";
-import { Modal, ModalBody, ModalHeader } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Select,
+  TextInput,
+} from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
 function useDebounce<T>(value: T, delay = 300) {
@@ -191,18 +199,23 @@ export default function ClassroomCreateModal({
   const isEdit = mode === "edit";
 
   return (
-    <Modal show={open} onClose={onClose} size="lg" dismissible color="light">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="lg"
+      dismissible
+      className="backdrop-blur-sm z-100"
+      position="center"
+    >
       <ModalHeader>
         {isEdit ? "Edit Classroom" : "Create New Classroom"}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Centre (autocomplete) */}
           <div className="relative">
-            <label className="block text-sm font-medium mb-1 text-white">
-              Centre
-            </label>
-            <input
+            <Label className="mb-1 block">Centre</Label>
+            <TextInput
               value={centreOpen ? centreQuery : form.centre_name}
               onChange={(e) => setCentreQuery(e.target.value)}
               onFocus={() => {
@@ -210,16 +223,20 @@ export default function ClassroomCreateModal({
                 setCentreQuery("");
               }}
               placeholder="Type to search centres..."
-              className="w-full rounded border px-3 py-2 text-white"
               required
+              autoComplete="off"
             />
             {centreOpen && (
-              <div className="absolute z-50 mt-1 w-full rounded border bg-white shadow">
+              <div className="absolute z-50 mt-1 w-full rounded border bg-white shadow dark:bg-gray-700 dark:border-gray-600">
                 <div className="p-2">
                   {centreLoading ? (
-                    <div className="p-2 text-sm text-gray-500">Searching…</div>
+                    <div className="p-2 text-sm text-gray-500 dark:text-gray-400">
+                      Searching…
+                    </div>
                   ) : centreItems.length === 0 ? (
-                    <div className="p-2 text-sm text-gray-500">No results</div>
+                    <div className="p-2 text-sm text-gray-500 dark:text-gray-400">
+                      No results
+                    </div>
                   ) : (
                     <ul className="max-h-60 overflow-auto">
                       {centreItems.map((c) => {
@@ -229,7 +246,7 @@ export default function ClassroomCreateModal({
                         return (
                           <li
                             key={c.id}
-                            className="cursor-pointer px-3 py-2 hover:bg-gray-100 text-sm"
+                            className="cursor-pointer px-3 py-2 text-sm hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
                               setForm((prev) => ({
@@ -250,10 +267,10 @@ export default function ClassroomCreateModal({
                     </ul>
                   )}
                 </div>
-                <div className="border-t p-2 text-right">
+                <div className="border-t p-2 text-right dark:border-gray-600">
                   <button
                     type="button"
-                    className="rounded bg-gray-100 px-2 py-1 text-sm"
+                    className="rounded bg-gray-100 px-2 py-1 text-sm dark:bg-gray-600 dark:text-white"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       setForm((prev) => ({
@@ -273,14 +290,11 @@ export default function ClassroomCreateModal({
 
           {/* Street Address */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-white">
-              Street Address
-            </label>
-            <input
+            <Label className="mb-1 block">Street Address</Label>
+            <TextInput
               required
               value={form.street_address}
               onChange={(e) => handleChange("street_address", e.target.value)}
-              className="w-full rounded border px-3 py-2 text-white"
               placeholder="Enter Street Address"
             />
           </div>
@@ -288,26 +302,20 @@ export default function ClassroomCreateModal({
           {/* City & District */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                City
-              </label>
-              <input
+              <Label className="mb-1 block">City</Label>
+              <TextInput
                 required
                 value={form.city}
                 onChange={(e) => handleChange("city", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter City"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                District
-              </label>
-              <input
+              <Label className="mb-1 block">District</Label>
+              <TextInput
                 required
                 value={form.district}
                 onChange={(e) => handleChange("district", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter District"
               />
             </div>
@@ -316,24 +324,19 @@ export default function ClassroomCreateModal({
           {/* State & Pincode */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                State
-              </label>
+              <Label className="mb-1 block">State</Label>
               <StateSelect
                 value={form.state || null} // full state name
                 onChange={(fullName) => handleChange("state", fullName || "")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                Pincode
-              </label>
-              <input
+              <Label className="mb-1 block">Pincode</Label>
+              <TextInput
                 required
                 title="6-digit pincode"
                 value={form.pincode}
                 onChange={(e) => handleChange("pincode", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter Pincode"
               />
             </div>
@@ -342,15 +345,12 @@ export default function ClassroomCreateModal({
           {/* Section Code & Timing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Section Code
-              </label>
-              <select
+              <Label className="mb-1 block">Section Code</Label>
+              <Select
                 title="Section"
                 required
                 value={form.section_code}
                 onChange={(e) => handleChange("section_code", e.target.value)}
-                className="w-full rounded border px-3 py-2"
               >
                 <option value="" disabled>
                   Select section
@@ -358,34 +358,29 @@ export default function ClassroomCreateModal({
                 <option value="Junior">Junior</option>
                 <option value="Senior">Senior</option>
                 <option value="Both">Both</option>
-              </select>
+              </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Timing
-              </label>
-              <select
+              <Label className="mb-1 block">Timing</Label>
+              <Select
                 title="Timing"
                 required
                 value={form.timing}
                 onChange={(e) => handleChange("timing", e.target.value)}
-                className="w-full rounded border px-3 py-2"
               >
                 <option value="" disabled>
                   Select timing
                 </option>
                 <option value="Morning">Morning</option>
                 <option value="Evening">Evening</option>
-              </select>
+              </Select>
             </div>
           </div>
 
           {/* Monthly Allowance */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-white">
-              Monthly Allowance (₹)
-            </label>
-            <input
+            <Label className="mb-1 block">Monthly Allowance (₹)</Label>
+            <TextInput
               required
               type="number"
               min={0}
@@ -404,51 +399,41 @@ export default function ClassroomCreateModal({
                   );
                 }
               }}
-              className="w-full rounded border px-3 py-2 text-black"
               placeholder="Enter Amount"
             />
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-white">
-              Status
-            </label>
-            <select
+            <Label className="mb-1 block">Status</Label>
+            <Select
               value={form.status}
               onChange={(e) => handleChange("status", e.target.value as Status)}
-              className="w-full rounded border px-3 py-2"
               aria-label="Select Status"
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
+            </Select>
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Date Created
-              </label>
-              <input
+              <Label className="mb-1 block">Date Created</Label>
+              <TextInput
                 type="date"
                 required
                 value={form.date_created}
                 onChange={(e) => handleChange("date_created", e.target.value)}
-                className="w-full rounded border px-3 py-2"
                 placeholder="YYYY-MM-DD"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Date Closed (optional)
-              </label>
-              <input
+              <Label className="mb-1 block">Date Closed (optional)</Label>
+              <TextInput
                 type="date"
                 value={form.date_closed}
                 onChange={(e) => handleChange("date_closed", e.target.value)}
-                className="w-full rounded border px-3 py-2"
                 placeholder="YYYY-MM-DD"
               />
             </div>
@@ -456,20 +441,12 @@ export default function ClassroomCreateModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded bg-gray-200 px-4 py-2 text-gray-900"
-            >
+            <Button color="gray" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              disabled={!form.centre_id}
-            >
+            </Button>
+            <Button type="submit" color="blue" disabled={!form.centre_id}>
               {isEdit ? "Save changes" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </ModalBody>

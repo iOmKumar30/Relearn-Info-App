@@ -2,7 +2,15 @@
 
 import StateSelect from "@/components/CrudControls/StateSelect";
 import { ALL_STATE_OPTIONS } from "@/libs/geo/stateCodes";
-import { Modal, ModalBody, ModalHeader } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Select,
+  TextInput,
+} from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
 type Status = "Active" | "Inactive";
@@ -103,34 +111,35 @@ export default function CentreCreateModal({
   const isEdit = mode === "edit";
 
   return (
-    <Modal show={open} onClose={onClose} size="lg" dismissible color="light">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="lg"
+      dismissible
+      className="backdrop-blur-sm"
+      position="center"
+    >
       <ModalHeader>{isEdit ? "Edit Centre" : "Create New Centre"}</ModalHeader>
       <ModalBody>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-white">
-              Centre Name
-            </label>
-            <input
+            <Label className="mb-1 block">Centre Name</Label>
+            <TextInput
               required
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              className="w-full rounded border px-3 py-2 text-white"
               placeholder="Enter Centre Name"
             />
           </div>
 
           {/* Street Address */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-white">
-              Street Address
-            </label>
-            <input
+            <Label className="mb-1 block">Street Address</Label>
+            <TextInput
               required
               value={form.street_address}
               onChange={(e) => handleChange("street_address", e.target.value)}
-              className="w-full rounded border px-3 py-2 text-white"
               placeholder="Enter Street Address"
             />
           </div>
@@ -138,26 +147,20 @@ export default function CentreCreateModal({
           {/* City & District */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                City
-              </label>
-              <input
+              <Label className="mb-1 block">City</Label>
+              <TextInput
                 required
                 value={form.city}
                 onChange={(e) => handleChange("city", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter City"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                District
-              </label>
-              <input
+              <Label className="mb-1 block">District</Label>
+              <TextInput
                 required
                 value={form.district}
                 onChange={(e) => handleChange("district", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter District"
               />
             </div>
@@ -166,24 +169,19 @@ export default function CentreCreateModal({
           {/* State & Pincode */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                State
-              </label>
+              <Label className="mb-1 block">State</Label>
               <StateSelect
                 value={form.state || null} // full name
                 onChange={(fullName) => handleChange("state", fullName || "")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                Pincode
-              </label>
-              <input
+              <Label className="mb-1 block">Pincode</Label>
+              <TextInput
                 required
                 title="6-digit pincode"
                 value={form.pincode}
                 onChange={(e) => handleChange("pincode", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="Enter Pincode"
               />
             </div>
@@ -191,44 +189,37 @@ export default function CentreCreateModal({
 
           {/* Status */}
           <div>
-            <label className="mb-1 block text-sm font-medium">Status</label>
-            <select
+            <Label className="mb-1 block">Status</Label>
+            <Select
               value={form.status}
               onChange={(e) => handleChange("status", e.target.value as Status)}
-              className="w-full rounded border px-3 py-2"
               aria-label="Select Status"
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
+            </Select>
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                Date Associated
-              </label>
-              <input
+              <Label className="mb-1 block">Date Associated</Label>
+              <TextInput
                 type="date"
                 required
                 value={form.date_associated}
                 onChange={(e) =>
                   handleChange("date_associated", e.target.value)
                 }
-                className="w-full rounded border px-3 py-2"
                 placeholder="YYYY-MM-DD"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-white">
-                Date Left (optional)
-              </label>
-              <input
+              <Label className="mb-1 block">Date Left (optional)</Label>
+              <TextInput
                 type="date"
                 value={form.date_left}
                 onChange={(e) => handleChange("date_left", e.target.value)}
-                className="w-full rounded border px-3 py-2"
                 placeholder="YYYY-MM-DD"
               />
             </div>
@@ -236,19 +227,12 @@ export default function CentreCreateModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded bg-gray-200 px-4 py-2 text-gray-900"
-            >
+            <Button color="gray" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
+            </Button>
+            <Button type="submit" color="blue">
               {isEdit ? "Save changes" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </ModalBody>

@@ -119,37 +119,58 @@ export default function RoleAssignModal({
   }
 
   return (
-    <Modal show={open} onClose={handleClose} size="md" dismissible>
+    <Modal
+      show={open}
+      onClose={handleClose}
+      size="md"
+      dismissible
+      className="backdrop-blur-sm"
+      position="center"
+    >
       <ModalHeader>Assign Roles</ModalHeader>
       <ModalBody>
         <div className="space-y-4">
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             <div>
-              <span className="font-semibold">User:</span> {user?.name || "—"}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                User:
+              </span>{" "}
+              {user?.name || "—"}
             </div>
             <div>
-              <span className="font-semibold">Email:</span> {user?.email || "—"}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                Email:
+              </span>{" "}
+              {user?.email || "—"}
             </div>
             <div className="mt-2">
-              <span className="font-semibold">Current roles:</span>{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                Current roles:
+              </span>{" "}
               {formatRoles(user?.currentRoles) || "None"}
             </div>
           </div>
 
           <div className="mt-2 grid grid-cols-2 gap-2">
             {ALL_ROLES.map((r) => (
-              <label key={r} className="flex items-center gap-2 text-sm">
+              <div key={r} className="flex items-center gap-2">
                 <Checkbox
+                  id={`assign-role-${r}`}
                   checked={selected.includes(r)}
                   onChange={() => toggle(r)}
                 />
-                <Label className="uppercase">{ROLE_LABELS[r]}</Label>
-              </label>
+                <Label
+                  htmlFor={`assign-role-${r}`}
+                  className="uppercase cursor-pointer"
+                >
+                  {ROLE_LABELS[r]}
+                </Label>
+              </div>
             ))}
           </div>
 
           {err && (
-            <div className="rounded border border-red-400 bg-red-50 p-2 text-sm text-red-700">
+            <div className="rounded border border-red-400 bg-red-50 p-2 text-sm text-red-700 dark:border-red-600 dark:bg-red-900/50 dark:text-red-400">
               {err}
             </div>
           )}

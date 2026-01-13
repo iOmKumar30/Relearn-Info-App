@@ -189,7 +189,14 @@ export default function GstFormModal({
   };
 
   return (
-    <Modal show={open} onClose={onClose} size="5xl">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="5xl"
+      dismissible
+      className="backdrop-blur-sm"
+      position="center"
+    >
       <ModalHeader>
         {mode === "create" ? "Create GST Receipt" : "Edit GST Receipt"}
       </ModalHeader>
@@ -197,12 +204,12 @@ export default function GstFormModal({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* --- INVOICE DETAILS SECTION --- */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b pb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
               Invoice Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label>
+                <Label className="mb-1 block">
                   Invoice No <span className="text-red-500">*</span>
                 </Label>
                 <TextInput
@@ -212,7 +219,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>
+                <Label className="mb-1 block">
                   Invoice Date <span className="text-red-500">*</span>
                 </Label>
                 <Datepicker
@@ -221,7 +228,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>Reverse Charge (Y/N)</Label>
+                <Label className="mb-1 block">Reverse Charge (Y/N)</Label>
                 <TextInput
                   maxLength={1}
                   placeholder="N"
@@ -234,7 +241,7 @@ export default function GstFormModal({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
-                <Label>Date of Supply (Text)</Label>
+                <Label className="mb-1 block">Date of Supply (Text)</Label>
                 <TextInput
                   placeholder="e.g. 29-30 May 2025"
                   value={form.dateOfSupply || ""}
@@ -242,7 +249,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>Place of Supply</Label>
+                <Label className="mb-1 block">Place of Supply</Label>
                 <TextInput
                   placeholder="e.g. Jharkhand"
                   value={form.placeOfSupply || ""}
@@ -256,12 +263,12 @@ export default function GstFormModal({
 
           {/* --- BILL TO SECTION --- */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b pb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
               Bill To Party
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>
+                <Label className="mb-1 block">
                   Name <span className="text-red-500">*</span>
                 </Label>
                 <TextInput
@@ -271,7 +278,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>GSTIN</Label>
+                <Label className="mb-1 block">GSTIN</Label>
                 <TextInput
                   placeholder="NA if not registered"
                   value={form.billToGstin || ""}
@@ -279,7 +286,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>State</Label>
+                <Label className="mb-1 block">State</Label>
                 <TextInput
                   placeholder="e.g. Jharkhand"
                   value={form.billToState || ""}
@@ -287,7 +294,7 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>State Code</Label>
+                <Label className="mb-1 block">State Code</Label>
                 <TextInput
                   placeholder="e.g. 20"
                   value={form.billToCode || ""}
@@ -299,12 +306,12 @@ export default function GstFormModal({
 
           {/* --- SHIP TO SECTION --- */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3 border-b pb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
               Ship To Party (Optional)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Name</Label>
+                <Label className="mb-1 block">Name</Label>
                 <TextInput
                   placeholder="Leave blank to copy from Bill To"
                   value={form.shipToName || ""}
@@ -312,21 +319,21 @@ export default function GstFormModal({
                 />
               </div>
               <div>
-                <Label>GSTIN</Label>
+                <Label className="mb-1 block">GSTIN</Label>
                 <TextInput
                   value={form.shipToGstin || ""}
                   onChange={(e) => handleChange("shipToGstin", e.target.value)}
                 />
               </div>
               <div>
-                <Label>State</Label>
+                <Label className="mb-1 block">State</Label>
                 <TextInput
                   value={form.shipToState || ""}
                   onChange={(e) => handleChange("shipToState", e.target.value)}
                 />
               </div>
               <div>
-                <Label>State Code</Label>
+                <Label className="mb-1 block">State Code</Label>
                 <TextInput
                   value={form.shipToCode || ""}
                   onChange={(e) => handleChange("shipToCode", e.target.value)}
@@ -337,8 +344,10 @@ export default function GstFormModal({
 
           {/* --- ITEM DETAILS SECTION (ACCORDION) --- */}
           <div>
-            <div className="flex justify-between items-center mb-3 border-b pb-2">
-              <h3 className="text-lg font-semibold text-white">Item Details</h3>
+            <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Item Details
+              </h3>
               <Button size="xs" color="blue" onClick={addItem}>
                 <Plus className="mr-1 h-4 w-4" /> Add Item
               </Button>
@@ -350,18 +359,18 @@ export default function GstFormModal({
                 return (
                   <div
                     key={index}
-                    className="border border-gray-600 rounded bg-gray-800"
+                    className="border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
                   >
                     {/* Header */}
                     <div
-                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-700 transition-colors"
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setOpenItemIndex(isOpen ? null : index)}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="bg-gray-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs">
+                        <span className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-white rounded-full h-6 w-6 flex items-center justify-center text-xs">
                           {index + 1}
                         </span>
-                        <span className="text-white font-medium">
+                        <span className="text-gray-900 dark:text-white font-medium">
                           {item.description || (
                             <span className="text-gray-400 italic">
                               New Item
@@ -382,18 +391,18 @@ export default function GstFormModal({
                           <Trash2 className="h-4 w-4" />
                         </Button>
                         {isOpen ? (
-                          <ChevronUp className="text-white h-4 w-4" />
+                          <ChevronUp className="text-gray-500 dark:text-white h-4 w-4" />
                         ) : (
-                          <ChevronDown className="text-white h-4 w-4" />
+                          <ChevronDown className="text-gray-500 dark:text-white h-4 w-4" />
                         )}
                       </div>
                     </div>
 
                     {/* Body */}
                     {isOpen && (
-                      <div className="p-4 bg-gray-900 border-t border-gray-600 space-y-4">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-600 space-y-4">
                         <div>
-                          <Label className="text-white">
+                          <Label className="mb-1 block">
                             Description <span className="text-red-500">*</span>
                           </Label>
                           <TextInput
@@ -411,7 +420,7 @@ export default function GstFormModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
-                            <Label className="text-white">SAC Code</Label>
+                            <Label className="mb-1 block">SAC Code</Label>
                             <TextInput
                               value={item.sac}
                               onChange={(e) =>
@@ -420,7 +429,7 @@ export default function GstFormModal({
                             />
                           </div>
                           <div>
-                            <Label className="text-white">
+                            <Label className="mb-1 block">
                               Amount <span className="text-red-500">*</span>
                             </Label>
                             <TextInput
@@ -437,7 +446,7 @@ export default function GstFormModal({
                             />
                           </div>
                           <div>
-                            <Label className="text-white">Discount (%)</Label>
+                            <Label className="mb-1 block">Discount (%)</Label>
                             <TextInput
                               type="number"
                               value={item.discountPercent}
@@ -451,7 +460,7 @@ export default function GstFormModal({
                             />
                           </div>
                           <div>
-                            <Label className="text-white">Taxable Value</Label>
+                            <Label className="mb-1 block">Taxable Value</Label>
                             <TextInput
                               type="number"
                               value={item.taxableValue}
@@ -468,7 +477,7 @@ export default function GstFormModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <Label className="text-white">CGST Rate (%)</Label>
+                            <Label className="mb-1 block">CGST Rate (%)</Label>
                             <TextInput
                               type="number"
                               value={item.cgstRate}
@@ -482,7 +491,7 @@ export default function GstFormModal({
                             />
                           </div>
                           <div>
-                            <Label className="text-white">SGST Rate (%)</Label>
+                            <Label className="mb-1 block">SGST Rate (%)</Label>
                             <TextInput
                               type="number"
                               value={item.sgstRate}
@@ -496,7 +505,7 @@ export default function GstFormModal({
                             />
                           </div>
                           <div>
-                            <Label className="text-white">IGST Rate (%)</Label>
+                            <Label className="mb-1 block">IGST Rate (%)</Label>
                             <TextInput
                               type="number"
                               value={item.igstRate}
@@ -519,7 +528,7 @@ export default function GstFormModal({
           </div>
 
           {/* --- FOOTER ACTIONS --- */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

@@ -1,7 +1,17 @@
 "use client";
 
 import { ALL_ROLES, AppRole, ROLE_LABELS } from "@/libs/roles";
-import { Modal, ModalBody, ModalHeader } from "flowbite-react";
+import {
+  Button,
+  Checkbox,
+  Label,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Select,
+  Textarea,
+  TextInput,
+} from "flowbite-react";
 import React, { useEffect, useState } from "react";
 
 interface Props {
@@ -132,20 +142,24 @@ export default function UserCreateModal({
   const isEdit = mode === "edit";
 
   return (
-    <Modal show={open} onClose={onClose} size="lg" dismissible color="light">
+    <Modal
+      show={open}
+      onClose={onClose}
+      size="lg"
+      dismissible
+      className="backdrop-blur-sm"
+      position="center"
+    >
       <ModalHeader>{isEdit ? "Edit User" : "Create New User"}</ModalHeader>
       <ModalBody>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-white">
-              Full Name
-            </label>
-            <input
+            <Label className="mb-1 block">Full Name</Label>
+            <TextInput
               required
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              className="w-full rounded border px-3 py-2 text-white"
               placeholder="Enter full name"
             />
           </div>
@@ -153,27 +167,21 @@ export default function UserCreateModal({
           {/* Email & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Email
-              </label>
-              <input
+              <Label className="mb-1 block">Email</Label>
+              <TextInput
                 required
                 type="email"
                 value={form.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-black"
                 placeholder="name@example.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-white">
-                Phone
-              </label>
-              <input
+              <Label className="mb-1 block">Phone</Label>
+              <TextInput
                 required
                 value={form.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
-                className="w-full rounded border px-3 py-2 text-white"
                 placeholder="10-digit number"
               />
             </div>
@@ -181,75 +189,57 @@ export default function UserCreateModal({
 
           {/* Address */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-white">
-              Address
-            </label>
-            <textarea
+            <Label className="mb-1 block">Address</Label>
+            <Textarea
               rows={3}
               value={form.address}
               onChange={(e) => handleChange("address", e.target.value)}
-              className="w-full rounded border px-3 py-2 text-black"
               placeholder="Street, City, State, Pincode"
             />
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-white">
-              Status
-            </label>
-            <select
+            <Label className="mb-1 block">Status</Label>
+            <Select
               value={form.status}
               onChange={(e) =>
                 handleChange("status", e.target.value as FormState["status"])
               }
-              className="w-full rounded border px-3 py-2"
               aria-label="Select Status"
             >
               <option value="ACTIVE">ACTIVE</option>
               <option value="INACTIVE">INACTIVE</option>
-            </select>
+            </Select>
           </div>
 
           {/* Roles */}
           <div>
-            <label className="block text-sm font-medium mb-2 text-white">
-              Assign Roles
-            </label>
+            <Label className="mb-2 block">Assign Roles</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {ALL_ROLES.map((role) => (
-                <label
-                  key={role}
-                  className="flex items-center gap-2 text-sm text-white"
-                >
-                  <input
-                    type="checkbox"
+                <div key={role} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`role-${role}`}
                     checked={
                       Array.isArray(form.roles) && form.roles.includes(role)
                     }
                     onChange={() => toggleRole(role)}
                   />
-                  {ROLE_LABELS[role]}
-                </label>
+                  <Label htmlFor={`role-${role}`}>{ROLE_LABELS[role]}</Label>
+                </div>
               ))}
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded bg-gray-200 px-4 py-2 text-gray-900"
-            >
+            <Button color="gray" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
+            </Button>
+            <Button type="submit" color="blue">
               {isEdit ? "Save changes" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </ModalBody>
