@@ -139,24 +139,32 @@ export async function PUT(
           });
         }
 
-        // 4. Upsert (Create/Update) History
+        // 4. Upsert History
         for (const entry of typeHistoryInput) {
+          if (!entry.memberType) continue; // Skip invalid entries
+
           const startDate = toUTCDate(entry.startDate);
           const endDate = toUTCDate(entry.endDate);
-          const payload = {
+
+          const payload: any = {
             memberId: id,
             memberType: entry.memberType,
-            startDate, // undefined if invalid
-            endDate,
             changedBy: session.user.id,
           };
 
+          // Only include valid dates (Prisma ignores undefined)
+          if (startDate !== undefined) payload.startDate = startDate;
+          if (endDate !== undefined) payload.endDate = endDate;
+
           if (entry.id) {
+            // UPDATE: Prisma ignores undefined fields automatically
             await tx.memberTypeHistory.update({
               where: { id: entry.id },
               data: payload,
             });
           } else {
+            // CREATE: Require startDate - fallback to today only if truly empty
+            payload.startDate = startDate || new Date();
             await tx.memberTypeHistory.create({
               data: payload,
             });
