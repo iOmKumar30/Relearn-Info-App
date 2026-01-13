@@ -4,6 +4,7 @@ import { swapMemberIdPrefix } from "@/libs/memberIdUtils";
 import prisma from "@/libs/prismadb";
 import { toUTCDate } from "@/libs/toUTCDate";
 import { getServerSession } from "next-auth";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -79,38 +80,8 @@ export async function PUT(
     const activeEntry = sortedInput.find((h) => !h.endDate) || sortedInput[0];
     const targetType = activeEntry?.memberType;
 
-    // C. Logic for Fees (Prepare the Upsert objects)
-    const feeUpserts = Object.entries(feesInput)
-      .map(([label, data]) => {
-        let dateStr: string | null = null;
-        let amountVal: number | null = null;
+    // Calculate Fee Payloads
 
-        if (typeof data === "string") {
-          dateStr = data;
-        } else if (typeof data === "object" && data !== null) {
-          dateStr = (data as any).date;
-          amountVal = (data as any).amount
-            ? Number((data as any).amount)
-            : null;
-        }
-        if (!dateStr) return null;
-        const paidOn = toUTCDate(dateStr);
-        if (isNaN(paidOn.getTime())) return null;
-
-        return {
-          where: { memberId_fiscalLabel: { memberId: id, fiscalLabel: label } },
-          update: { paidOn, amount: amountVal },
-          create: {
-            memberId: id,
-            fiscalLabel: label,
-            paidOn,
-            amount: amountVal,
-          },
-        };
-      })
-      .filter(Boolean); // Filter out nulls
-
-    // --- OPTIMIZATION STEP 3: TRANSACTION (WRITES ONLY) ---
     // Fast execution because no waiting for reads
 
     await prisma.$transaction(
@@ -141,7 +112,7 @@ export async function PUT(
 
         // 4. Upsert History
         for (const entry of typeHistoryInput) {
-          if (!entry.memberType) continue; // Skip invalid entries
+          if (!entry.memberType) continue;
 
           const startDate = toUTCDate(entry.startDate);
           const endDate = toUTCDate(entry.endDate);
@@ -152,22 +123,33 @@ export async function PUT(
             changedBy: session.user.id,
           };
 
-          // Only include valid dates (Prisma ignores undefined)
           if (startDate !== undefined) payload.startDate = startDate;
           if (endDate !== undefined) payload.endDate = endDate;
 
-          if (entry.id) {
-            // UPDATE: Prisma ignores undefined fields automatically
-            await tx.memberTypeHistory.update({
-              where: { id: entry.id },
-              data: payload,
-            });
-          } else {
-            // CREATE: Require startDate - fallback to today only if truly empty
-            payload.startDate = startDate || new Date();
-            await tx.memberTypeHistory.create({
-              data: payload,
-            });
+          try {
+            if (entry.id) {
+              // Try UPDATE first
+              await tx.memberTypeHistory.update({
+                where: { id: entry.id },
+                data: payload,
+              });
+            } else {
+              // CREATE new record
+              payload.startDate = startDate || new Date();
+              await tx.memberTypeHistory.create({
+                data: payload,
+              });
+            }
+          } catch (error: any) {
+            // If UPDATE fails (record was deleted), CREATE instead
+            if (entry.id && error.code === "P2025") {
+              payload.startDate = startDate || new Date();
+              await tx.memberTypeHistory.create({
+                data: payload,
+              });
+            } else {
+              throw error; // Re-throw other errors
+            }
           }
         }
 
@@ -189,17 +171,64 @@ export async function PUT(
           });
         }
 
-        // 6. Handle Fees (Parallel Upserts)
-        if (feeUpserts.length > 0) {
-          await Promise.all(feeUpserts.map((f: any) => tx.memberFee.upsert(f)));
-        }
+        // F. Handle Fees (COMPLETE: Delete ALL + recreate specified)
+        const feeOperations: any[] = [];
+
+        // 1. FIRST: Delete ALL fees for this member (clean slate)
+        feeOperations.push(
+          tx.memberFee.deleteMany({
+            where: { memberId: id },
+          })
+        );
+        console.log(`DELETE ALL fees for member ${id}`);
+
+        // 2. THEN: Only recreate fees that have VALID dates from frontend
+        Object.entries(feesInput).forEach(([label, data]) => {
+          const dateStr =
+            typeof data === "string"
+              ? data.trim()
+              : (data as any)?.date?.toString().trim();
+
+          const hasValidDate =
+            dateStr && dateStr !== "null" && dateStr.length > 0;
+
+          if (hasValidDate) {
+            // Only recreate if date is valid
+            feeOperations.push(
+              tx.memberFee.upsert({
+                where: {
+                  memberId_fiscalLabel: { memberId: id, fiscalLabel: label },
+                },
+                update: {
+                  paidOn: toUTCDate(dateStr),
+                  amount: (data as any)?.amount
+                    ? Number((data as any).amount)
+                    : null,
+                },
+                create: {
+                  fiscalLabel: label,
+                  paidOn: toUTCDate(dateStr),
+                  amount: (data as any)?.amount
+                    ? Number((data as any).amount)
+                    : null,
+                  member: { connect: { id } },
+                },
+              })
+            );
+            console.log(`CREATE: ${label}`);
+          } else {
+            console.log(`SKIP: ${label} (no valid date)`);
+          }
+        });
+
+        await Promise.all(feeOperations);
       },
       {
         maxWait: 5000,
-        timeout: 10000, // Safe to lower back to 10s
+        timeout: 10000,
       }
     );
-
+    revalidatePath("/api/admin/members/honorary");
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });

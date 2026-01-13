@@ -26,6 +26,7 @@ export default function AnnualMembersPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ rows: any[]; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Modal States
   const [createOpen, setCreateOpen] = useState(false);
@@ -82,6 +83,7 @@ export default function AnnualMembersPage() {
     debouncedSearch,
     selectedFiscalYears,
     pendingPaymentMode,
+    refreshKey,
   ]);
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export default function AnnualMembersPage() {
       if (!res.ok) throw new Error(await res.text());
 
       toast.success("Annual member updated successfully", { id: loadingToast });
-      await fetchMembers();
+      setRefreshKey((prev) => prev + 1); 
     } catch (err: any) {
       console.error(err);
       toast.error(`Failed to update member: ${err.message}`, {

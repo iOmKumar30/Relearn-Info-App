@@ -78,7 +78,7 @@ export async function GET(req: Request) {
           typeHistory: true,
         },
         orderBy: { user: { name: "asc" } },
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 

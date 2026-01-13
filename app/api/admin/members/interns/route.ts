@@ -54,7 +54,7 @@ export async function GET(req: Request) {
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-        cacheStrategy: { ttl: 60, swr: 60 },
+       //  cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 

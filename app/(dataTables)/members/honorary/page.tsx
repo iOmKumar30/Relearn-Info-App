@@ -25,6 +25,7 @@ export default function HonoraryMembersPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ rows: any[]; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -71,6 +72,7 @@ export default function HonoraryMembersPage() {
     debouncedSearch,
     selectedFiscalYears,
     pendingPaymentMode,
+    refreshKey
   ]);
 
   useEffect(() => {
@@ -112,7 +114,7 @@ export default function HonoraryMembersPage() {
       toast.success("Honorary member updated successfully", {
         id: loadingToast,
       });
-      await fetchMembers();
+      setRefreshKey((prev) => prev + 1); 
     } catch (err: any) {
       console.error(err);
       toast.error(`Failed to update member: ${err.message}`, {

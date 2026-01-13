@@ -191,14 +191,19 @@ export default function AnnualMemberCreateModal({
     e.preventDefault();
     setLoading(true);
 
-    const feePayload: Record<string, { date: string; amount: number }> = {};
-    Object.entries(form.fees).forEach(([fy, entry]) => {
-      if (entry.date) {
-        feePayload[fy] = {
-          date: entry.date,
-          amount: Number(entry.amount) || defaultFee,
-        };
-      }
+    const feePayload: Record<
+      string,
+      { date: string | null; amount: number | null }
+    > = {};
+
+    // Loop through ALL fiscal years, not just form.fees
+    fiscalYears.forEach((fy) => {
+      const entry = form.fees[fy] || { date: "", amount: String(defaultFee) };
+
+      feePayload[fy] = {
+        date: entry.date || null, // "" → null = CLEAR
+        amount: entry.amount ? Number(entry.amount) || null : null,
+      };
     });
 
     // --- AUTO-GENERATE HISTORY ON TYPE CHANGE ---

@@ -36,6 +36,7 @@ export default function LifeMembersPage() {
   const [fiscalYearModalOpen, setFiscalYearModalOpen] = useState(false);
   const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
   const [pendingPaymentMode, setPendingPaymentMode] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const allFiscalYears = useMemo(
     () => getDynamicFiscalYears(2020).reverse(),
@@ -71,6 +72,7 @@ export default function LifeMembersPage() {
     debouncedSearch,
     selectedFiscalYears,
     pendingPaymentMode,
+    refreshKey,
   ]);
 
   useEffect(() => {
@@ -108,7 +110,7 @@ export default function LifeMembersPage() {
       if (!res.ok) throw new Error(await res.text());
 
       toast.success("Life member updated successfully", { id: loadingToast });
-      await fetchMembers();
+      setRefreshKey((prev) => prev + 1);
     } catch (err: any) {
       console.error(err);
       toast.error(`Failed to update member: ${err.message}`, {
