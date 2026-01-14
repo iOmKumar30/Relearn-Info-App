@@ -122,7 +122,7 @@ export default function InternCreateModal({
       <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
         <form id="intern-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="p-2">
-            <h3 className="text-sm font-bold text-white uppercase mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-bold dark:text-white text-black uppercase mb-3 flex items-center gap-2">
               Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -193,7 +193,7 @@ export default function InternCreateModal({
 
           {/* Section 2: Education & Interest */}
           <div className="p-2">
-            <h3 className="text-sm font-bold text-white uppercase mb-3">
+            <h3 className="text-sm font-bold dark:text-white text-black uppercase mb-3">
               Education & Interests
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -244,7 +244,7 @@ export default function InternCreateModal({
 
           {/* Section 3: Internship Details */}
           <div className="p-2">
-            <h3 className="text-sm font-bold text-white uppercase mb-3">
+            <h3 className="text-sm font-bold dark:text-white text-black uppercase mb-3">
               Internship Meta
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -328,7 +328,7 @@ export default function InternCreateModal({
 
           {/* Section 4: Payment */}
           <div className="p-2">
-            <h3 className="text-sm font-bold text-white uppercase mb-3">
+            <h3 className="text-sm font-bold dark:text-white text-black uppercase mb-3">
               Payment Info
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

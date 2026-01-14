@@ -341,7 +341,7 @@ export default function AnnualMemberCreateModal({
           <hr className="my-4 border-gray-200" />
 
           {/* --- Fees Section --- */}
-          <h4 className="text-md font-medium text-white mb-2">
+          <h4 className="text-md font-medium dark:text-white text-black mb-2">
             Membership Fee Payments
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -389,7 +389,7 @@ export default function AnnualMemberCreateModal({
           <hr className="my-6 border-gray-200" />
 
           <div className="flex justify-between items-center mb-2">
-            <h4 className="text-md font-medium text-white">
+            <h4 className="text-md font-medium dark:text-white text-black">
               Member Type History
             </h4>
             <Button size="xs" color="light" onClick={addHistoryRow}>
