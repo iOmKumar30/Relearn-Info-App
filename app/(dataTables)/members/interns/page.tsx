@@ -341,8 +341,7 @@ export default function InternsPage() {
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6 relative">
-        {/* Render Toaster for notifications */}
-        <Toaster position="top-right" reverseOrder={false} />
+
 
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Interns Directory

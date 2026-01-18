@@ -284,8 +284,6 @@ export default function LifeMembersPage() {
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6 relative">
-        {/* Toast Container */}
-        <Toaster position="top-right" reverseOrder={false} />
 
         <h2 className="text-2xl font-semibold mb-4 text-green-700">
           Life Members

@@ -1,6 +1,5 @@
 "use client";
 
-import LogoutButton from "@/components/LogoutButton";
 import KpiEntryCard from "@/components/dashboard/KpiEntryCard";
 
 export default function Dashboard() {
@@ -9,7 +8,6 @@ export default function Dashboard() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-slate-800">Dashboard</h1>
-          <LogoutButton />
         </div>
 
         <KpiEntryCard />

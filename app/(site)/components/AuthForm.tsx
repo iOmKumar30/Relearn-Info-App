@@ -108,8 +108,7 @@ export function AuthForm() {
 
   return (
     <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-      {/* Toast Container */}
-      <Toaster position="top-right" reverseOrder={false} />
+
 
       <div
         className="
