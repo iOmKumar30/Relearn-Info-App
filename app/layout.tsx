@@ -1,3 +1,4 @@
+import { ToasterProvider } from "@/components/toaster-provider";
 import type { Metadata } from "next";
 import AuthContext from "./context/AuthContext";
 import "./globals.css";
@@ -15,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthContext>{children}</AuthContext>
+        <AuthContext>
+          {children}
+          <ToasterProvider />
+        </AuthContext>
       </body>
     </html>
   );

@@ -20,7 +20,6 @@ export const roles = [
 ] as const;
 export type Role = (typeof roles)[number];
 
-
 export type NavItem = {
   type: "item";
   label: string;
@@ -41,7 +40,6 @@ export type NavGroup = {
 
 export type NavEntry = NavItem | NavGroup;
 
-
 const dashboard: NavItem = {
   type: "item",
   label: "Dashboard",
@@ -61,7 +59,6 @@ const donate: NavItem = {
   icon: FaDonate as any,
   external: true,
 };
-
 
 export const roleMenus: Record<Role, NavEntry[]> = {
   ADMIN: [
@@ -86,12 +83,19 @@ export const roleMenus: Record<Role, NavEntry[]> = {
           label: "Members",
           icon: UserCircleIcon,
           children: [
-            { type: "item", label: "Founder Memebrs", href: "/members/founder" },
-            { type: "item", label: "Honorary Members", href: "/members/honorary" },
+            {
+              type: "item",
+              label: "Founder Memebrs",
+              href: "/members/founder",
+            },
+            {
+              type: "item",
+              label: "Honorary Members",
+              href: "/members/honorary",
+            },
             { type: "item", label: "Life Members", href: "/members/life" },
             { type: "item", label: "Annual Members", href: "/members/annual" },
-            {type:"item", label: "Intern Members", href:"/members/interns"}
-
+            { type: "item", label: "Intern Members", href: "/members/interns" },
           ],
         },
       ],
@@ -147,6 +151,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
       label: "Finance",
       icon: DocumentCurrencyRupeeIcon,
       children: [
+        { type: "item", label: "Statements", href: "/admin/finance" },
         { type: "item", label: "GST Receipts", href: "/admin/gst-receipt" },
         {
           type: "item",
