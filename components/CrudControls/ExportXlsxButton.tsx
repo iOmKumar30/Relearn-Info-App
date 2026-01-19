@@ -11,6 +11,7 @@ type Props = {
   visibleRows: Record<string, any>[];
   fetchAll?: () => Promise<Record<string, any>[]>;
   sheetName?: string;
+  preface?: any[]
 };
 
 export default function ExportXlsxButton({
@@ -19,13 +20,14 @@ export default function ExportXlsxButton({
   visibleRows,
   fetchAll,
   sheetName,
+  preface
 }: Props) {
   const [busy, setBusy] = useState<"visible" | "all" | null>(null);
 
   const onExportVisible = async () => {
     try {
       setBusy("visible");
-      exportToXlsx(visibleRows, { fileName, columns, sheetName });
+      exportToXlsx(visibleRows, { fileName, columns, sheetName, preface });
     } finally {
       setBusy(null);
     }
@@ -36,7 +38,7 @@ export default function ExportXlsxButton({
     try {
       setBusy("all");
       const all = await fetchAll();
-      exportToXlsx(all, { fileName, columns, sheetName });
+      exportToXlsx(all, { fileName, columns, sheetName, preface });
     } finally {
       setBusy(null);
     }

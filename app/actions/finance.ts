@@ -116,14 +116,14 @@ async function generateMonthsForYear(yearId: string, fyStartDate: Date) {
     currentMonthDate.setMonth(fyStartDate.getMonth() + i);
 
     const startOfMonth = new Date(
-      Date.UTC(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1)
+      Date.UTC(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1),
     );
     const endOfMonth = new Date(
       Date.UTC(
         currentMonthDate.getFullYear(),
         currentMonthDate.getMonth() + 1,
-        0
-      )
+        0,
+      ),
     );
 
     monthsData.push({
@@ -155,7 +155,7 @@ function sortMonthsFiscal(yearData: any) {
 
 export async function uploadMonthlyStatement(
   formData: FormData,
-  statementId: string
+  statementId: string,
 ) {
   try {
     const file = formData.get("file") as File;
@@ -265,24 +265,24 @@ export async function uploadMonthlyStatement(
   }
 }
 export async function updateMonthlyBalances(
-  statementId: string, 
-  startBalance: number, 
-  endBalance: number
+  statementId: string,
+  startBalance: number,
+  endBalance: number,
 ) {
   try {
     await prisma.monthlyStatement.update({
       where: { id: statementId },
       data: {
         startBalance: startBalance,
-        endBalance: endBalance
-      }
-    })
-    
-    revalidatePath(`/admin/finance`)
-    return { success: true, message: "Balances updated successfully" }
+        endBalance: endBalance,
+      },
+    });
+
+    revalidatePath(`/admin/finance`);
+    return { success: true, message: "Balances updated successfully" };
   } catch (error) {
-    console.error("Update Balance Error:", error)
-    return { success: false, error: "Failed to update balances" }
+    console.error("Update Balance Error:", error);
+    return { success: false, error: "Failed to update balances" };
   }
 }
 export async function clearMonthlyData(statementId: string) {
@@ -311,12 +311,20 @@ export async function upsertTransaction(data: any) {
   try {
     const { id, statementId, ...fields } = data;
 
+    const {
+      reasonOption,
+      customReason,
+      partyOption,
+      customParty,
+      ...dbFields
+    } = fields;
+
     const cleanData = {
-      ...fields,
-      txnDate: toUTCDate(fields.txnDate),
-      valueDate: toUTCDate(fields.valueDate),
-      amount: Number(fields.amount),
-      runningBalance: Number(fields.runningBalance),
+      ...dbFields,
+      txnDate: toUTCDate(dbFields.txnDate),
+      valueDate: toUTCDate(dbFields.valueDate),
+      amount: Number(dbFields.amount),
+      runningBalance: Number(dbFields.runningBalance),
     };
 
     if (id) {
@@ -336,10 +344,10 @@ export async function upsertTransaction(data: any) {
     revalidatePath(`/admin/finance`);
     return { success: true };
   } catch (error) {
+    console.error("Upsert Transaction Error:", error);
     return { success: false, error: "Failed to save transaction" };
   }
 }
-
 export async function deleteTransaction(id: string) {
   try {
     await prisma.transaction.delete({ where: { id } });

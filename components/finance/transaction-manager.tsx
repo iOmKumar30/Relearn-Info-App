@@ -1,6 +1,8 @@
 "use client";
 
 import { deleteTransaction, upsertTransaction } from "@/app/actions/finance";
+import { TRANSACTION_REASONS } from "@/app/admin/finance/_constants/finance-options";
+import PartySelect from "@/components/finance/party-select";
 import { toLocalDateInput } from "@/libs/finance-utils";
 import {
   CalendarClock,
@@ -11,10 +13,10 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import ExportXlsxButton from "../CrudControls/ExportXlsxButton";
 
-// Helper to format DD-MM-YYYY
 const formatDateDisplay = (dateStr: string | Date) => {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
@@ -37,11 +39,34 @@ export function TransactionManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Split transactions by type
-  const credits = transactions.filter((t) => t.type === "CREDIT");
-  const debits = transactions.filter((t) => t.type === "DEBIT");
+  const processedData = useMemo(() => {
+    let creditCount = 0;
+    let debitCount = 0;
 
-  // Initial State Helper
+    return transactions.map((t) => {
+      let sno = "";
+      if (t.type === "CREDIT") {
+        creditCount++;
+        sno = `C${creditCount}`;
+      } else {
+        debitCount++;
+        sno = `D${debitCount}`;
+      }
+      return { ...t, serialNo: sno };
+    });
+  }, [transactions]);
+
+  const credits = processedData.filter((t) => t.type === "CREDIT");
+  const debits = processedData.filter((t) => t.type === "DEBIT");
+
+  const totalIncome = credits.reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpense = debits.reduce((sum, t) => sum + Number(t.amount), 0);
+  const closingBalance =
+    transactions.length > 0
+      ? Number(transactions[transactions.length - 1].runningBalance)
+      : 0;
+  const openingBalance = closingBalance - totalIncome + totalExpense;
+
   const initialFormState = {
     txnDate: "",
     valueDate: "",
@@ -52,14 +77,17 @@ export function TransactionManager({
     type: "DEBIT",
     amount: 0,
     partyName: "",
+    partyOption: "",
+    customParty: "",
     reason: "",
-    runningBalance: 0, 
+    reasonOption: "",
+    customReason: "",
+    runningBalance: 0,
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const handleEditClick = (txn: any) => {
-    console.log("Editing Transaction:", txn);
 
+  const handleEditClick = (txn: any) => {
     setEditingId(txn.id);
     setIsCreating(false);
 
@@ -69,6 +97,19 @@ export function TransactionManager({
         : 0;
 
     try {
+      const existingReason = txn.reason || "";
+      const isKnownReason = TRANSACTION_REASONS.includes(existingReason);
+      const reasonOption = isKnownReason
+        ? existingReason
+        : existingReason
+          ? "Others"
+          : "";
+      const customReason = isKnownReason ? "" : existingReason;
+
+      const existingParty = txn.partyName || "";
+      const partyOption = existingParty;
+      const customParty = "";
+
       setFormData({
         txnDate: toLocalDateInput(txn.txnDate),
         valueDate: toLocalDateInput(txn.valueDate),
@@ -78,8 +119,12 @@ export function TransactionManager({
         branchCode: txn.branchCode || "",
         type: txn.type,
         amount: Number(txn.amount),
-        partyName: txn.partyName || "",
-        reason: txn.reason || "",
+        partyName: existingParty,
+        partyOption,
+        customParty,
+        reason: existingReason,
+        reasonOption,
+        customReason,
         runningBalance: existingBalance,
       });
     } catch (error) {
@@ -93,17 +138,27 @@ export function TransactionManager({
       return;
     }
 
+    const finalReason =
+      formData.reasonOption === "Others"
+        ? (formData.customReason || "").trim()
+        : formData.reasonOption;
+
+    const finalParty =
+      formData.partyOption === "Others"
+        ? (formData.customParty || "").trim()
+        : formData.partyOption;
+
     const payload = {
       id: id,
       statementId,
       ...formData,
+      reason: finalReason,
+      partyName: finalParty,
       runningBalance: Number(formData.runningBalance),
     };
 
-    console.log("Saving Payload:", payload); // DEBUG LOG
-
     const toastId = toast.loading(
-      id ? "Updating transaction..." : "Creating transaction..."
+      id ? "Updating transaction..." : "Creating transaction...",
     );
     const res = await upsertTransaction(payload);
 
@@ -113,7 +168,7 @@ export function TransactionManager({
       });
       setEditingId(null);
       setIsCreating(false);
-      setFormData(initialFormState); // Reset to clean state
+      setFormData(initialFormState);
     } else {
       toast.error(res.error || "Failed to save", { id: toastId });
     }
@@ -131,10 +186,43 @@ export function TransactionManager({
     }
   };
 
+  const exportColumns = [
+    { key: "serialNo", label: "SI No" },
+    { key: "txnDate", label: "Txn Date" },
+    { key: "valueDate", label: "Value Date" },
+    { key: "description", label: "Description" },
+    { key: "txnId", label: "Txn ID" },
+    { key: "refNo", label: "Ref No / Cheque No" },
+    { key: "branchCode", label: "Branch Code" },
+    { key: "type", label: "Type" },
+    { key: "amount", label: "Amount" },
+    { key: "runningBalance", label: "Balance" },
+    { key: "reason", label: "Reason (Why?)" },
+    { key: "partyName", label: "Person Received/Paid" },
+  ];
+
+  const getExportData = async () => {
+    return processedData.map((t) => ({
+      ...t,
+      txnDate: new Date(t.txnDate),
+      amount: Number(t.amount),
+      runningBalance: Number(t.runningBalance),
+    }));
+  };
+
+  const exportPreface = [
+    { Label: "Generated On", Value: new Date().toLocaleDateString() },
+    { Label: "", Value: "" }, 
+    { Label: "Opening Balance", Value: openingBalance },
+    { Label: "Total Income (Credits)", Value: totalIncome },
+    { Label: "Total Expense (Debits)", Value: totalExpense },
+    { Label: "Closing Balance", Value: closingBalance },
+  ];
+
   const renderTransactionList = (
     list: any[],
     title: string,
-    colorClass: string
+    colorClass: string,
   ) => {
     if (list.length === 0) return null;
 
@@ -155,6 +243,13 @@ export function TransactionManager({
                 <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span
+                        className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded border ${txn.type === "CREDIT" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+                      >
+                        {txn.serialNo}
+                      </span>
+                      {/* --------------------- */}
+
                       <span className="font-mono text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
                         {formatDateDisplay(txn.txnDate)}
                       </span>
@@ -256,21 +351,40 @@ export function TransactionManager({
       </div>
     );
   };
+  const getExportFileName = () => {
+    const dateRef =
+      transactions.length > 0 ? new Date(transactions[0].txnDate) : new Date();
 
+    const monthName = dateRef.toLocaleString("default", { month: "long" });
+    const year = dateRef.getFullYear();
+
+    return `RELF ${monthName}-${year}`;
+  };
   return (
     <div>
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
         <h3 className="font-semibold text-gray-700">Transactions Log</h3>
-        <button
-          onClick={() => {
-            setIsCreating(true);
-            setEditingId(null);
-            setFormData(initialFormState); // Reset to clean state
-          }}
-          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" /> Add Manually
-        </button>
+
+        <div className="flex gap-2">
+          <ExportXlsxButton
+            fileName={getExportFileName()}
+            visibleRows={processedData}
+            fetchAll={getExportData}
+            columns={exportColumns}
+            preface={exportPreface}
+          />
+
+          <button
+            onClick={() => {
+              setIsCreating(true);
+              setEditingId(null);
+              setFormData(initialFormState);
+            }}
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" /> Add Manually
+          </button>
+        </div>
       </div>
 
       {isCreating && (
@@ -304,9 +418,30 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
     onChange({ ...data, [field]: value });
   };
 
+  const handleReasonOptionChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const val = e.target.value;
+    onChange({
+      ...data,
+      reasonOption: val,
+      customReason: val === "Others" ? data.customReason : "",
+    });
+  };
+
+  const handlePartyOptionChange = (val: string) => {
+    onChange({
+      ...data,
+      partyOption: val,
+      customParty: val === "Others" ? data.customParty : "",
+    });
+  };
+
+  const isOthersSelected = data.reasonOption === "Others";
+  const isPartyOthersSelected = data.partyOption === "Others";
+
   return (
     <div className="space-y-4">
-      {/* Date & Amount Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">
@@ -426,25 +561,64 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
           <label className="block text-xs font-bold text-blue-600 mb-1">
             Party Name (Who?)
           </label>
-          <input
-            type="text"
-            placeholder="e.g. John Doe, Office Depot"
-            className="w-full p-2 border border-blue-200 rounded bg-white focus:ring-2 focus:ring-blue-500 text-sm"
-            value={data.partyName}
-            onChange={(e) => handleChange("partyName", e.target.value)}
-          />
+
+          <div className="space-y-2">
+            <PartySelect
+              value={data.partyOption}
+              onChange={handlePartyOptionChange}
+              placeholder="Search Member/Intern or type 'Others'..."
+            />
+            {isPartyOthersSelected && (
+              <input
+                type="text"
+                placeholder="Specify other party name..."
+                autoFocus
+                className="w-full p-2 border border-blue-300 rounded bg-blue-50 text-sm animate-in fade-in slide-in-from-top-1"
+                value={data.customParty}
+                onChange={(e) => handleChange("customParty", e.target.value)}
+              />
+            )}
+            {!isPartyOthersSelected && (
+              <p className="text-[10px] text-gray-400">
+                Tip: Type "Others" above to enter a custom name manually.
+              </p>
+            )}
+          </div>
         </div>
+
         <div>
           <label className="block text-xs font-bold text-purple-600 mb-1">
             Reason (Why?)
           </label>
-          <input
-            type="text"
-            placeholder="e.g. Salary, Rent, Donation"
-            className="w-full p-2 border border-purple-200 rounded bg-white focus:ring-2 focus:ring-purple-500 text-sm"
-            value={data.reason}
-            onChange={(e) => handleChange("reason", e.target.value)}
-          />
+
+          <div className="space-y-2">
+            <select
+              className="w-full p-2 border border-purple-200 rounded bg-white focus:ring-2 focus:ring-purple-500 text-sm"
+              value={data.reasonOption}
+              onChange={handleReasonOptionChange}
+            >
+              <option value="">-- Select Reason --</option>
+              {TRANSACTION_REASONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+              {!TRANSACTION_REASONS.includes("Others") && (
+                <option value="Others">Others</option>
+              )}
+            </select>
+
+            {isOthersSelected && (
+              <input
+                type="text"
+                placeholder="Specify other reason..."
+                autoFocus
+                className="w-full p-2 border border-purple-300 rounded bg-purple-50 text-sm animate-in fade-in slide-in-from-top-1"
+                value={data.customReason}
+                onChange={(e) => handleChange("customReason", e.target.value)}
+              />
+            )}
+          </div>
         </div>
       </div>
 
