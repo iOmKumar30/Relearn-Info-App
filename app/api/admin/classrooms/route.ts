@@ -16,8 +16,7 @@ import { NextResponse } from "next/server";
 // @ts-ignore
 console.log("prisma import type:", typeof prisma);
 
-// GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&section=&timing=&status=
-// GET /api/admin/classrooms?page=&pageSize=&q=&centreId=&centreCode=&section=&timing=&status=
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -195,7 +194,7 @@ export async function GET(req: Request) {
           },
         },
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

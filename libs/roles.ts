@@ -20,52 +20,8 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   MEMBER: "Member",
 };
 
-// NEW: Reverse map for UI label → backend enum lookup
-const UI_TO_BACKEND: Record<string, AppRole> = {
-  Pending: "PENDING",
-  Admin: "ADMIN",
-  Tutor: "TUTOR",
-  Facilitator: "FACILITATOR",
-  Employee: "RELF_EMPLOYEE",
-  "Tutor of Tutor": "TUTOR_OF_TUTOR",
-  Member: "MEMBER",
-};
-
-/**
- * Convert UI role labels (e.g., "Admin", "Tutor") to backend enums (e.g., "ADMIN", "TUTOR")
- */
-export function mapUiRolesToBackend(uiRoles: string[]): AppRole[] {
-  return (uiRoles || [])
-    .map((label) => UI_TO_BACKEND[label])
-    .filter(Boolean) as AppRole[];
-}
-
-/**
- * Convert backend role enums (e.g., "ADMIN", "TUTOR") to UI labels (e.g., "Admin", "Tutor")
- */
 export function mapBackendRolesToUi(backendRoles: string[]): string[] {
   return (backendRoles || [])
-    .map((role) => ROLE_LABELS[role as AppRole])
+    .map((role) => ROLE_LABELS[role as AppRole] || role)
     .filter(Boolean);
-}
-
-/**
- * Get all available UI role options for dropdowns/multi-selects
- */
-export function getUiRoleOptions(): string[] {
-  return Object.values(ROLE_LABELS);
-}
-
-/**
- * Get UI label for a single backend role
- */
-export function getRoleLabel(role: AppRole): string {
-  return ROLE_LABELS[role] || role;
-}
-
-/**
- * Get backend enum for a single UI label
- */
-export function getRoleEnum(uiLabel: string): AppRole | undefined {
-  return UI_TO_BACKEND[uiLabel];
 }

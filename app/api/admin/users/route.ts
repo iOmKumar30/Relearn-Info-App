@@ -53,11 +53,10 @@ export async function GET(req: Request) {
           select: { role: { select: { name: true } } },
         },
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 
-  const mapped = rows.map((u:any) => ({
+  const mapped = rows.map((u: any) => ({
     id: u.id,
     name: u.name,
     email: u.email,
@@ -65,7 +64,7 @@ export async function GET(req: Request) {
     address: u.address,
     status: u.status,
     onboardingStatus: u.onboardingStatus,
-    roles: u.roleHistory.map((h) => h.role.name),
+    roles: u.roleHistory.map((h: any) => h.role.name),
     createdAt: u.createdAt,
   }));
 
@@ -97,11 +96,10 @@ export async function POST(req: Request) {
   const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123123";
   const hash = await bcrypt.hash(defaultPassword, 10);
 
-  // Resolve roles outside transaction (read-only)
   const dbRoles = await prisma.role.findMany({
     where: { name: { in: rolesInput } },
     select: { id: true, name: true },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (dbRoles.length !== rolesInput.length) {
     return new NextResponse("One or more roles are invalid", { status: 400 });

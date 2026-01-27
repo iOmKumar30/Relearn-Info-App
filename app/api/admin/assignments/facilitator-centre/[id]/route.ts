@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id?: string }> };
 
-// Close link (set endDate)
 export async function PUT(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -18,20 +17,29 @@ export async function PUT(req: Request, ctx: Ctx) {
   if (!id) return new NextResponse("Bad Request: missing id", { status: 400 });
 
   const body = await req.json().catch(() => ({}));
-  const endDate = body?.endDate ? new Date(String(body.endDate)) : new Date();
+
+  const data: any = {};
+
+  if (body.startDate) {
+    data.startDate = new Date(body.startDate);
+  }
+
+  if (body.endDate !== undefined) {
+    data.endDate = body.endDate ? new Date(body.endDate) : null;
+  }
 
   try {
     const updated = await prisma.facilitatorAssignment.update({
       where: { id },
-      data: { endDate },
-      select: { id: true, endDate: true },
+      data,
+      select: { id: true, startDate: true, endDate: true },
     });
     return NextResponse.json(updated);
-  } catch {
-    return new NextResponse("Not Found", { status: 404 });
+  } catch (error) {
+    console.error(error);
+    return new NextResponse("Failed to update or Not Found", { status: 500 });
   }
 }
-
 // Hard delete
 export async function DELETE(_req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions);

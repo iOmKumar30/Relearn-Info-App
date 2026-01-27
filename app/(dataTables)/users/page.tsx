@@ -5,18 +5,14 @@ import UserCreateModal from "@/components/CreateModals/UserCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import {
-  AppRole,
-  mapBackendRolesToUi,
-  mapUiRolesToBackend,
-  ROLE_LABELS,
-} from "@/libs/roles";
+import { AppRole, mapBackendRolesToUi } from "@/libs/roles";
 import { Badge, Button, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast"; // Import toast
 import { ClipLoader } from "react-spinners";
 
 type Row = {
@@ -75,6 +71,8 @@ export default function UsersPage() {
       setData({ total: json.total, rows: json.rows });
     } catch (e: any) {
       setError(e?.message || "Failed to load users");
+      // Optional: Toast for fetch error, though inline error is often better for initial load
+      // toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -84,10 +82,8 @@ export default function UsersPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Raw rows for export (no JSX)
   const rawRows = useMemo(() => data?.rows ?? [], [data]);
 
-  // Helper for export-all: same endpoint, different pagination
   const buildListUrl = useCallback(
     (pageParam: number, pageSizeParam: number) => {
       const url = new URL("/api/admin/users", window.location.origin);
@@ -96,43 +92,48 @@ export default function UsersPage() {
       if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
       return url;
     },
-    [debouncedSearch]
+    [debouncedSearch],
   );
 
   async function fetchAllUsers(): Promise<Record<string, any>[]> {
     const pageSizeAll = 1000;
     let pageAll = 1;
     const out: Record<string, any>[] = [];
+    const toastId = toast.loading("Preparing export...");
 
-    while (true) {
-      const url = buildListUrl(pageAll, pageSizeAll);
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      const rows: Row[] = json?.rows || [];
+    try {
+      while (true) {
+        const url = buildListUrl(pageAll, pageSizeAll);
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        const rows: Row[] = json?.rows || [];
 
-      out.push(
-        ...rows.map((u) => ({
-          name: u.name || "",
-          email: u.email,
-          phone: u.phone || "",
-          // Roles as UI labels joined by comma
-          roles: mapBackendRolesToUi(u.roles as any).join(", "),
-          status: u.status,
-          onboardingStatus: u.onboardingStatus,
-          createdAt: u.createdAt
-            ? new Date(u.createdAt).toLocaleDateString("en-GB")
-            : "",
-          address: u.address || "",
-        }))
-      );
+        out.push(
+          ...rows.map((u) => ({
+            name: u.name || "",
+            email: u.email,
+            phone: u.phone || "",
+            roles: mapBackendRolesToUi(u.roles as any).join(", "),
+            status: u.status,
+            onboardingStatus: u.onboardingStatus,
+            createdAt: u.createdAt
+              ? new Date(u.createdAt).toLocaleDateString("en-GB")
+              : "",
+            address: u.address || "",
+          })),
+        );
 
-      if (rows.length < pageSizeAll) break;
-      pageAll += 1;
-      if (pageAll > 200) break; // safety
+        if (rows.length < pageSizeAll) break;
+        pageAll += 1;
+        if (pageAll > 200) break; // safety
+      }
+      toast.success("Export ready", { id: toastId });
+      return out;
+    } catch (e) {
+      toast.error("Export failed", { id: toastId });
+      throw e;
     }
-
-    return out;
   }
 
   // Visible rows formatted for export (no JSX)
@@ -188,6 +189,7 @@ export default function UsersPage() {
     status: "ACTIVE" | "INACTIVE";
     roles: AppRole[];
   }) => {
+    const toastId = toast.loading("Creating user...");
     try {
       setLoading(true);
       setError(null);
@@ -197,7 +199,7 @@ export default function UsersPage() {
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
-        roles: mapUiRolesToBackend(payload.roles),
+        roles: payload.roles,
       };
 
       const res = await fetch("/api/admin/users", {
@@ -206,10 +208,14 @@ export default function UsersPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
+
       await fetchRows();
       setCreateOpen(false);
+      toast.success("User created successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to create user");
+      const msg = e?.message || "Failed to create user";
+      setError(msg);
+      toast.error(msg, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -225,16 +231,19 @@ export default function UsersPage() {
       address: string;
       status: "ACTIVE" | "INACTIVE";
       roles: AppRole[];
-    }
+    },
   ) => {
+    const toastId = toast.loading("Updating user...");
     try {
       setLoading(true);
       setError(null);
       const body: any = {
         name: payload.name?.trim(),
+        email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
         status: payload.status,
+        roles: payload.roles,
       };
       const res = await fetch(`/api/admin/users/${user_id}`, {
         method: "PUT",
@@ -242,11 +251,15 @@ export default function UsersPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
+
       await fetchRows();
       setEditOpen(false);
       setEditRow(null);
+      toast.success("User updated successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to update user");
+      const msg = e?.message || "Failed to update user";
+      setError(msg);
+      toast.error(msg, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -256,6 +269,8 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState(false);
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
+    const toastId = toast.loading("Deleting user...");
+
     try {
       setDeleting(true);
       setError(null);
@@ -263,11 +278,15 @@ export default function UsersPage() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(await res.text());
+
       await fetchRows();
       setDeleteOpen(false);
       setDeleteRow(null);
+      toast.success("User deleted successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to delete user");
+      const msg = e?.message || "Failed to delete user";
+      setError(msg);
+      toast.error(msg, { id: toastId });
     } finally {
       setDeleting(false);
     }
@@ -279,8 +298,9 @@ export default function UsersPage() {
       <Button
         size="xs"
         color="blue"
-        onClick={() => {
-          const raw = data?.rows.find((x) => x.id === row.id);
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent row click
+          const raw = rawRows.find((x) => x.id === row.id);
           if (!raw) return;
           setEditRow(raw);
           setEditOpen(true);
@@ -291,7 +311,8 @@ export default function UsersPage() {
       <Button
         size="xs"
         color="failure"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent row click
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setDeleteRow(raw);
@@ -396,9 +417,7 @@ export default function UsersPage() {
           phone: editRow?.phone || "",
           address: editRow?.address || "",
           status: editRow?.status,
-          roles: mapBackendRolesToUi((editRow?.roles as any) || []).map(
-            (role) => ROLE_LABELS[role] as AppRole
-          ),
+          roles: (editRow?.roles as AppRole[]) || [],
         }}
         onUpdate={(user_id, payload) => handleUpdate(user_id, payload as any)}
         onClose={() => {

@@ -1,10 +1,12 @@
 "use client";
 
+import EditFacilitatorModal from "@/components/CreateModals/EditFacilitatorModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
 type Centre = {
@@ -44,6 +46,8 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   } | null>(null);
   const [assigning, setAssigning] = useState(false);
 
+  const [editFacOpen, setEditFacOpen] = useState(false);
+  const [editFacRow, setEditFacRow] = useState<any>(null);
   const fetchCentre = useCallback(async () => {
     const res = await fetch(`/api/admin/centres/${centreId}`, {
       cache: "no-store",
@@ -71,7 +75,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   const fetchFacilitatorHistory = useCallback(async () => {
     const url = new URL(
       "/api/admin/assignments/facilitator-centre",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("centreId", centreId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -109,19 +113,50 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+  const handleUpdateFacilitator = async (
+    id: string,
+    startDate: string,
+    endDate: string | null,
+  ) => {
+    const toastId = toast.loading("Updating assignment...");
+
+    try {
+      const res = await fetch(
+        `/api/admin/assignments/facilitator-centre/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startDate: startDate || undefined,
+            endDate: endDate,
+          }),
+        },
+      );
+
+      if (!res.ok) throw new Error(await res.text());
+
+      await load();
+      setEditFacOpen(false);
+      setEditFacRow(null);
+      toast.success("Updated successfully", { id: toastId });
+    } catch (err: any) {
+      toast.error(err?.message || "Update failed", { id: toastId });
+    }
+  };
 
   // Columns
   const classroomColumns = useMemo(
     () => [
       { key: "code", label: "Classroom Code" },
       { key: "section", label: "Section" },
+      { key: "tutor", label: "Tutor" },
       { key: "timing", label: "Timing" },
       { key: "monthlyAllowance", label: "Monthly Allowance" },
       { key: "status", label: "Status" },
       { key: "dateCreated", label: "Date Created" },
       { key: "dateClosed", label: "Date Closed" },
     ],
-    []
+    [],
   );
 
   const classroomRows = useMemo(() => {
@@ -166,8 +201,11 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         ? new Date(r.dateClosed).toLocaleDateString("en-GB")
         : "",
       monthlyAllowance: `₹ ${Number(r.monthlyAllowance || 0).toLocaleString(
-        "en-IN"
+        "en-IN",
       )}`,
+      tutor: r.tutorAssignments?.[0]?.user
+        ? `${r.tutorAssignments[0].user.name ?? "Unnamed"}`
+        : r.tutorAssignments?.[0]?.userId || "",
     }));
   }, [classrooms]);
 
@@ -177,7 +215,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       { key: "start", label: "Start" },
       { key: "end", label: "End" },
     ],
-    []
+    [],
   );
 
   const facRows = useMemo(() => {
@@ -204,7 +242,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endDate: new Date().toISOString() }),
-        }
+        },
       );
       if (!res.ok) throw new Error(await res.text());
       await load();
@@ -224,7 +262,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
       if (!res.ok) throw new Error(await res.text());
       await load();
@@ -237,24 +275,39 @@ export default function CentreClient({ centreId }: { centreId: string }) {
 
   const hasActiveFacilitator = (facHistory || []).some((x: any) => !x.endDate);
 
-  const renderFacActions = (row: any) =>
-    !row.end ? (
+  const renderFacActions = (row: any) => (
+    <div className="flex gap-2">
       <Button
         size="xs"
-        color="light"
-        onClick={() => closeFacilitatorLink(row.id)}
+        color="blue"
+        onClick={() => {
+          // Use the raw data (__raw) we stored in useMemo
+          setEditFacRow(row.__raw);
+          setEditFacOpen(true);
+        }}
       >
-        No Longer Associated
+        Edit
       </Button>
-    ) : (
-      <Button
-        size="xs"
-        color="red"
-        onClick={() => deleteFacilitatorLink(row.id)}
-      >
-        Delete
-      </Button>
-    );
+
+      {!row.end ? (
+        <Button
+          size="xs"
+          color="light"
+          onClick={() => closeFacilitatorLink(row.id)}
+        >
+          End
+        </Button>
+      ) : (
+        <Button
+          size="xs"
+          color="red"
+          onClick={() => deleteFacilitatorLink(row.id)}
+        >
+          Delete
+        </Button>
+      )}
+    </div>
+  );
 
   // Export helpers (export all only)
   async function exportAllClassroomsForCentre(): Promise<
@@ -276,6 +329,9 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         ...rows.map((r) => ({
           code: r.code,
           section: r.section,
+          tutor: r.tutorAssignments?.[0]?.user
+            ? `${r.tutorAssignments[0].user.name ?? "Unnamed"}`
+            : r.tutorAssignments?.[0]?.userId || "",
           timing: r.timing,
           monthlyAllowance: r.monthlyAllowance,
           status: r.status,
@@ -285,7 +341,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           dateClosed: r.dateClosed
             ? new Date(r.dateClosed).toLocaleDateString("en-GB")
             : "",
-        }))
+        })),
       );
       if (rows.length < pageSizeAll) break;
       pageAll += 1;
@@ -297,7 +353,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   async function exportAllFacilitatorHistory(): Promise<Record<string, any>[]> {
     const url = new URL(
       "/api/admin/assignments/facilitator-centre",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("centreId", centreId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -350,7 +406,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
             Status:{" "}
             <Badge
               color={centre.status === "ACTIVE" ? "success" : "gray"}
-              className="uppercase w-[80px] text-center"
+              className="uppercase w-20 text-center"
             >
               {centre.status}
             </Badge>
@@ -431,7 +487,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
                             facilitatorId: selectedFac.id,
                             centreId,
                           }),
-                        }
+                        },
                       );
                       if (!res.ok) throw new Error(await res.text());
                       setShowAddFac(false);
@@ -467,7 +523,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
                 { key: "start", label: "Start" },
                 { key: "end", label: "End" },
               ]}
-              visibleRows={[]} 
+              visibleRows={[]}
               fetchAll={exportAllFacilitatorHistory}
             />
           </div>
@@ -480,6 +536,15 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           pageSize={facPageSize}
         />
       </div>
+      <EditFacilitatorModal
+        open={editFacOpen}
+        onClose={() => {
+          setEditFacOpen(false);
+          setEditFacRow(null);
+        }}
+        initialData={editFacRow}
+        onSave={handleUpdateFacilitator}
+      />
     </div>
   );
 }

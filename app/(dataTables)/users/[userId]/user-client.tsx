@@ -27,7 +27,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     any | null
   >(null);
   const [facilitatorsForEmployee, setFacilitatorsForEmployee] = useState<any[]>(
-    []
+    [],
   );
 
   // Facilitator -> Centres -> Classroom Link
@@ -44,9 +44,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchAssignments() {
     const res = await fetch(
       `/api/admin/assignments/tutor?userId=${encodeURIComponent(
-        userId
+        userId,
       )}&page=1&pageSize=50`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -55,9 +55,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchFacilitatorCentreLinks() {
     const res = await fetch(
       `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(
-        userId
+        userId,
       )}`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) return { rows: [] };
     return res.json();
@@ -66,7 +66,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchEmployeeForFacilitator() {
     const url = new URL(
       "/api/admin/assignments/employee-facilitators",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("facilitatorId", userId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -77,7 +77,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   async function fetchFacilitatorsForEmployee() {
     const url = new URL(
       "/api/admin/assignments/employee-facilitators",
-      window.location.origin
+      window.location.origin,
     );
     url.searchParams.set("employeeUserId", userId);
     const res = await fetch(url.toString(), { cache: "no-store" });
@@ -116,8 +116,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         new Set(
           (fc.rows ?? [])
             .map((x: any) => String(x.centre?.id ?? x.centreId))
-            .filter((id: string): id is string => id !== "")
-        )
+            .filter((id: string): id is string => id !== ""),
+        ),
       );
 
       let classList: any[] = [];
@@ -130,7 +130,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       if (facRows.length > 0) {
         facRows.sort(
           (x: any, y: any) =>
-            new Date(y.startDate).getTime() - new Date(x.startDate).getTime()
+            new Date(y.startDate).getTime() - new Date(x.startDate).getTime(),
         );
         setEmployeeForFacilitator(facRows[0].employee || null);
       } else {
@@ -138,7 +138,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       }
 
       setFacilitatorsForEmployee(
-        (empSide.rows || []).map((r: any) => r.facilitator).filter(Boolean)
+        (empSide.rows || []).map((r: any) => r.facilitator).filter(Boolean),
       );
     } catch (e: any) {
       setError(e?.message || "Failed to load profile");
@@ -252,7 +252,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endDate: new Date().toISOString() }),
-        }
+        },
       );
       if (!res.ok) throw new Error(await res.text());
       await load();
@@ -272,7 +272,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "monthlyAllowance", label: "Allowance" },
       { key: "status", label: "Status" },
     ],
-    []
+    [],
   );
 
   const renderActions = (row: any) =>
@@ -288,7 +288,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "start", label: "Start" },
       { key: "end", label: "End" },
     ],
-    []
+    [],
   );
 
   const facCentreRows = useMemo(() => {
@@ -320,7 +320,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "name", label: "Employee Name" },
       { key: "email", label: "Employee Email" },
     ],
-    []
+    [],
   );
   const employeeRows = useMemo(() => {
     return employeeForFacilitator
@@ -339,7 +339,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       { key: "name", label: "Facilitator Name" },
       { key: "email", label: "Facilitator Email" },
     ],
-    []
+    [],
   );
   const facilitatorRows = useMemo(() => {
     return (facilitatorsForEmployee || []).map((f: any) => ({
@@ -387,8 +387,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         </Badge>
       ),
       monthlyAllowance: `₹ ${Number(c.monthlyAllowance || 0).toLocaleString(
-        "en-IN"
+        "en-IN",
       )}`,
+      tutor: c.tutorAssignments?.[0]?.user
+        ? `${c.tutorAssignments[0].user.name ?? "Unnamed"}`
+        : c.tutorAssignments?.[0]?.userId || "",
     }));
   }, [facClassrooms]);
 
@@ -402,9 +405,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     while (true) {
       const res = await fetch(
         `/api/admin/assignments/tutor?userId=${encodeURIComponent(
-          userId
+          userId,
         )}&page=${pageAll}&pageSize=${pageSizeAll}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
@@ -420,7 +423,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             : "",
           end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
           type: x.isSubstitute ? "Substitute" : "Primary",
-        }))
+        })),
       );
       if (rows.length < pageSizeAll) break;
       pageAll += 1;
@@ -434,9 +437,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   > {
     const res = await fetch(
       `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(
-        userId
+        userId,
       )}`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
     const json = await res.json();
@@ -457,8 +460,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       new Set(
         (facCentreLinks ?? [])
           .map((x: any) => String(x.centre?.id ?? x.centreId))
-          .filter((id: string): id is string => id !== "")
-      )
+          .filter((id: string): id is string => id !== ""),
+      ),
     );
     if (!centreIds.length) return [];
 
@@ -660,7 +663,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             <DataTable
               columns={[
                 { key: "code", label: "Code" },
-                { key: "centre", label: "Centre" },
+                { key: "tutor", label: "Tutor" },
                 { key: "section", label: "Section" },
                 { key: "timing", label: "Timing" },
                 { key: "monthlyAllowance", label: "Allowance" },
