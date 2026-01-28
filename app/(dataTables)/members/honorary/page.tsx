@@ -13,7 +13,7 @@ import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 import { Button, Spinner } from "flowbite-react";
 import { Filter, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 export default function HonoraryMembersPage() {
   const [search, setSearch] = useState("");
@@ -21,7 +21,6 @@ export default function HonoraryMembersPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  // Initialize loading to true so it shows spinner immediately
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ rows: any[]; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +39,7 @@ export default function HonoraryMembersPage() {
 
   const allFiscalYears = useMemo(
     () => getDynamicFiscalYears(2020).reverse(),
-    []
+    [],
   );
 
   const fetchMembers = useCallback(async () => {
@@ -72,7 +71,7 @@ export default function HonoraryMembersPage() {
     debouncedSearch,
     selectedFiscalYears,
     pendingPaymentMode,
-    refreshKey
+    refreshKey,
   ]);
 
   useEffect(() => {
@@ -114,7 +113,7 @@ export default function HonoraryMembersPage() {
       toast.success("Honorary member updated successfully", {
         id: loadingToast,
       });
-      setRefreshKey((prev) => prev + 1); 
+      setRefreshKey((prev) => prev + 1);
     } catch (err: any) {
       console.error(err);
       toast.error(`Failed to update member: ${err.message}`, {
@@ -284,14 +283,44 @@ export default function HonoraryMembersPage() {
       return flat;
     });
   };
+  const exportableRows = useMemo(() => {
+    if (!data?.rows) return [];
 
+    return data.rows.map((r: any) => {
+      const yearsToExport =
+        selectedFiscalYears.length > 0 ? selectedFiscalYears : allFiscalYears;
+
+      const flat: any = {
+        ID: r.memberId,
+        Name: r.user?.name,
+        Email: r.user?.email,
+        Mobile: r.user?.phone,
+        PAN: r.pan,
+        "Joining Date": r.joiningDate
+          ? new Date(r.joiningDate).toLocaleDateString("en-GB")
+          : "",
+      };
+
+      const feesMapFull = r.feesMapFull || {};
+      yearsToExport.forEach((yr) => {
+        const feeData = feesMapFull[yr];
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amtStr = feeData.amount ? ` (₹${feeData.amount})` : "";
+          flat[yr] = `${dateStr}${amtStr}`;
+        } else {
+          flat[yr] = "";
+        }
+      });
+
+      return flat;
+    });
+  }, [data, selectedFiscalYears, allFiscalYears]);
   const isFilterActive = selectedFiscalYears.length > 0 || pendingPaymentMode;
 
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6 relative">
-
-
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Honorary Members
         </h2>
@@ -316,13 +345,15 @@ export default function HonoraryMembersPage() {
                 <X className="w-4 h-4 mr-2" /> Clear Filter
               </Button>
             )}
-            <ExportXlsxButton
-              fileName="HonoraryMembers"
-              sheetName="Honorary Members"
-              fetchAll={fetchAllForExport}
-              visibleRows={rows}
-              columns={[]}
-            />
+            <div className="z-50">
+              <ExportXlsxButton
+                fileName="HonoraryMembers"
+                sheetName="Honorary Members"
+                fetchAll={fetchAllForExport}
+                visibleRows={exportableRows}
+                columns={[]}
+              />
+            </div>
             <AddButton
               label="Add Honorary Member"
               onClick={() => setCreateOpen(true)}

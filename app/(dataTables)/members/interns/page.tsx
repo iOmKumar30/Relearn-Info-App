@@ -10,7 +10,7 @@ import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button, Spinner, Tooltip } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 export default function InternsPage() {
   const [search, setSearch] = useState("");
@@ -165,7 +165,7 @@ export default function InternsPage() {
       { key: "meta", label: "Meta" }, // Comments/Association
       { key: "actions", label: "Actions" },
     ],
-    []
+    [],
   );
 
   const rows = useMemo(() => {
@@ -265,10 +265,10 @@ export default function InternsPage() {
               row.status === "ACTIVE"
                 ? "success"
                 : row.status === "COMPLETED"
-                ? "info"
-                : row.status === "PENDING_START"
-                ? "warning"
-                : "failure"
+                  ? "info"
+                  : row.status === "PENDING_START"
+                    ? "warning"
+                    : "failure"
             }
             className="w-fit"
           >
@@ -280,8 +280,8 @@ export default function InternsPage() {
                 row.paymentStatus === "PAID"
                   ? "text-green-600 font-bold"
                   : row.paymentStatus === "WAIVED"
-                  ? "text-gray-500"
-                  : "text-orange-600"
+                    ? "text-gray-500"
+                    : "text-orange-600"
               }
             >
               {row.paymentStatus}
@@ -337,12 +337,43 @@ export default function InternsPage() {
       </Button>
     </div>
   );
+  const exportableRows = useMemo(() => {
+    if (!data?.rows) return [];
 
+    return data.rows.map((r: any) => ({
+      Name: r.name,
+      Email: r.email,
+      Mobile: r.mobile,
+      Address: r.address,
+      Gender: r.gender,
+      DOB: r.dateOfBirth
+        ? new Date(r.dateOfBirth).toLocaleDateString("en-GB")
+        : "",
+      "Education Completed": r.educationCompleted,
+      Institution: r.institution,
+      "Ongoing Course": r.ongoingCourse,
+      "Areas of Interest": r.areasOfInterest,
+      "Joining Date": r.joiningDate
+        ? new Date(r.joiningDate).toLocaleDateString("en-GB")
+        : "",
+      "Completion Date": r.completionDate
+        ? new Date(r.completionDate).toLocaleDateString("en-GB")
+        : "",
+      "Preferred Hours": r.preferredHoursPerDay,
+      "Working Mode": r.workingMode,
+      "Associated After": r.associatedAfter ? "Yes" : "No",
+      Comments: r.comments,
+      Status: r.status,
+      "Fee Amount": r.feeAmount,
+      "Fee Paid Date": r.feePaidDate
+        ? new Date(r.feePaidDate).toLocaleDateString("en-GB")
+        : "",
+      "Payment Status": r.paymentStatus,
+    }));
+  }, [data]);
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6 relative">
-
-
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Interns Directory
         </h2>
@@ -357,13 +388,15 @@ export default function InternsPage() {
             placeholder="Search by name, email, institution..."
           />
           <div className="flex-1 flex justify-end gap-3">
-            <ExportXlsxButton
-              fileName="Interns_List"
-              sheetName="Interns"
-              fetchAll={fetchAllForExport}
-              visibleRows={rows}
-              columns={[]}
-            />
+            <div className="z-50">
+              <ExportXlsxButton
+                fileName="Interns_List"
+                sheetName="Interns"
+                fetchAll={fetchAllForExport}
+                visibleRows={exportableRows}
+                columns={[]}
+              />
+            </div>
             <AddButton label="Add Intern" onClick={() => setCreateOpen(true)} />
           </div>
         </div>
