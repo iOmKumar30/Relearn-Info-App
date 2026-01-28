@@ -75,6 +75,7 @@ export async function PUT(
     userData.phone = body.phone ? String(body.phone).trim() : null;
   if (body.address !== undefined)
     userData.address = body.address ? String(body.address).trim() : null;
+  if (body.gender !== undefined) userData.gender = body.gender || null;
   if (body.status !== undefined) userData.status = body.status as UserStatus;
 
   if (body.email !== undefined) {
@@ -183,7 +184,7 @@ export async function PUT(
 // DELETE
 export async function DELETE(
   _req: Request,
-  ctx: { params: { userId?: string } }, 
+  ctx: { params: { userId?: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

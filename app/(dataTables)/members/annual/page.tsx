@@ -12,7 +12,7 @@ import RBACGate from "@/components/RBACGate";
 import { Button, Spinner } from "flowbite-react";
 import { Filter, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 
@@ -123,7 +123,7 @@ export default function AnnualMembersPage() {
       if (!res.ok) throw new Error(await res.text());
 
       toast.success("Annual member updated successfully", { id: loadingToast });
-      setRefreshKey((prev) => prev + 1); 
+      setRefreshKey((prev) => prev + 1);
     } catch (err: any) {
       console.error(err);
       toast.error(`Failed to update member: ${err.message}`, {
@@ -321,11 +321,45 @@ export default function AnnualMembersPage() {
   };
 
   const isFilterActive = selectedFiscalYears.length > 0 || pendingPaymentMode;
+  const exportableRows = useMemo(() => {
+    if (!data?.rows) return [];
 
+    return data.rows.map((r: any) => {
+      // 1. Determine which years to show (same logic as columns)
+      const yearsToExport =
+        selectedFiscalYears.length > 0 ? selectedFiscalYears : allFiscalYears;
+
+      // 2. Create the base object with clean headers
+      const flat: any = {
+        ID: r.memberId,
+        Name: r.user?.name,
+        Email: r.user?.email,
+        Mobile: r.user?.phone,
+        PAN: r.pan,
+        "Joining Date": r.joiningDate
+          ? new Date(r.joiningDate).toLocaleDateString("en-GB")
+          : "",
+      };
+
+      // 3. Flatten the fees (Logic copied from fetchAllForExport)
+      const feesMapFull = r.feesMapFull || {};
+      yearsToExport.forEach((yr) => {
+        const feeData = feesMapFull[yr];
+        if (feeData && feeData.paidOn) {
+          const dateStr = new Date(feeData.paidOn).toLocaleDateString("en-GB");
+          const amtStr = feeData.amount ? ` (₹${feeData.amount})` : "";
+          flat[yr] = `${dateStr}${amtStr}`;
+        } else {
+          flat[yr] = "";
+        }
+      });
+
+      return flat;
+    });
+  }, [data, selectedFiscalYears, allFiscalYears]);
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-6 relative">
-
         <h2 className="text-2xl font-semibold mb-4 text-purple-700">
           Annual Members
         </h2>
@@ -355,14 +389,15 @@ export default function AnnualMembersPage() {
                 Clear Filter
               </Button>
             )}
-
-            <ExportXlsxButton
-              fileName="AnnualMembers"
-              sheetName="Annual Members"
-              fetchAll={fetchAllForExport}
-              visibleRows={rows}
-              columns={[]}
-            />
+            <div className="z-50">
+              <ExportXlsxButton
+                fileName="AnnualMembers"
+                sheetName="Annual Members"
+                fetchAll={fetchAllForExport}
+                visibleRows={exportableRows}
+                columns={[]}
+              />
+            </div>
             <AddButton label="Add Member" onClick={() => setCreateOpen(true)} />
           </div>
         </div>
@@ -373,7 +408,7 @@ export default function AnnualMembersPage() {
               <strong>Active Filter:</strong>{" "}
               {pendingPaymentMode
                 ? `Showing members with pending payments for: ${selectedFiscalYears.join(
-                    ", "
+                    ", ",
                   )}`
                 : `Showing columns: ${selectedFiscalYears.join(", ")}`}
             </p>

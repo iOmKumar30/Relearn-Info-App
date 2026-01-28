@@ -21,6 +21,7 @@ type Row = {
   email: string;
   phone: string | null;
   address: string | null;
+  gender: string | null;
   status: "ACTIVE" | "INACTIVE";
   onboardingStatus: string;
   roles: string[]; // Backend RoleName[] from API
@@ -31,6 +32,7 @@ const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
+  { key: "gender", label: "Gender" },
   { key: "roles", label: "Roles" },
   { key: "status", label: "Status" },
 ];
@@ -71,8 +73,7 @@ export default function UsersPage() {
       setData({ total: json.total, rows: json.rows });
     } catch (e: any) {
       setError(e?.message || "Failed to load users");
-      // Optional: Toast for fetch error, though inline error is often better for initial load
-      // toast.error("Failed to load users");
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -114,6 +115,7 @@ export default function UsersPage() {
             name: u.name || "",
             email: u.email,
             phone: u.phone || "",
+            gender: genderLabels[u.gender] || "Not Available",
             roles: mapBackendRolesToUi(u.roles as any).join(", "),
             status: u.status,
             onboardingStatus: u.onboardingStatus,
@@ -135,13 +137,18 @@ export default function UsersPage() {
       throw e;
     }
   }
-
+  const genderLabels: Record<string, string> = {
+    M: "Male",
+    F: "Female",
+    O: "Others",
+  };
   // Visible rows formatted for export (no JSX)
   const formattedVisibleForExport = useMemo(() => {
     return rawRows.map((u) => ({
       name: u.name || "",
       email: u.email,
       phone: u.phone || "",
+      gender: genderLabels[u.gender] || "Not Available",
       roles: mapBackendRolesToUi(u.roles as any).join(", "),
       status: u.status,
       onboardingStatus: u.onboardingStatus,
@@ -152,13 +159,40 @@ export default function UsersPage() {
     }));
   }, [rawRows]);
 
-  // Render-friendly mapping (with badges)
+  const getGenderBadge = (gender: string | null) => {
+    if (!gender) return <span className="text-gray-400">—</span>;
+
+    const base =
+      "flex items-center justify-center px-2 py-0.5 min-w-[1.5rem] uppercase text-white rounded-full";
+
+    switch (gender) {
+      case "M":
+        return <Badge className={`${base} bg-blue-400`}>M</Badge>;
+
+      case "F":
+        return <Badge className={`${base} bg-pink-300`}>F</Badge>;
+
+      case "O":
+        return (
+          <Badge
+            className={`${base} bg-linear-to-r from-purple-500 via-pink-500 to-blue-500`}
+          >
+            O
+          </Badge>
+        );
+
+      default:
+        return <span className="text-gray-400">—</span>;
+    }
+  };
+
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => {
       const uiRoleLabels = mapBackendRolesToUi(u.roles as any);
 
       return {
         ...u,
+        gender: getGenderBadge(u.gender),
         roles: (
           <>
             {uiRoleLabels.map((label: string) => (
@@ -186,6 +220,7 @@ export default function UsersPage() {
     email: string;
     phone: string;
     address: string;
+    gender: string;
     status: "ACTIVE" | "INACTIVE";
     roles: AppRole[];
   }) => {
@@ -199,6 +234,7 @@ export default function UsersPage() {
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
+        gender: payload.gender,
         roles: payload.roles,
       };
 
@@ -229,6 +265,7 @@ export default function UsersPage() {
       email: string;
       phone: string;
       address: string;
+      gender: string;
       status: "ACTIVE" | "INACTIVE";
       roles: AppRole[];
     },
@@ -242,6 +279,7 @@ export default function UsersPage() {
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
+        gender: payload.gender,
         status: payload.status,
         roles: payload.roles,
       };
@@ -349,6 +387,7 @@ export default function UsersPage() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
+              { key: "gender", label: "Gender" },
               { key: "roles", label: "Roles" },
               { key: "status", label: "Status" },
               { key: "onboardingStatus", label: "Onboarding" },
@@ -416,6 +455,7 @@ export default function UsersPage() {
           email: editRow?.email || "",
           phone: editRow?.phone || "",
           address: editRow?.address || "",
+          gender: editRow?.gender || "",
           status: editRow?.status,
           roles: (editRow?.roles as AppRole[]) || [],
         }}

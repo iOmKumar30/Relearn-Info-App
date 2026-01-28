@@ -35,6 +35,7 @@ type FormState = {
   address: string;
   status: "ACTIVE" | "INACTIVE";
   roles: AppRole[]; // use canonical role type
+  gender: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -44,6 +45,7 @@ const EMPTY_FORM: FormState = {
   address: "",
   status: "ACTIVE",
   roles: [],
+  gender: "",
 };
 
 export default function UserCreateModal({
@@ -68,18 +70,18 @@ export default function UserCreateModal({
         address: initialValues.address || "",
         status: (initialValues.status as FormState["status"]) || "ACTIVE",
         roles: toRoleArray(
-          (initialValues as any).rolesPlain ?? initialValues.roles
+          (initialValues as any).rolesPlain ?? initialValues.roles,
         ),
+        gender: initialValues.gender || "",
       });
     } else {
       setForm(EMPTY_FORM);
     }
   }, [open, mode, initialValues]);
 
-  /* helpers */
   const handleChange = <K extends keyof FormState>(
     field: K,
-    value: FormState[K]
+    value: FormState[K],
   ) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const toggleRole = (role: AppRole) => {
@@ -100,7 +102,7 @@ export default function UserCreateModal({
       return value
         .map((v) => (typeof v === "string" ? v.trim() : String(v).trim()))
         .filter((v) =>
-          (ALL_ROLES as readonly string[]).includes(v)
+          (ALL_ROLES as readonly string[]).includes(v),
         ) as AppRole[];
     }
     // CSV string
@@ -110,18 +112,18 @@ export default function UserCreateModal({
         .map((s) => s.trim())
         .filter(Boolean);
       return arr.filter((v) =>
-        (ALL_ROLES as readonly string[]).includes(v)
+        (ALL_ROLES as readonly string[]).includes(v),
       ) as AppRole[];
     }
     // Array of objects with role_name/name/value
     if (Array.isArray(value) && value.length && typeof value[0] === "object") {
       const arr = value
         .map((r: any) =>
-          (r?.role_name ?? r?.name ?? r?.value ?? "").toString().trim()
+          (r?.role_name ?? r?.name ?? r?.value ?? "").toString().trim(),
         )
         .filter(Boolean);
       return arr.filter((v) =>
-        (ALL_ROLES as readonly string[]).includes(v)
+        (ALL_ROLES as readonly string[]).includes(v),
       ) as AppRole[];
     }
     return [];
@@ -197,7 +199,22 @@ export default function UserCreateModal({
               placeholder="Street, City, State, Pincode"
             />
           </div>
-
+          {/* Gender */}
+          <div>
+            <Label className="mb-1 block">Gender</Label>
+            <Select
+              value={form.gender}
+              onChange={(e) => handleChange("gender", e.target.value)}
+              aria-label="Select Gender"
+            >
+              <option value="" disabled hidden>
+                SELECT GENDER
+              </option>
+              <option value="M">MALE</option>
+              <option value="F">FEMALE</option>
+              <option value="O">OTHERS</option>
+            </Select>
+          </div>
           {/* Status */}
           <div>
             <Label className="mb-1 block">Status</Label>

@@ -74,6 +74,7 @@ model User {
   activatedAt              DateTime?
   address                  String?
   onboardingStatus         OnboardingStatus             @default(PENDING_PROFILE)
+  gender                   Gender?
   phone                    String?
   profileSubmittedAt       DateTime?
   roleRequestedAt          DateTime?
@@ -604,6 +605,7 @@ enum AssignmentStatus {
   LEFT
 }
 
+
 enum Gender {
   M
   F
@@ -663,72 +665,73 @@ model GlobalSequence {
   id      String @id @default("member_seq") // Single row ID
   current Int    @default(0)
 }
+
 model FinancialYear {
   id        String   @id @default(cuid())
   name      String   @unique // e.g., "FY 2025-26"
   startDate DateTime // e.g., 2025-04-01
   endDate   DateTime // e.g., 2026-03-31
-  isActive  Boolean  @default(true) 
+  isActive  Boolean  @default(true)
 
   // Relations
-  months    MonthlyStatement[]
+  months MonthlyStatement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model MonthlyStatement {
-  id        String   @id @default(cuid())
-  
-  month     Int     
-  year      Int    
-  
+  id String @id @default(cuid())
+
+  month Int
+  year  Int
+
   dataPopulatedDate DateTime? @default(now())
   startDate         DateTime? // Start of month
   endDate           DateTime? // End of month
 
-  startBalance      Decimal?  @db.Decimal(15, 2)
-  endBalance        Decimal?  @db.Decimal(15, 2)
+  startBalance Decimal? @db.Decimal(15, 2)
+  endBalance   Decimal? @db.Decimal(15, 2)
 
-  statementFileUrl  String?   
-  
-  financialYearId   String
-  financialYear     FinancialYear @relation(fields: [financialYearId], references: [id])
-  
-  transactions      Transaction[]
-  
-  createdById       String?   
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  statementFileUrl String?
+
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id])
+
+  transactions Transaction[]
+
+  createdById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([month, year])
   @@index([financialYearId])
 }
 
 model Transaction {
-  id              String   @id @default(cuid())
-  
-  txnDate         DateTime?
-  valueDate       DateTime?
-  description     String?   @db.Text
-  txnId           String?   
-  refNo           String?  
-  branchCode      String?
-  
+  id String @id @default(cuid())
+
+  txnDate     DateTime?
+  valueDate   DateTime?
+  description String?   @db.Text
+  txnId       String?
+  refNo       String?
+  branchCode  String?
+
   // Financials
-  type            TransactionType 
-  amount          Decimal?        @db.Decimal(15, 2)
-  runningBalance  Decimal?        @db.Decimal(15, 2)
+  type           TransactionType
+  amount         Decimal?        @db.Decimal(15, 2)
+  runningBalance Decimal?        @db.Decimal(15, 2)
 
-  partyName       String?  
-  reason          String?   
+  partyName String?
+  reason    String?
 
-  statementId     String
-  statement       MonthlyStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  statementId String
+  statement   MonthlyStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([statementId])
   @@index([txnDate])
