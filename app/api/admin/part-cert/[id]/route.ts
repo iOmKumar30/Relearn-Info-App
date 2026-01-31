@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -33,7 +33,7 @@ export async function GET(
       issueDate: true,
       createdAt: true,
     },
-    cacheStrategy: { ttl: 60, swr: 60 }
+    // cacheStrategy: { ttl: 60, swr: 60 }
   });
 
   if (!row) return new NextResponse("Not Found", { status: 404 });
@@ -43,7 +43,7 @@ export async function GET(
 
 export async function DELETE(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

@@ -16,7 +16,6 @@ import { NextResponse } from "next/server";
 // @ts-ignore
 console.log("prisma import type:", typeof prisma);
 
-
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -28,7 +27,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const qRaw = (searchParams.get("q") || "").trim();
 
@@ -53,7 +52,7 @@ export async function GET(req: Request) {
       const centres = await prisma.centre.findMany({
         where: { code: { in: codes } },
         select: { id: true },
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       });
       centreIdsFromCodes = centres.map((c) => c.id);
     }
@@ -194,7 +193,7 @@ export async function GET(req: Request) {
           },
         },
       },
-      // cacheStrategy: { ttl: 60, swr: 60 },
+      // // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

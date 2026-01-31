@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 // GET /api/admin/centres/:id
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -34,7 +34,7 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
     },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!row) return new NextResponse("Not Found", { status: 404 });
   return NextResponse.json(row);
@@ -43,7 +43,7 @@ export async function GET(
 // PUT /api/admin/centres/:id  (update user-editable fields only)
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   const { id } = await ctx.params;
@@ -113,7 +113,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   if (classrooms > 0) {
     return new NextResponse(
       "Cannot delete Centre with existing Classrooms. Close or reassign them first.",
-      { status: 409 }
+      { status: 409 },
     );
   }
 

@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const qRaw = (searchParams.get("q") || "").trim();
 
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         certificateNo: true,
         createdAt: true,
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

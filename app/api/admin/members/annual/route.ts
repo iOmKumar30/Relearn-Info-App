@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(searchParams.get("page") || 1));
     const pageSize = Math.min(
       100,
-      Math.max(1, Number(searchParams.get("pageSize") || 20))
+      Math.max(1, Number(searchParams.get("pageSize") || 20)),
     );
     const q = (searchParams.get("q") || "").trim();
 
@@ -80,7 +80,7 @@ export async function GET(req: Request) {
           typeHistory: true,
         },
         orderBy: { user: { name: "asc" } },
-        // cacheStrategy: { ttl: 60, swr: 60 },
+        // // cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 
@@ -139,7 +139,7 @@ export async function GET(req: Request) {
         message: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
@@ -345,15 +345,15 @@ export async function POST(req: Request) {
                   paidOn: fee.paidOn,
                   amount: fee.amount,
                 },
-              })
-            )
+              }),
+            ),
           );
         }
       },
       {
         maxWait: 5000,
         timeout: 10000,
-      }
+      },
     );
 
     return NextResponse.json({ success: true }, { status: 201 });

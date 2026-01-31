@@ -4,15 +4,15 @@ import { swapMemberIdPrefix } from "@/libs/memberIdUtils";
 import prisma from "@/libs/prismadb";
 import { toUTCDate } from "@/libs/toUTCDate";
 import { getServerSession } from "next-auth";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { revalidatePath } from 'next/cache'; 
 export const dynamic = "force-dynamic";
 
 // PUT: Update Member details and fees (with amount)
 // PUT: Update Annual Member
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   // Authorization Check
   const session = await getServerSession(authOptions);
@@ -49,12 +49,12 @@ export async function PUT(
       prisma.member.findUnique({
         where: { id },
         select: { userId: true, memberId: true, memberType: true },
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       }),
       prisma.memberTypeHistory.findMany({
         where: { memberId: id },
         select: { id: true },
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
         // We only need IDs to check for deletion
       }),
     ]);
@@ -68,7 +68,7 @@ export async function PUT(
       .filter((h: any) => h.id)
       .map((h: any) => h.id);
     const idsToDelete = existingIds.filter(
-      (dbId) => !incomingIds.includes(dbId)
+      (dbId) => !incomingIds.includes(dbId),
     );
 
     // Sort input by date descending
@@ -182,7 +182,7 @@ export async function PUT(
         feeOperations.push(
           tx.memberFee.deleteMany({
             where: { memberId: id },
-          })
+          }),
         );
         console.log(`DELETE ALL fees for member ${id}`);
 
@@ -217,7 +217,7 @@ export async function PUT(
                     : null,
                   member: { connect: { id } },
                 },
-              })
+              }),
             );
             console.log(`CREATE: ${label}`);
           } else {
@@ -229,10 +229,10 @@ export async function PUT(
       },
       {
         maxWait: 5000,
-        timeout: 10000, 
-      }
+        timeout: 10000,
+      },
     );
-    revalidatePath('/api/admin/members/annual')
+    revalidatePath("/api/admin/members/annual");
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("UPDATE_ANNUAL_MEMBER_ERROR", error);
@@ -244,7 +244,7 @@ export async function PUT(
 // DELETE: Remove Member record (keeps User, but removes Member role)
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

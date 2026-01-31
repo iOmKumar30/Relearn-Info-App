@@ -15,53 +15,53 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const typeFilter = searchParams.get("type");
+
+  // Pagination Params
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
     Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
+
+  // Search Query
   const qRaw = (searchParams.get("q") || "").trim();
 
   // Build where clause
   const where: any = {};
-  if (typeFilter) {
-    where.type = typeFilter;
-  }
 
   if (qRaw) {
     where.OR = [
-      { name: { contains: qRaw, mode: "insensitive" } },
-      { certificateNo: { contains: qRaw, mode: "insensitive" } },
-      { institute: { contains: qRaw, mode: "insensitive" } },
-      { aadhaar: { contains: qRaw, mode: "insensitive" } },
-      // Added search by event name just in case
-      { eventName: { contains: qRaw, mode: "insensitive" } },
+      { voucherNo: { contains: qRaw, mode: "insensitive" } },
+      { payeeName: { contains: qRaw, mode: "insensitive" } },
+      { projectName: { contains: qRaw, mode: "insensitive" } },
+      { expenditureHead: { contains: qRaw, mode: "insensitive" } },
+      // Optional: Search by payeeMobile
+      { payeeMobile: { contains: qRaw, mode: "insensitive" } },
     ];
   }
 
   try {
     const [total, rows] = await Promise.all([
-      prisma.participationCertificate.count({ where }),
-      prisma.participationCertificate.findMany({
+      prisma.paymentVoucher.count({ where }),
+      prisma.paymentVoucher.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {
           id: true,
-          type: true, // Added Type
-          certificateNo: true,
-          name: true,
-          aadhaar: true,
-          classYear: true,
-          institute: true,
-          eventName: true, // Added Event Name
-          duration: true,
-          startDate: true,
-          endDate: true,
-          issueDate: true,
+          voucherNo: true,
+          paymentDate: true,
+          payeeName: true,
+          payeeMobile: true,
+          projectName: true,
+          expenditureHead: true,
+          totalAmount: true,
+          amountInWords: true,
+          paymentMode: true,
+          paymentRef: true,
           createdAt: true,
+          items: true,
         },
         // cacheStrategy: { ttl: 60, swr: 60 },
       }),
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ page, pageSize, total, rows });
   } catch (error) {
-    console.error("CERT_LIST_ERROR", error);
+    console.error("PAYMENT_VOUCHER_LIST_ERROR", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

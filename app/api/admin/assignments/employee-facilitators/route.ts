@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   if (!employeeUserId && !facilitatorId) {
     return new NextResponse(
       "Bad Request: employeeUserId or facilitatorId required",
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       facilitator: { select: { id: true, name: true, email: true } },
       employee: { select: { id: true, name: true, email: true } },
     },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
 
   return NextResponse.json({ rows });
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
         select: { role: { select: { name: true } } },
       },
     },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   const eRoles = employee?.roleHistory?.map((h) => h.role.name) ?? [];
   if (!eRoles.includes("RELF_EMPLOYEE")) {
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
         select: { role: { select: { name: true } } },
       },
     },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   const fRoles = facilitator?.roleHistory?.map((h) => h.role.name) ?? [];
   if (!fRoles.includes("FACILITATOR")) {

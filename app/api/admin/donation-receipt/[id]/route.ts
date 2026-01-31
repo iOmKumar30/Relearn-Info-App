@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 // --- GET SINGLE DONATION ---
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -16,7 +16,7 @@ export async function GET(
   try {
     const donation = await prisma.donation.findUnique({
       where: { id: params.id },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     if (!donation) {
@@ -32,7 +32,7 @@ export async function GET(
 // --- UPDATE DONATION ---
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -101,7 +101,7 @@ export async function PUT(
 // --- DELETE DONATION ---
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

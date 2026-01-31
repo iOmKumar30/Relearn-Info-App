@@ -158,6 +158,11 @@ export const roleMenus: Record<Role, NavEntry[]> = {
           label: "Donation Receipts",
           href: "/admin/donation-receipt",
         },
+        {
+          type: "item",
+          label: "Payment Vouchers",
+          href: "/admin/voucher",
+        },
         // SSO Item
         {
           type: "item",

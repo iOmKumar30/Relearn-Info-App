@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     const existingByEmail = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
     if (existingByEmail) {
       return new NextResponse("User already exists", { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     let pendingRole = await prisma.role.findUnique({
       where: { name: RoleName.PENDING },
       select: { id: true, name: true },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
     if (!pendingRole) {
       pendingRole = await prisma.role.create({

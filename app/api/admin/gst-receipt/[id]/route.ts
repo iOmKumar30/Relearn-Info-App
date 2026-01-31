@@ -6,10 +6,9 @@ import { NextResponse } from "next/server";
 import { ToWords } from "to-words";
 
 const toWords = new ToWords();
-// --- GET Single Receipt ---
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -27,7 +26,7 @@ export async function GET(
       where: { id },
       // Select all fields or specify specific ones if needed
       // Ideally, we want 'items' (JSON) included for the edit form
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     if (!row) {
@@ -43,7 +42,7 @@ export async function GET(
 // --- PUT (Update) Receipt ---
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -88,14 +87,14 @@ export async function PUT(
     if (!invoiceNo || !billToName || items.length === 0) {
       return new NextResponse(
         "Invoice No, Bill To Name, and at least one item are required.",
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // --- RE-CALCULATE TOTALS (Server Side Integrity) ---
     const totalTaxable = items.reduce(
       (sum: number, item: any) => sum + (Number(item.taxableValue) || 0),
-      0
+      0,
     );
 
     const totalTax = items.reduce((sum: number, item: any) => {
@@ -145,7 +144,7 @@ export async function PUT(
 // --- DELETE Receipt ---
 export async function DELETE(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
 

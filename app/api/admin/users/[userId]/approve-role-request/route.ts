@@ -13,7 +13,7 @@ type ApprovePayload = {
 export async function POST(
   req: Request,
   // Important: params must be awaited in Next.js dynamic route handlers
-  ctx: { params: Promise<{ userId: string }> }
+  ctx: { params: Promise<{ userId: string }> },
 ) {
   try {
     const { userId } = await ctx.params;
@@ -30,7 +30,7 @@ export async function POST(
           select: { role: { select: { name: true } } },
         },
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     // better not to use react hooks in api routes
@@ -48,12 +48,12 @@ export async function POST(
     // Validate roles against RoleName enum and deduplicate
     const allowedRoleNames = new Set(Object.values(RoleName));
     const invalidRoles = body.roles.filter(
-      (r) => !allowedRoleNames.has(r as RoleName)
+      (r) => !allowedRoleNames.has(r as RoleName),
     );
     if (invalidRoles.length > 0) {
       return new NextResponse(
         `One or more roles are invalid: ${invalidRoles.join(", ")}`,
-        { status: 400 }
+        { status: 400 },
       );
     }
     const uniqueRoles = Array.from(new Set(body.roles)) as RoleName[];
@@ -62,7 +62,7 @@ export async function POST(
     const dbRoles = await prisma.role.findMany({
       where: { name: { in: uniqueRoles } },
       select: { id: true, name: true },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
     if (dbRoles.length !== uniqueRoles.length) {
       return new NextResponse("One or more roles are invalid", { status: 400 });
@@ -71,7 +71,7 @@ export async function POST(
     const pendingRole = await prisma.role.findUnique({
       where: { name: RoleName.PENDING },
       select: { id: true },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     const result = await prisma.$transaction(async (tx) => {
@@ -93,7 +93,7 @@ export async function POST(
       // Close PENDING role if open
       if (pendingRole) {
         const openPending = user.roleHistory.find(
-          (rh) => rh.roleId === pendingRole.id
+          (rh) => rh.roleId === pendingRole.id,
         );
         if (openPending) {
           await tx.userRoleHistory.update({

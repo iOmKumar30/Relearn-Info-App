@@ -26,8 +26,7 @@ export async function POST(req: Request) {
     const fy = getFinancialYear(); // "25-26"
     const prefix = `RELF/${fy}/`;
 
-    // Atomic increment using Prisma transaction
-    // This ensures no race conditions
+
     const counter = await prisma.invoiceCounter.upsert({
       where: { financialYear: fy },
       update: { currentSeq: { increment: 1 } },
@@ -55,7 +54,7 @@ export async function POST(req: Request) {
   const invoiceDateStr = body?.invoiceDate;
   const invoiceDate = invoiceDateStr ? new Date(invoiceDateStr) : new Date();
 
-  const items = Array.isArray(body?.items) ? body.items : [];
+gy  const items = Array.isArray(body?.items) ? body.items : [];
 
   if (!invoiceNo || !billToName || items.length === 0) {
     return new NextResponse(
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // --- CALCULATE TOTALS ---
   const totalTaxable = items.reduce(
     (sum: number, item: any) => sum + (Number(item.taxableValue) || 0),
     0
@@ -94,13 +92,11 @@ export async function POST(req: Request) {
         billToState,
         billToCode,
 
-        // Optional fields
         shipToName: shipToName || null,
         shipToGstin: shipToGstin || null,
         shipToState: shipToState || null,
         shipToCode: shipToCode || null,
 
-        // JSON Data & Totals
         items,
         totalAmount: totalTaxable,
         totalTax,
@@ -137,7 +133,7 @@ export async function GET(req: Request) {
         ],
       },
       orderBy: { createdAt: "desc" },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
     return NextResponse.json({ rows });

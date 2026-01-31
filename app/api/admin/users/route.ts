@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const q = (searchParams.get("q") || "").trim();
 
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
   const dbRoles = await prisma.role.findMany({
     where: { name: { in: rolesInput } },
     select: { id: true, name: true },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (dbRoles.length !== rolesInput.length) {
     return new NextResponse("One or more roles are invalid", { status: 400 });
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
         // optional headroom; keep small to catch slow paths early
         maxWait: 5000,
         timeout: 10000,
-      }
+      },
     );
 
     return NextResponse.json(created, { status: 201 });

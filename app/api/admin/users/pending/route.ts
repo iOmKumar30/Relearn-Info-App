@@ -18,7 +18,7 @@ export async function GET(req: Request) {
         select: { role: { select: { name: true } } },
       },
     },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   const isAdmin =
     me?.roleHistory?.some((r) => r.role.name === "ADMIN") ?? false;
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 10))
+    Math.max(1, Number(searchParams.get("pageSize") || 10)),
   );
 
   const baseOr: Prisma.UserWhereInput[] = [
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
           select: { role: { select: { name: true } } },
         },
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 

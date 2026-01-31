@@ -4,7 +4,6 @@ import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// List assignments by classroom (or by userId if provided)
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -18,7 +17,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
 
   if (!classroomId && !userId) {
@@ -35,7 +34,7 @@ export async function GET(req: Request) {
     prisma.tutorAssignment.count({ where }),
     prisma.tutorAssignment.findMany({
       where,
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
       orderBy: [{ endDate: "asc" }, { startDate: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -50,6 +49,7 @@ export async function GET(req: Request) {
         classroom: {
           select: {
             id: true,
+            section: true,
             code: true,
             centre: { select: { code: true, name: true } },
           },
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
         select: { role: { select: { name: true } } },
       },
     },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!u) return new NextResponse("User not found", { status: 404 });
   const currentRoles = u.roleHistory.map((h) => h.role.name);
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
   const c = await prisma.classroom.findUnique({
     where: { id: classroomId },
     select: { id: true },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!c) return new NextResponse("Classroom not found", { status: 404 });
 
@@ -113,12 +113,12 @@ export async function POST(req: Request) {
   const overlapping = await prisma.tutorAssignment.findFirst({
     where: { classroomId, endDate: null },
     select: { id: true },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (overlapping && !isSubstitute) {
     return new NextResponse(
       "Classroom already has an active tutor assignment",
-      { status: 409 }
+      { status: 409 },
     );
   }
 

@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 // GET /api/admin/classrooms/:id
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -39,7 +39,7 @@ export async function GET(
       createdAt: true,
       updatedAt: true,
     },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!row) return new NextResponse("Not Found", { status: 404 });
   return NextResponse.json(row);
@@ -49,7 +49,7 @@ export async function GET(
 // PUT /api/admin/classrooms/:id (update editable fields; code auto-changes with section)
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -140,7 +140,7 @@ export async function PUT(
 // DELETE /api/admin/classrooms/:id
 export async function DELETE(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -153,12 +153,12 @@ export async function DELETE(
   // prevent delete if student history exists
   const hasHistory = await prisma.studentClassroomAssignment.count({
     where: { classroomId: id },
-    cacheStrategy: { ttl: 60, swr: 60 },
+    // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (hasHistory > 0) {
     return new NextResponse(
       "Cannot delete Classroom with student history. Consider setting dateClosed and INACTIVE status.",
-      { status: 409 }
+      { status: 409 },
     );
   }
 

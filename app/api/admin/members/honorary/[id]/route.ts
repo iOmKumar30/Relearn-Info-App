@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // PUT: Update Honorary Member
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !(await isAdmin(session.user.id)))
@@ -42,12 +42,12 @@ export async function PUT(
       prisma.member.findUnique({
         where: { id },
         select: { userId: true, memberId: true, memberType: true },
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       }),
       prisma.memberTypeHistory.findMany({
         where: { memberId: id },
         select: { id: true }, // Only need IDs for deletion logic
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 
@@ -61,7 +61,7 @@ export async function PUT(
       .filter((h: any) => h.id)
       .map((h: any) => h.id);
     const idsToDelete = existingIds.filter(
-      (dbId) => !incomingIds.includes(dbId)
+      (dbId) => !incomingIds.includes(dbId),
     );
 
     // B. Logic for Target Member Type
@@ -178,7 +178,7 @@ export async function PUT(
         feeOperations.push(
           tx.memberFee.deleteMany({
             where: { memberId: id },
-          })
+          }),
         );
         console.log(`DELETE ALL fees for member ${id}`);
 
@@ -213,7 +213,7 @@ export async function PUT(
                     : null,
                   member: { connect: { id } },
                 },
-              })
+              }),
             );
             console.log(`CREATE: ${label}`);
           } else {
@@ -226,7 +226,7 @@ export async function PUT(
       {
         maxWait: 5000,
         timeout: 10000,
-      }
+      },
     );
     revalidatePath("/api/admin/members/honorary");
     return NextResponse.json({ success: true });
@@ -238,7 +238,7 @@ export async function PUT(
 // DELETE: Remove Member record
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !(await isAdmin(session.user.id)))

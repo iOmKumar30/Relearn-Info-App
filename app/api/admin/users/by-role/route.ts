@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(
     100,
-    Math.max(1, Number(searchParams.get("pageSize") || 20))
+    Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const q = (searchParams.get("q") || "").trim();
   if (!roleParam) {
@@ -64,11 +64,11 @@ export async function GET(req: Request) {
           select: { role: { select: { name: true } } },
         },
       },
-      cacheStrategy: { ttl: 60, swr: 60 },
+      // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 
-  const rows = users.map((u:any) => ({
+  const rows = users.map((u: any) => ({
     id: u.id,
     email: u.email,
     name: u.name,

@@ -1,10 +1,14 @@
 "use client";
 
+import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
+import EditTutorAssModal from "@/components/CrudControls/EditTutorAssModal";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import UserSelect from "@/components/CrudControls/UserSelect";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { HiPencil, HiTrash } from "react-icons/hi";
 
 export default function ClassroomProfileClient({
   classroomId,
@@ -13,9 +17,23 @@ export default function ClassroomProfileClient({
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Data States
   const [classroom, setClassroom] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
+
+  // Selection for adding new tutor
   const [pick, setPick] = useState<{ id: string; label: string } | null>(null);
+
+  // Modal States
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(
+    null,
+  );
+  const [processing, setProcessing] = useState(false);
 
   async function fetchClassroom() {
     const res = await fetch(`/api/admin/classrooms/${classroomId}`, {
@@ -25,20 +43,20 @@ export default function ClassroomProfileClient({
     return res.json();
   }
 
-  async function fetchAssignments(page = 1, pageSize = 10) {
+  async function fetchAssignments(page = 1, pageSize = 50) {
     const res = await fetch(
       `/api/admin/assignments/tutor?classroomId=${encodeURIComponent(
-        classroomId
+        classroomId,
       )}&page=${page}&pageSize=${pageSize}`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
 
-  const load = async () => {
+  const load = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const [c, a] = await Promise.all([fetchClassroom(), fetchAssignments()]);
       setClassroom(c);
@@ -55,6 +73,108 @@ export default function ClassroomProfileClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId]);
 
+
+  // Add new Tutor
+  async function handleAssign() {
+    if (!pick?.id) return;
+    const toastId = toast.loading("Adding tutor...");
+    try {
+      const res = await fetch(`/api/admin/assignments/tutor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: pick.id,
+          classroomId,
+          isSubstitute: false, // Default to assigned
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setPick(null);
+      toast.success("Tutor added", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to add tutor", { id: toastId });
+    }
+  }
+
+  // Quick Close (End Now)
+  async function closeAssignment(id: string) {
+    const toastId = toast.loading("Closing assignment...");
+    try {
+      const res = await fetch(`/api/admin/assignments/tutor/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endDate: new Date().toISOString() }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      toast.success("Assignment closed", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to close assignment", { id: toastId });
+    }
+  }
+
+  // Edit Assignment (Dates & Type)
+  async function handleUpdateAssignment(
+    startDate: string,
+    endDate: string | null,
+    isSubstitute: boolean,
+  ) {
+    if (!editingAssignment) return;
+    const toastId = toast.loading("Updating assignment...");
+    try {
+      setProcessing(true);
+      const payload: any = {
+        startDate: startDate ? new Date(startDate).toISOString() : undefined,
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+        isSubstitute,
+      };
+
+      const res = await fetch(
+        `/api/admin/assignments/tutor/${editingAssignment.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!res.ok) throw new Error(await res.text());
+
+      await load(true);
+      setEditModalOpen(false);
+      setEditingAssignment(null);
+      toast.success("Updated successfully", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Update failed", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Delete Assignment
+  async function handleDeleteAssignment() {
+    if (!assignmentToDelete) return;
+    const toastId = toast.loading("Deleting assignment...");
+    try {
+      setProcessing(true);
+      const res = await fetch(
+        `/api/admin/assignments/tutor/${assignmentToDelete}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setDeleteModalOpen(false);
+      setAssignmentToDelete(null);
+      toast.success("Assignment deleted", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Delete failed", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+
   const rows = useMemo(() => {
     return assignments.map((x) => ({
       id: x.id,
@@ -65,87 +185,67 @@ export default function ClassroomProfileClient({
         ? new Date(x.startDate).toLocaleDateString("en-GB")
         : "",
       end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
-      tag: x.isSubstitute ? "Substitute" : "Primary",
+      // Map API "isSubstitute" to UI "Assigned" vs "Replacement"
+      tag: x.isSubstitute ? "Replacement" : "Assigned",
       __raw: x,
     }));
   }, [assignments]);
 
-  async function handleAssign() {
-    if (!pick?.id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/admin/assignments/tutor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: pick.id,
-          classroomId,
-          isSubstitute: false,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-      setPick(null);
-    } catch (e: any) {
-      setError(e?.message || "Failed to add tutor");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const renderActions = (row: any) => (
+    <div className="flex gap-2">
+      <Button
+        size="xs"
+        color="gray"
+        onClick={() => {
+          setEditingAssignment(row);
+          setEditModalOpen(true);
+        }}
+        title="Edit"
+      >
+        <HiPencil className="h-4 w-4" />
+      </Button>
 
-  async function closeAssignment(id: string) {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/admin/assignments/tutor/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endDate: new Date().toISOString() }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-    } catch (e: any) {
-      setError(e?.message || "Failed to close assignment");
-    } finally {
-      setLoading(false);
-    }
-  }
+      {!row.end && (
+        <Button
+          size="xs"
+          color="warning"
+          onClick={() => closeAssignment(row.id)}
+          title="End Now"
+        >
+          End
+        </Button>
+      )}
 
-  const columns = useMemo(
-    () => [
-      { key: "tutor", label: "Tutor" },
-      { key: "start", label: "Start" },
-      { key: "end", label: "End" },
-      { key: "tag", label: "Type" },
-    ],
-    []
+      {row.end && (
+        <Button
+          size="xs"
+          color="failure"
+          onClick={() => {
+            setAssignmentToDelete(row.id);
+            setDeleteModalOpen(true);
+          }}
+          title="Delete History"
+        >
+          <HiTrash className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
-  const renderActions = (row: any) =>
-    !row.end ? (
-      <Button size="xs" color="light" onClick={() => closeAssignment(row.id)}>
-        No Longer Teaching
-      </Button>
-    ) : null;
-
-  // Export all tutor assignments for this classroom
   async function fetchAllTutorAssignments(): Promise<Record<string, any>[]> {
     const pageSizeAll = 1000;
     let pageAll = 1;
     const out: Record<string, any>[] = [];
-
     while (true) {
       const res = await fetch(
         `/api/admin/assignments/tutor?classroomId=${encodeURIComponent(
-          classroomId
+          classroomId,
         )}&page=${pageAll}&pageSize=${pageSizeAll}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       const rows: any[] = json?.rows || [];
-
       out.push(
         ...rows.map((x) => ({
           tutor: x.user?.name
@@ -155,19 +255,17 @@ export default function ClassroomProfileClient({
             ? new Date(x.startDate).toLocaleDateString("en-GB")
             : "",
           end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
-          type: x.isSubstitute ? "Substitute" : "Primary",
-        }))
+          type: x.isSubstitute ? "Replacement" : "Assigned",
+        })),
       );
-
       if (rows.length < pageSizeAll) break;
       pageAll += 1;
       if (pageAll > 200) break;
     }
-
     return out;
   }
 
-  // Central full-page loader
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-20">
@@ -200,17 +298,13 @@ export default function ClassroomProfileClient({
           </div>
           <div>
             Status:{" "}
-            <Badge color="info" className="uppercase">
+            <Badge color="info" className="uppercase inline-block">
               {classroom.status}
             </Badge>
           </div>
           <div>Section: {classroom.section}</div>
-          <div>Street Address: {classroom.streetAddress}</div>
-          <div>City: {classroom.city}</div>
-          <div>District: {classroom.district}</div>
-          <div>State: {classroom.state}</div>
-          <div>Pincode: {classroom.pincode}</div>
           <div>Timing: {classroom.timing}</div>
+          {/* Add other fields as needed */}
         </div>
       )}
 
@@ -222,8 +316,9 @@ export default function ClassroomProfileClient({
           </div>
           <Button
             onClick={handleAssign}
-            disabled={!pick || loading}
-            className="ml-4 inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium shadow hover:bg-blue-700 transition"
+            disabled={!pick}
+            className="ml-4 inline-flex items-center"
+            color="blue"
           >
             Add
           </Button>
@@ -242,18 +337,43 @@ export default function ClassroomProfileClient({
               { key: "end", label: "End" },
               { key: "type", label: "Type" },
             ]}
-            visibleRows={[]} // export-all only
+            visibleRows={[]}
             fetchAll={fetchAllTutorAssignments}
           />
         </div>
       </div>
 
       <DataTable
-        columns={columns}
+        columns={[
+          { key: "tutor", label: "Tutor" },
+          { key: "start", label: "Start" },
+          { key: "end", label: "End" },
+          { key: "tag", label: "Type" },
+        ]}
         rows={rows}
         actions={renderActions}
         page={1}
         pageSize={100}
+      />
+
+      <EditTutorAssModal
+        open={editModalOpen}
+        assignment={editingAssignment}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateAssignment}
+      />
+
+      <ConfirmDeleteModal
+        open={deleteModalOpen}
+        title="Delete Assignment History"
+        message="Are you sure you want to delete this assignment history? This cannot be undone."
+        confirmLabel="Delete"
+        processing={processing}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setAssignmentToDelete(null);
+        }}
+        onConfirm={handleDeleteAssignment}
       />
     </div>
   );

@@ -41,7 +41,7 @@ export async function GET(req: Request) {
         orderBy: { date: "desc" }, // Most recent first
         skip,
         take: pageSize,
-        cacheStrategy: { ttl: 60, swr: 60 },
+        // cacheStrategy: { ttl: 60, swr: 60 },
       }),
 
       prisma.donation.count({ where }),

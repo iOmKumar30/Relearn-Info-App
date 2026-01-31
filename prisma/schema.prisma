@@ -562,7 +562,28 @@ model GstReceipt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+model PaymentVoucher {
+  id              String   @id @default(uuid())
+  voucherNo       String   @unique
+  paymentDate     DateTime
 
+  projectName     String?
+  expenditureHead String?
+
+  payeeName       String
+  payeeMobile     String?
+
+  items           Json?
+
+  totalAmount     Float
+  amountInWords   String
+
+  paymentMode     String?
+  paymentRef      String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
 model InvoiceCounter {
   id            String @id @default(uuid())
   financialYear String @unique // e.g. "25-26"

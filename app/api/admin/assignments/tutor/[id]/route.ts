@@ -1,14 +1,12 @@
-// app/api/admin/assignments/tutor/[id]/route.ts
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// Close (end) assignment
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id?: string }> }
+  ctx: { params: Promise<{ id?: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
@@ -20,13 +18,24 @@ export async function PUT(
   if (!id) return new NextResponse("Bad Request: missing id", { status: 400 });
 
   const body = await req.json().catch(() => ({}));
-  const endDate = body?.endDate ? new Date(String(body.endDate)) : new Date();
-
+  const dataToUpdate: any = {};
+  if (body.startDate !== undefined) {
+    dataToUpdate.startDate = new Date(String(body.startDate));
+  }
+  if (body.endDate !== undefined) {
+    dataToUpdate.endDate = body.endDate ? new Date(String(body.endDate)) : null;
+  }
+  if (body.isSubstitute !== undefined) {
+    dataToUpdate.isSubstitute = Boolean(body.isSubstitute);
+  }
+  if (Object.keys(dataToUpdate).length === 0) {
+    return new NextResponse("No fields to update", { status: 400 });
+  }
   try {
     const updated = await prisma.tutorAssignment.update({
       where: { id },
-      data: { endDate },
-      select: { id: true, endDate: true },
+      data: dataToUpdate,
+      select: { id: true, startDate: true, endDate: true },
     });
     return NextResponse.json(updated);
   } catch {
@@ -34,10 +43,9 @@ export async function PUT(
   }
 }
 
-// Hard delete assignment
 export async function DELETE(
   _req: Request,
-  ctx: { params: Promise<{ id?: string }> }
+  ctx: { params: Promise<{ id?: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

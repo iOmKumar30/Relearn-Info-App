@@ -50,7 +50,7 @@ export async function GET(req: Request) {
         },
       },
     },
-   //  cacheStrategy: { ttl: 60, swr: 60 },
+    //  // cacheStrategy: { ttl: 60, swr: 60 },
   });
 
   return NextResponse.json({ rows });
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
         select: { role: { select: { name: true } } },
       },
     },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   const roles = fac?.roleHistory?.map((h) => h.role.name) ?? [];
   if (!roles.includes("FACILITATOR")) {
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
   const centre = await prisma.centre.findUnique({
     where: { id: centreId },
     select: { id: true },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (!centre) {
     return new NextResponse("Centre not found", { status: 404 });
@@ -108,16 +108,17 @@ export async function POST(req: Request) {
   const activeForCentre = await prisma.facilitatorAssignment.findFirst({
     where: { centreId, endDate: null },
     select: { id: true, userId: true },
-    // cacheStrategy: { ttl: 60, swr: 60 },
+    // // cacheStrategy: { ttl: 60, swr: 60 },
   });
   if (activeForCentre) {
     return new NextResponse(
       "Centre already has an active facilitator assignment",
-      { status: 409 }
+      { status: 409 },
     );
   }
 
-  const startDate = startDateStr ? new Date(startDateStr) : new Date();
+  let startDate = startDateStr ? new Date(startDateStr) : new Date();
+  startDate.setUTCHours(12, 0, 0, 0);
 
   // This reduces race conditions between the check and create.
   const created = await prisma
@@ -144,7 +145,7 @@ export async function POST(req: Request) {
       if (String(err?.message) === "CENTRE_ACTIVE_ALREADY") {
         throw new NextResponse(
           "Centre already has an active facilitator assignment",
-          { status: 409 }
+          { status: 409 },
         );
       }
       throw err;

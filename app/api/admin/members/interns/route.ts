@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(searchParams.get("page") || 1));
     const pageSize = Math.min(
       100,
-      Math.max(1, Number(searchParams.get("pageSize") || 20))
+      Math.max(1, Number(searchParams.get("pageSize") || 20)),
     );
     const q = (searchParams.get("q") || "").trim();
     const status = searchParams.get("status");
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const where: any = {
       ...(q
         ? {
-          OR: [
+            OR: [
               { memberId: { contains: q, mode: "insensitive" } },
               { name: { contains: q, mode: "insensitive" } },
               { email: { contains: q, mode: "insensitive" } },
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-       //  cacheStrategy: { ttl: 60, swr: 60 },
+        //  // cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);
 
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
         message: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       const intern = await tx.intern.create({
         data: {
           ...body,
-          memberId, 
+          memberId,
         },
       });
       return intern;
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
         message: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }

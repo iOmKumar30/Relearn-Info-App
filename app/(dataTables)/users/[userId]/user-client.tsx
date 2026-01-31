@@ -1,28 +1,27 @@
 "use client";
 
 import CentreSelect from "@/components/CrudControls/CentreSelect";
+import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
+import EditAssignmentModal from "@/components/CrudControls/EditAssignmentModal";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { HiPencil, HiTrash } from "react-icons/hi";
 
 export default function UserProfileClient({ userId }: { userId: string }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [user, setUser] = useState<any>(null);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [pick, setPick] = useState<{ id: string; label: string } | null>(null);
-
-  // Facilitator → Centre additions
-  const [facCentreLinks, setFacCentreLinks] = useState<any[]>([]);
-  const [pickCentre, setPickCentre] = useState<{
-    id: string;
-    label: string;
-  } | null>(null);
-
-  // FacilitatorEmployee links (two perspectives)
+  const [assignments, setAssignments] = useState<any[]>([]); 
+  const [facCentreLinks, setFacCentreLinks] = useState<any[]>([]); 
+  const [facClassrooms, setFacClassrooms] = useState<any[]>([]); 
   const [employeeForFacilitator, setEmployeeForFacilitator] = useState<
     any | null
   >(null);
@@ -30,8 +29,22 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     [],
   );
 
-  // Facilitator -> Centres -> Classroom Link
-  const [facClassrooms, setFacClassrooms] = useState<any[]>([]);
+  const [pick, setPick] = useState<{ id: string; label: string } | null>(null); // For assigning classroom to tutor
+  const [pickCentre, setPickCentre] = useState<{
+    id: string;
+    label: string;
+  } | null>(null); // For assigning centre to facilitator
+
+  // Edit
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
+
+  // Delete
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(
+    null,
+  );
+
 
   async function fetchUser() {
     const res = await fetch(`/api/admin/users/${userId}`, {
@@ -43,9 +56,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
   async function fetchAssignments() {
     const res = await fetch(
-      `/api/admin/assignments/tutor?userId=${encodeURIComponent(
-        userId,
-      )}&page=1&pageSize=50`,
+      `/api/admin/assignments/tutor?userId=${encodeURIComponent(userId)}&page=1&pageSize=50`,
       { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
@@ -54,9 +65,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
   async function fetchFacilitatorCentreLinks() {
     const res = await fetch(
-      `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(
-        userId,
-      )}`,
+      `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(userId)}`,
       { cache: "no-store" },
     );
     if (!res.ok) return { rows: [] };
@@ -97,9 +106,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     return json.rows || [];
   }
 
-  const load = async () => {
+  const load = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setInitialLoading(true);
       setError(null);
       const [u, a, fc, facSide, empSide] = await Promise.all([
         fetchUser(),
@@ -108,10 +117,12 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         fetchEmployeeForFacilitator(),
         fetchFacilitatorsForEmployee(),
       ]);
+
       setUser(u);
       setAssignments(a.rows || []);
       setFacCentreLinks(fc.rows || []);
 
+      // Get classrooms for facilitator based on assigned centres
       const centreIds: string[] = Array.from(
         new Set(
           (fc.rows ?? [])
@@ -126,6 +137,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       }
       setFacClassrooms(classList);
 
+      // Process Employee <-> Facilitator links
       const facRows = (facSide.rows || []) as any[];
       if (facRows.length > 0) {
         facRows.sort(
@@ -143,7 +155,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     } catch (e: any) {
       setError(e?.message || "Failed to load profile");
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -152,20 +164,183 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const isTutor = (user?.currentRoles || []).includes("TUTOR");
-  const isFacilitator = (user?.currentRoles || []).includes("FACILITATOR");
-  const isEmployee = (user?.currentRoles || []).includes("RELF_EMPLOYEE");
 
-  // Active centre for facilitator (latest active assignment)
-  const activeCentre = useMemo(() => {
-    const active = (facCentreLinks || []).find((x: any) => !x.endDate);
-    return active?.centre || null;
-  }, [facCentreLinks]);
 
-  const rows = useMemo(() => {
+  // Assign a new classroom to tutor
+  async function handleAssignTutor() {
+    if (!pick?.id) return;
+    const toastId = toast.loading("Assigning classroom...");
+    try {
+      setProcessing(true);
+      const res = await fetch(`/api/admin/assignments/tutor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          classroomId: pick.id,
+          isSubstitute: false,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setPick(null);
+      toast.success("Classroom assigned successfully", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to assign classroom", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Close an active tutor assignment
+  async function closeAssignment(id: string) {
+    const toastId = toast.loading("Closing assignment...");
+    try {
+      setProcessing(true);
+      const res = await fetch(`/api/admin/assignments/tutor/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endDate: new Date().toISOString() }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      toast.success("Assignment closed successfully", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to close assignment", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Update Dates (Start/End) via Edit Modal
+  async function handleUpdateDates(
+    startDate: Date | null,
+    endDate: Date | null,
+  ) {
+    if (!editingAssignment) return;
+    const toastId = toast.loading("Updating assignment...");
+    try {
+      setProcessing(true);
+      const payload: any = {};
+
+      if (startDate) payload.startDate = startDate.toISOString();
+      // Explicitly send null if endDate is null to clear it (make active), or the date string
+      payload.endDate = endDate ? endDate.toISOString() : null;
+
+      const res = await fetch(
+        `/api/admin/assignments/tutor/${editingAssignment.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!res.ok) throw new Error(await res.text());
+
+      await load(true);
+      setEditModalOpen(false);
+      setEditingAssignment(null);
+      toast.success("Assignment updated", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update assignment", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Delete Assignment (for closed ones)
+  async function performDeleteAssignment() {
+    if (!assignmentToDelete) return;
+    const toastId = toast.loading("Deleting assignment history...");
+    try {
+      setProcessing(true);
+      const res = await fetch(
+        `/api/admin/assignments/tutor/${assignmentToDelete}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setDeleteModalOpen(false);
+      setAssignmentToDelete(null);
+      toast.success("Assignment deleted", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete assignment", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Open Edit Modal Helper
+  const openEditModal = (row: any) => {
+    setEditingAssignment(row);
+    setEditModalOpen(true);
+  };
+
+  // Open Delete Modal Helper
+  const confirmDeleteAssignment = (id: string) => {
+    setAssignmentToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  // Assign Centre to Facilitator
+  async function assignCentre() {
+    if (!pickCentre?.id) return;
+    const toastId = toast.loading("Assigning centre...");
+    try {
+      setProcessing(true);
+      const res = await fetch(`/api/admin/assignments/facilitator-centre`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          facilitatorId: userId,
+          centreId: pickCentre.id,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setPickCentre(null);
+      toast.success("Centre assigned", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to assign centre", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Close Centre Assignment
+  async function closeFacilitatorCentre(id: string) {
+    const toastId = toast.loading("Closing centre assignment...");
+    try {
+      setProcessing(true);
+      const res = await fetch(
+        `/api/admin/assignments/facilitator-centre/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endDate: new Date().toISOString() }),
+        },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      toast.success("Centre assignment closed", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to close centre assignment", {
+        id: toastId,
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Tutor Rows
+  const tutorRows = useMemo(() => {
     return assignments.map((x) => ({
       id: x.id,
       classroom: x.classroom?.code || x.classroomId,
+      section: x.classroom?.section || "—",
       centre: x.classroom?.centre
         ? `${x.classroom.centre.code} — ${x.classroom.centre.name}`
         : "",
@@ -178,119 +353,41 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }, [assignments]);
 
-  async function handleAssign() {
-    if (!pick?.id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/admin/assignments/tutor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          classroomId: pick.id,
-          isSubstitute: false,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-      setPick(null);
-    } catch (e: any) {
-      setError(e?.message || "Failed to assign classroom");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function closeAssignment(id: string) {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/admin/assignments/tutor/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endDate: new Date().toISOString() }),
-      });
-    } catch (e: any) {
-      setError(e?.message || "Failed to close assignment");
-    } finally {
-      await load();
-      setLoading(false);
-    }
-  }
-
-  async function assignCentre() {
-    if (!pickCentre?.id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/admin/assignments/facilitator-centre`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          facilitatorId: userId,
-          centreId: pickCentre.id,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-      setPickCentre(null);
-    } catch (e: any) {
-      setError(e?.message || "Failed to assign centre");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function closeFacilitatorCentre(id: string) {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(
-        `/api/admin/assignments/facilitator-centre/${id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endDate: new Date().toISOString() }),
-        },
-      );
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-    } catch (e: any) {
-      setError(e?.message || "Failed to close centre assignment");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const columns = useMemo(
-    () => [
-      { key: "code", label: "Code" },
-      { key: "section", label: "Section" },
-      { key: "centre", label: "Centre" },
-      { key: "timing", label: "Timing" },
-      { key: "monthlyAllowance", label: "Allowance" },
-      { key: "status", label: "Status" },
-    ],
-    [],
-  );
-
-  const renderActions = (row: any) =>
-    !row.end ? (
-      <Button size="xs" color="light" onClick={() => closeAssignment(row.id)}>
-        Close
+  const tutorActions = (row: any) => (
+    <div className="flex gap-2">
+      <Button
+        size="xs"
+        color="gray"
+        onClick={() => openEditModal(row)}
+        title="Edit Dates"
+      >
+        <HiPencil className="h-4 w-4" />
       </Button>
-    ) : null;
 
-  const facCentreColumns = useMemo(
-    () => [
-      { key: "centre", label: "Centre" },
-      { key: "start", label: "Start" },
-      { key: "end", label: "End" },
-    ],
-    [],
+      {!row.end && (
+        <Button
+          size="xs"
+          color="warning"
+          onClick={() => closeAssignment(row.id)}
+        >
+          Close
+        </Button>
+      )}
+
+      {row.end && (
+        <Button
+          size="xs"
+          color="failure"
+          onClick={() => confirmDeleteAssignment(row.id)}
+          title="Delete History"
+        >
+          <HiTrash className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
+  // Facilitator Centre Rows
   const facCentreRows = useMemo(() => {
     return (facCentreLinks || []).map((x: any) => ({
       id: x.id,
@@ -304,51 +401,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }, [facCentreLinks]);
 
-  const renderFacCentreActions = (row: any) =>
-    !row.end ? (
-      <Button
-        size="xs"
-        color="light"
-        onClick={() => closeFacilitatorCentre(row.id)}
-      >
-        Close
-      </Button>
-    ) : null;
-
-  const employeeColumns = useMemo(
-    () => [
-      { key: "name", label: "Employee Name" },
-      { key: "email", label: "Employee Email" },
-    ],
-    [],
-  );
-  const employeeRows = useMemo(() => {
-    return employeeForFacilitator
-      ? [
-          {
-            id: employeeForFacilitator.id,
-            name: employeeForFacilitator.name ?? "—",
-            email: employeeForFacilitator.email,
-          },
-        ]
-      : [];
-  }, [employeeForFacilitator]);
-
-  const facilitatorColumns = useMemo(
-    () => [
-      { key: "name", label: "Facilitator Name" },
-      { key: "email", label: "Facilitator Email" },
-    ],
-    [],
-  );
-  const facilitatorRows = useMemo(() => {
-    return (facilitatorsForEmployee || []).map((f: any) => ({
-      id: f.id,
-      name: f.name ?? "—",
-      email: f.email,
-    }));
-  }, [facilitatorsForEmployee]);
-
+  // Classroom Rows
   const classroomRowsFormatted = useMemo(() => {
     return (facClassrooms || []).map((c: any) => ({
       ...c,
@@ -356,32 +409,32 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       centre: c.centre ? `${c.centre.code} — ${c.centre.name}` : c.centreId,
       section:
         c.section === "JR" ? (
-          <Badge color="pink" className="uppercase">
+          <Badge color="pink" className="uppercase inline-block">
             JR
           </Badge>
         ) : c.section === "SR" ? (
-          <Badge color="purple" className="uppercase">
+          <Badge color="purple" className="uppercase inline-block">
             SR
           </Badge>
         ) : (
-          <Badge color="indigo" className="uppercase">
+          <Badge color="indigo" className="uppercase inline-block">
             JR/SR
           </Badge>
         ),
       timing:
         c.timing === "MORNING" ? (
-          <Badge color="success" className="uppercase">
+          <Badge color="success" className="uppercase inline-block">
             MORNING
           </Badge>
         ) : (
-          <Badge color="warning" className="uppercase">
+          <Badge color="warning" className="uppercase inline-block">
             EVENING
           </Badge>
         ),
       status: (
         <Badge
           color={c.status === "ACTIVE" ? "success" : "gray"}
-          className="uppercase"
+          className="uppercase inline-block"
         >
           {c.status}
         </Badge>
@@ -395,7 +448,28 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }, [facClassrooms]);
 
-  // Export helpers (export-all only per table)
+  // Employee Rows
+  const employeeRows = useMemo(() => {
+    return employeeForFacilitator
+      ? [
+          {
+            id: employeeForFacilitator.id,
+            name: employeeForFacilitator.name ?? "—",
+            email: employeeForFacilitator.email,
+          },
+        ]
+      : [];
+  }, [employeeForFacilitator]);
+
+  // Facilitator Rows
+  const facilitatorRows = useMemo(() => {
+    return (facilitatorsForEmployee || []).map((f: any) => ({
+      id: f.id,
+      name: f.name ?? "—",
+      email: f.email,
+    }));
+  }, [facilitatorsForEmployee]);
+
   async function exportAllTutorAssignmentsForUser(): Promise<
     Record<string, any>[]
   > {
@@ -404,9 +478,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     const out: Record<string, any>[] = [];
     while (true) {
       const res = await fetch(
-        `/api/admin/assignments/tutor?userId=${encodeURIComponent(
-          userId,
-        )}&page=${pageAll}&pageSize=${pageSizeAll}`,
+        `/api/admin/assignments/tutor?userId=${encodeURIComponent(userId)}&page=${pageAll}&pageSize=${pageSizeAll}`,
         { cache: "no-store" },
       );
       if (!res.ok) throw new Error(await res.text());
@@ -436,9 +508,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     Record<string, any>[]
   > {
     const res = await fetch(
-      `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(
-        userId,
-      )}`,
+      `/api/admin/assignments/facilitator-centre?facilitatorId=${encodeURIComponent(userId)}`,
       { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
@@ -500,7 +570,8 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }
 
-  if (loading) {
+
+  if (initialLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-20">
         <div className="flex flex-col items-center gap-3">
@@ -527,7 +598,11 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           <div>
             Roles:{" "}
             {(user.currentRoles || []).map((r: string) => (
-              <Badge key={r} color="info" className="mr-1 uppercase">
+              <Badge
+                key={r}
+                color="info"
+                className="mr-1 uppercase inline-block"
+              >
                 {r}
               </Badge>
             ))}
@@ -535,7 +610,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* Tutor assignments */}
+      {/* --- TUTOR SECTION --- */}
       {(user?.currentRoles || []).includes("TUTOR") && (
         <>
           <div className="mb-2 flex items-center justify-between">
@@ -546,6 +621,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 sheetName="Tutor Assignments"
                 columns={[
                   { key: "classroom", label: "Classroom" },
+                  { key: "section", label: "Section" },
                   { key: "centre", label: "Centre" },
                   { key: "start", label: "Start" },
                   { key: "end", label: "End" },
@@ -559,30 +635,21 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           <DataTable
             columns={[
               { key: "classroom", label: "Classroom" },
+              { key: "section", label: "Section" },
               { key: "centre", label: "Centre" },
               { key: "start", label: "Start" },
               { key: "end", label: "End" },
               { key: "tag", label: "Type" },
             ]}
-            rows={rows}
-            actions={(row: any) =>
-              !row.end ? (
-                <Button
-                  size="xs"
-                  color="light"
-                  onClick={() => closeAssignment(row.id)}
-                >
-                  Close
-                </Button>
-              ) : null
-            }
+            rows={tutorRows}
+            actions={tutorActions}
             page={1}
-            pageSize={rows.length}
+            pageSize={tutorRows.length}
           />
         </>
       )}
 
-      {/* Facilitator area */}
+      {/* --- FACILITATOR SECTION --- */}
       {(user?.currentRoles || []).includes("FACILITATOR") && (
         <div className="mt-8">
           <h3 className="font-medium mb-2">Assign Centre</h3>
@@ -592,8 +659,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             </div>
             <Button
               onClick={assignCentre}
-              disabled={!pickCentre || loading}
-              className="ml-4 inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium shadow hover:bg-blue-700 transition"
+              disabled={!pickCentre || processing}
+              className="ml-4 inline-flex items-center"
+              color="blue"
             >
               Assign
             </Button>
@@ -708,7 +776,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* Employee area */}
+      {/* --- EMPLOYEE SECTION --- */}
       {(user?.currentRoles || []).includes("RELF_EMPLOYEE") && (
         <div className="mt-8">
           <div className="mb-2 flex items-center justify-between">
@@ -737,6 +805,27 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           />
         </div>
       )}
+
+
+      <EditAssignmentModal
+        open={editModalOpen}
+        assignment={editingAssignment}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateDates}
+      />
+
+      <ConfirmDeleteModal
+        open={deleteModalOpen}
+        title="Delete Assignment History"
+        message="Are you sure you want to delete this assignment record? This cannot be undone."
+        confirmLabel="Delete"
+        processing={processing}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setAssignmentToDelete(null);
+        }}
+        onConfirm={performDeleteAssignment}
+      />
     </div>
   );
 }
