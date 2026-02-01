@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   const invoiceDateStr = body?.invoiceDate;
   const invoiceDate = invoiceDateStr ? new Date(invoiceDateStr) : new Date();
 
-gy  const items = Array.isArray(body?.items) ? body.items : [];
+  const items = Array.isArray(body?.items) ? body.items : [];
 
   if (!invoiceNo || !billToName || items.length === 0) {
     return new NextResponse(
