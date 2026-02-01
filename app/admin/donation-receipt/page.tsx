@@ -6,12 +6,10 @@ import DonationFormModal from "@/components/donation/DonationFormModal";
 import DonationPreviewModal from "@/components/donation/DonationPreviewModal";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button } from "flowbite-react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react"; // Added Pencil for Edit
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
-// 1. IMPORT NAVIGATION HOOKS
-import { useRouter, useSearchParams } from "next/navigation";
 
 // Matches your Donation Schema & API Response
 type DonationRow = {
@@ -46,11 +44,6 @@ export default function DonationReceiptsPage() {
   const [pendingDelete, setPendingDelete] = useState<DonationRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // 2. INITIALIZE HOOKS
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const editIdParam = searchParams.get("editId");
-
   // --- API URL ---
   const url = useMemo(() => {
     const sp = new URLSearchParams();
@@ -81,32 +74,6 @@ export default function DonationReceiptsPage() {
     load();
   }, [load]);
 
-  // 3. NEW EFFECT: Auto-open modal if editId is present
-  useEffect(() => {
-    if (editIdParam) {
-      const fetchAndOpen = async () => {
-        const toastId = toast.loading("Opening donation receipt...");
-        try {
-          const res = await fetch(`/api/admin/donation-receipt/${editIdParam}`);
-          if (!res.ok) throw new Error("Receipt not found");
-          const fullData = await res.json();
-
-          toast.dismiss(toastId);
-          setSelectedRow(fullData);
-          setFormMode("edit");
-          setFormOpen(true);
-
-          // Clear the URL so refreshing doesn't re-open the modal
-          router.replace("/admin/finance/donations");
-        } catch (e) {
-          toast.error("Could not load receipt from link", { id: toastId });
-        }
-      };
-
-      fetchAndOpen();
-    }
-  }, [editIdParam, router]);
-
   // --- CREATE / UPDATE HANDLER ---
   const handleFormSubmit = async (data: any) => {
     try {
@@ -134,7 +101,7 @@ export default function DonationReceiptsPage() {
       }
 
       toast.success(
-        formMode === "create" ? "Donation Receipt Created" : "Donation Updated",
+        formMode === "create" ? "Donation Receipt Created" : "Donation Updated"
       );
       load();
       setFormOpen(false);
@@ -145,7 +112,9 @@ export default function DonationReceiptsPage() {
 
   // --- OPEN EDIT ---
   const openEdit = (row: DonationRow) => {
-    // Fetch full details (helper function)
+    // You might want to fetch the full single row first if the list API
+    // doesn't return all fields (e.g. address/pan might be missing in list view).
+    // Assuming list view returns enough or we fetch:
     fetchFullAndOpen(row.id, "edit");
   };
 
@@ -154,7 +123,7 @@ export default function DonationReceiptsPage() {
     fetchFullAndOpen(row.id, "preview");
   };
 
-  // Helper to fetch full details before opening modal
+  // Helper to fetch full details before opening modal (ensures all fields like address exist)
   const fetchFullAndOpen = async (id: string, type: "edit" | "preview") => {
     const toastId = toast.loading("Loading details...");
     try {
@@ -188,7 +157,7 @@ export default function DonationReceiptsPage() {
       setDeletingId(pendingDelete.id);
       const res = await fetch(
         `/api/admin/donation-receipt/${encodeURIComponent(pendingDelete.id)}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       );
       if (!res.ok) throw new Error(await res.text());
       toast.success("Deleted successfully");

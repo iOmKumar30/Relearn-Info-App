@@ -64,11 +64,6 @@ export async function getFinancialYearDetails(yearId: string) {
       include: {
         months: {
           orderBy: { month: "asc" },
-          include: {
-            _count: {
-              select: { transactions: true },
-            },
-          },
         },
       },
     });
@@ -82,13 +77,7 @@ export async function getFinancialYearDetails(yearId: string) {
 
       const updatedYear = await prisma.financialYear.findUnique({
         where: { id: yearId },
-        include: {
-          months: {
-            include: {
-              _count: { select: { transactions: true } },
-            },
-          },
-        },
+        include: { months: true },
       });
 
       return {
