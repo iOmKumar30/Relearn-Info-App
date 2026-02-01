@@ -65,11 +65,16 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
-  const rows = useMemo(
-    () =>
-      data.map((r) => ({
+  const rows = useMemo(() => {
+    return [...data]
+      .sort((a, b) => {
+        const yearA = parseInt(String(a.year).slice(0, 4));
+        const yearB = parseInt(String(b.year).slice(0, 4));
+
+        return yearB - yearA; // descending (latest first)
+      })
+      .map((r) => ({
         ...r,
-        // Use a different key for display if possible, or just accept that 'rows' is for display only
         displayTitle: (
           <Link
             href={`/projects/${r.id}`}
@@ -88,9 +93,8 @@ export default function ProjectsPage() {
         ),
         funds: r.funds ? `₹${r.funds}` : "—",
         sponsoredBy: r.sponsoredBy || "—",
-      })),
-    [data]
-  );
+      }));
+  }, [data]);
 
   const columns = useMemo(
     () => [
@@ -100,7 +104,7 @@ export default function ProjectsPage() {
       { key: "funds", label: "Funds (Lakhs)" },
       { key: "sponsoredBy", label: "Sponsor" },
     ],
-    []
+    [],
   );
 
   return (
