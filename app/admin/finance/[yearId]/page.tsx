@@ -153,7 +153,7 @@ export default async function FinancialYearDetail({
 
                 <div className="mt-2 text-center">
                   <span className="text-[10px] text-gray-400 font-medium">
-                    {statement.transactions?.length || 0} transactions recorded
+                    {statement._count?.transactions || 0} transactions recorded
                   </span>
                 </div>
               </div>
