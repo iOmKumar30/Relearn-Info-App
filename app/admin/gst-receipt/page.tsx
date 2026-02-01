@@ -6,10 +6,12 @@ import GstFormModal from "@/components/gst-receipt/GstFormModal";
 import GstPreviewModal from "@/components/gst-receipt/GstPreviewModal";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button } from "flowbite-react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react"; // 1. Import Pencil
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
+// 1. IMPORT NAVIGATION HOOKS
+import { useRouter, useSearchParams } from "next/navigation";
 
 type GstRow = {
   id: string;
@@ -29,7 +31,6 @@ type GstRow = {
 };
 
 export default function GstReceiptsPage() {
-  // ... (existing state declarations remain the same) ...
   const [rows, setRows] = useState<GstRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -48,7 +49,11 @@ export default function GstReceiptsPage() {
   const [pendingDelete, setPendingDelete] = useState<GstRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // ... (url and load function remain the same) ...
+  // 2. INITIALIZE HOOKS
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const editIdParam = searchParams.get("editId");
+
   const url = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set("page", String(page));
@@ -77,7 +82,32 @@ export default function GstReceiptsPage() {
     load();
   }, [load]);
 
-  // --- UPDATED HANDLER ---
+  // 3. NEW EFFECT: Auto-open modal if editId is present
+  useEffect(() => {
+    if (editIdParam) {
+      const fetchAndOpen = async () => {
+        const toastId = toast.loading("Opening invoice...");
+        try {
+          const res = await fetch(`/api/admin/gst-receipt/${editIdParam}`);
+          if (!res.ok) throw new Error("Receipt not found");
+          const fullData = await res.json();
+
+          toast.dismiss(toastId);
+          setSelectedRow(fullData);
+          setEditMode("edit");
+          setFormOpen(true);
+
+          // Clear the URL so refreshing doesn't re-open the modal
+          router.replace("/admin/finance/gst-receipts");
+        } catch (e) {
+          toast.error("Could not load receipt from link", { id: toastId });
+        }
+      };
+
+      fetchAndOpen();
+    }
+  }, [editIdParam, router]);
+
   const handleCreateOrUpdate = async (data: any) => {
     try {
       let res;
@@ -105,7 +135,7 @@ export default function GstReceiptsPage() {
       }
 
       toast.success(
-        editMode === "create" ? "Receipt Created" : "Receipt Updated"
+        editMode === "create" ? "Receipt Created" : "Receipt Updated",
       );
       load();
       setFormOpen(false); // Close modal on success
@@ -114,7 +144,6 @@ export default function GstReceiptsPage() {
     }
   };
 
-  // ... (delete handlers remain the same) ...
   const confirmDelete = useCallback((row: GstRow) => {
     setPendingDelete(row);
   }, []);
@@ -125,7 +154,7 @@ export default function GstReceiptsPage() {
       setDeletingId(pendingDelete.id);
       const res = await fetch(
         `/api/admin/gst-receipt/${encodeURIComponent(pendingDelete.id)}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!res.ok) throw new Error(await res.text());
       toast.success("Deleted successfully");
@@ -144,9 +173,7 @@ export default function GstReceiptsPage() {
     setFormOpen(true);
   };
 
-  // 2. Add openEdit Helper
   const openEdit = async (row: GstRow) => {
-    // Fetch full details to get 'items' array which might be missing in list view
     const toastId = toast.loading("Loading details...");
     try {
       const res = await fetch(`/api/admin/gst-receipt/${row.id}`);
@@ -246,7 +273,6 @@ export default function GstReceiptsPage() {
                         View
                       </Button>
 
-                      {/* 3. Add Edit Button */}
                       <Button
                         size="xs"
                         color="light"
@@ -289,7 +315,6 @@ export default function GstReceiptsPage() {
           </table>
         </div>
 
-        {/* ... Pagination ... */}
         <div className="mt-3 flex items-center justify-end gap-2 text-sm">
           <span>
             Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
@@ -320,7 +345,6 @@ export default function GstReceiptsPage() {
           onSubmit={handleCreateOrUpdate}
         />
 
-        {/* ... Preview and Delete Modals ... */}
         {previewRow && (
           <GstPreviewModal
             open={previewOpen}

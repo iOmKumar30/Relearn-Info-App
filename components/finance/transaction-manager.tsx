@@ -1,18 +1,28 @@
 "use client";
 
 import { deleteTransaction, upsertTransaction } from "@/app/actions/finance";
+import {
+  createDonationFromTxn,
+  createGstReceiptFromTxn,
+  createVoucherFromTxn,
+} from "@/app/actions/finance-generators";
 import { TRANSACTION_REASONS } from "@/app/admin/finance/_constants/finance-options";
 import PartySelect from "@/components/finance/party-select";
 import { toLocalDateInput } from "@/libs/finance-utils";
 import {
   CalendarClock,
+  ChevronDown,
   Edit2,
+  FileText,
   Hash,
+  Heart,
   Landmark,
   Plus,
+  Receipt,
   Save,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import ExportXlsxButton from "../CrudControls/ExportXlsxButton";
@@ -36,6 +46,7 @@ export function TransactionManager({
   transactions: any[];
   statementId: string;
 }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -212,7 +223,7 @@ export function TransactionManager({
 
   const exportPreface = [
     { Label: "Generated On", Value: new Date().toLocaleDateString() },
-    { Label: "", Value: "" }, 
+    { Label: "", Value: "" },
     { Label: "Opening Balance", Value: openingBalance },
     { Label: "Total Income (Credits)", Value: totalIncome },
     { Label: "Total Expense (Debits)", Value: totalExpense },
@@ -225,417 +236,497 @@ export function TransactionManager({
     colorClass: string,
   ) => {
     if (list.length === 0) return null;
+    // inside TransactionManager component
 
-    return (
-      <div className="mb-8">
-        <h4
-          className={`px-4 py-2 text-sm font-bold uppercase tracking-wider bg-gray-50 border-y border-gray-100 ${colorClass}`}
-        >
-          {title} ({list.length})
-        </h4>
-        <div className="divide-y divide-gray-100">
-          {list.map((txn: any) => (
-            <div
-              key={txn.id}
-              className="group transition-colors hover:bg-gray-50"
-            >
-              {editingId !== txn.id ? (
-                <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span
-                        className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded border ${txn.type === "CREDIT" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+    // TransactionManager.tsx
+
+    const handleGenerateVoucher = async (txn: any) => {
+      const toastId = toast.loading("Creating Voucher...");
+      const res = await createVoucherFromTxn(txn, txn.serialNo);
+
+      if (res.success) {
+        toast.success("Redirecting to Edit...", { id: toastId });
+        // NEW: Use query param ?editId=...
+        router.push(`/admin/voucher?editId=${res.id}`);
+      } else {
+        toast.error(res.error || "Failed to create voucher", { id: toastId });
+        console.error("Voucher Generation Error:", res.error);
+      }
+    };
+
+    const handleGenerateGST = async (txn: any) => {
+      const toastId = toast.loading("Creating Invoice...");
+      const res = await createGstReceiptFromTxn(txn, txn.serialNo);
+      if (res.success) {
+        toast.success("Redirecting to Edit...", { id: toastId });
+        // NEW: Use query param ?editId=...
+        router.push(`/admin/gst-receipt?editId=${res.id}`);
+      } else {
+        toast.error(res.error || "Failed to create invoice", { id: toastId });
+        console.error("GST Generation Error:", res.error);
+      }
+    };
+
+    const handleGenerateDonation = async (txn: any) => {
+      const toastId = toast.loading("Creating Donation...");
+      const res = await createDonationFromTxn(txn, txn.serialNo);
+      if (res.success) {
+        toast.success("Redirecting to Edit...", { id: toastId });
+        // NEW: Use query param ?editId=...
+        router.push(`/admin/donation-receipt?editId=${res.id}`);
+      } else {
+        toast.error(res.error || "Failed to create donation", { id: toastId });
+        console.error("Donation Generation Error:", res.error);
+      };
+
+      return (
+        <div className="mb-8">
+          <h4
+            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider bg-gray-50 border-y border-gray-100 ${colorClass}`}
+          >
+            {title} ({list.length})
+          </h4>
+          <div className="divide-y divide-gray-100">
+            {list.map((txn: any) => (
+              <div
+                key={txn.id}
+                className="group transition-colors hover:bg-gray-50"
+              >
+                {editingId !== txn.id ? (
+                  <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span
+                          className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded border ${txn.type === "CREDIT" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
+                        >
+                          {txn.serialNo}
+                        </span>
+                        {/* --------------------- */}
+
+                        <span className="font-mono text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                          {formatDateDisplay(txn.txnDate)}
+                        </span>
+                        {txn.valueDate && (
+                          <span className="font-mono text-xs text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                            <CalendarClock className="w-3 h-3 text-gray-400" />
+                            {formatDateDisplay(txn.valueDate)}
+                          </span>
+                        )}
+                        {txn.txnId && (
+                          <span className="text-[10px] text-gray-400 font-mono flex items-center gap-0.5">
+                            <Hash className="w-3 h-3" />
+                            {txn.txnId}
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className="text-sm font-medium text-gray-900 truncate"
+                        title={txn.description}
                       >
-                        {txn.serialNo}
-                      </span>
-                      {/* --------------------- */}
+                        {txn.description}
+                      </p>
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500 font-mono">
+                        {txn.refNo && <span>Ref: {txn.refNo}</span>}
+                        {txn.branchCode && (
+                          <span className="flex items-center gap-1">
+                            <Landmark className="w-3 h-3" />
+                            Branch: {txn.branchCode}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {txn.partyName ? (
+                          <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                            Party: {txn.partyName}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
+                            Missing Party
+                          </span>
+                        )}
+                        {txn.reason ? (
+                          <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                            Reason: {txn.reason}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
+                            Missing Reason
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right w-32 shrink-0">
+                      <p
+                        className={`text-sm font-bold ${txn.type === "CREDIT"
+                            ? "text-green-600"
+                            : "text-red-600"
+                          }`}
+                      >
+                        {txn.type === "CREDIT" ? "+" : "-"}{" "}
+                        {Number(txn.amount).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Bal: {Number(txn.runningBalance).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                      {txn.type === "DEBIT" ? (
+                        <button
+                          onClick={() => handleGenerateVoucher(txn)}
+                          title="Generate Payment Voucher"
+                          className="p-2 text-purple-600 hover:bg-purple-50 bg-white border border-gray-200 rounded-lg shadow-sm"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        // CREDIT TRANSACTION: Need options (GST or Donation)
+                        // Using a simple HTML dropdown logic or Flowbite Dropdown for speed
+                        <div className="relative group/dropdown">
+                          <button
+                            className="p-2 text-green-600 hover:bg-green-50 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center gap-1"
+                            title="Generate Receipt"
+                          >
+                            <Receipt className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
 
-                      <span className="font-mono text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                        {formatDateDisplay(txn.txnDate)}
-                      </span>
-                      {txn.valueDate && (
-                        <span className="font-mono text-xs text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                          <CalendarClock className="w-3 h-3 text-gray-400" />
-                          {formatDateDisplay(txn.valueDate)}
-                        </span>
+                          {/* Simple Custom Dropdown Menu */}
+                          <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-100 rounded-lg shadow-lg hidden group-hover/dropdown:block z-50 overflow-hidden">
+                            <button
+                              onClick={() => handleGenerateGST(txn)}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <FileText className="w-3 h-3 text-gray-400" /> GST
+                              Invoice
+                            </button>
+                            <button
+                              onClick={() => handleGenerateDonation(txn)}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50"
+                            >
+                              <Heart className="w-3 h-3 text-pink-400" /> Donation
+                            </button>
+                          </div>
+                        </div>
                       )}
-                      {txn.txnId && (
-                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-0.5">
-                          <Hash className="w-3 h-3" />
-                          {txn.txnId}
-                        </span>
-                      )}
-                    </div>
-                    <p
-                      className="text-sm font-medium text-gray-900 truncate"
-                      title={txn.description}
-                    >
-                      {txn.description}
-                    </p>
-                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 font-mono">
-                      {txn.refNo && <span>Ref: {txn.refNo}</span>}
-                      {txn.branchCode && (
-                        <span className="flex items-center gap-1">
-                          <Landmark className="w-3 h-3" />
-                          Branch: {txn.branchCode}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {txn.partyName ? (
-                        <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                          Party: {txn.partyName}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
-                          Missing Party
-                        </span>
-                      )}
-                      {txn.reason ? (
-                        <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
-                          Reason: {txn.reason}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
-                          Missing Reason
-                        </span>
-                      )}
+                      <button
+                        onClick={() => handleEditClick(txn)}
+                        className="p-2 text-gray-500 hover:text-blue-600 bg-white border border-gray-200 rounded-lg shadow-sm"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(txn.id)}
+                        className="p-2 text-gray-500 hover:text-red-600 bg-white border border-gray-200 rounded-lg shadow-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="text-right w-32 shrink-0">
-                    <p
-                      className={`text-sm font-bold ${
-                        txn.type === "CREDIT"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {txn.type === "CREDIT" ? "+" : "-"}{" "}
-                      {Number(txn.amount).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Bal: {Number(txn.runningBalance).toLocaleString("en-IN")}
-                    </p>
+                ) : (
+                  <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400">
+                    <h4 className="text-sm font-bold text-yellow-800 mb-4">
+                      Editing Transaction
+                    </h4>
+                    <TransactionForm
+                      data={formData}
+                      onChange={setFormData}
+                      onSave={() => handleSave(txn.id)}
+                      onCancel={() => setEditingId(null)}
+                    />
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                    <button
-                      onClick={() => handleEditClick(txn)}
-                      className="p-2 text-gray-500 hover:text-blue-600 bg-white border border-gray-200 rounded-lg shadow-sm"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(txn.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 bg-white border border-gray-200 rounded-lg shadow-sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400">
-                  <h4 className="text-sm font-bold text-yellow-800 mb-4">
-                    Editing Transaction
-                  </h4>
-                  <TransactionForm
-                    data={formData}
-                    onChange={setFormData}
-                    onSave={() => handleSave(txn.id)}
-                    onCancel={() => setEditingId(null)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            ))}
+          </div>
         </div>
+      );
+    };
+    const getExportFileName = () => {
+      const dateRef =
+        transactions.length > 0 ? new Date(transactions[0].txnDate) : new Date();
+
+      const monthName = dateRef.toLocaleString("default", { month: "long" });
+      const year = dateRef.getFullYear();
+
+      return `RELF ${monthName}-${year}`;
+    };
+    return (
+      <div>
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h3 className="font-semibold text-gray-700">Transactions Log</h3>
+
+          <div className="flex gap-2">
+            <ExportXlsxButton
+              fileName={getExportFileName()}
+              visibleRows={processedData}
+              fetchAll={getExportData}
+              columns={exportColumns}
+              preface={exportPreface}
+            />
+
+            <button
+              onClick={() => {
+                setIsCreating(true);
+                setEditingId(null);
+                setFormData(initialFormState);
+              }}
+              className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" /> Add Manually
+            </button>
+          </div>
+        </div>
+
+        {isCreating && (
+          <div className="p-6 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
+            <h4 className="text-sm font-bold text-blue-800 mb-4">
+              New Transaction
+            </h4>
+            <TransactionForm
+              data={formData}
+              onChange={setFormData}
+              onSave={() => handleSave()}
+              onCancel={() => setIsCreating(false)}
+            />
+          </div>
+        )}
+
+        {renderTransactionList(credits, "Income (Credits)", "text-green-700")}
+        {renderTransactionList(debits, "Expenses (Debits)", "text-red-700")}
+
+        {transactions.length === 0 && (
+          <div className="p-12 text-center text-gray-500 text-sm">
+            No transactions found for this month.
+          </div>
+        )}
       </div>
     );
-  };
-  const getExportFileName = () => {
-    const dateRef =
-      transactions.length > 0 ? new Date(transactions[0].txnDate) : new Date();
+  }
 
-    const monthName = dateRef.toLocaleString("default", { month: "long" });
-    const year = dateRef.getFullYear();
+  function TransactionForm({ data, onChange, onSave, onCancel }: any) {
+    const handleChange = (field: string, value: any) => {
+      onChange({ ...data, [field]: value });
+    };
 
-    return `RELF ${monthName}-${year}`;
-  };
-  return (
-    <div>
-      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-        <h3 className="font-semibold text-gray-700">Transactions Log</h3>
+    const handleReasonOptionChange = (
+      e: React.ChangeEvent<HTMLSelectElement>,
+    ) => {
+      const val = e.target.value;
+      onChange({
+        ...data,
+        reasonOption: val,
+        customReason: val === "Others" ? data.customReason : "",
+      });
+    };
 
-        <div className="flex gap-2">
-          <ExportXlsxButton
-            fileName={getExportFileName()}
-            visibleRows={processedData}
-            fetchAll={getExportData}
-            columns={exportColumns}
-            preface={exportPreface}
-          />
+    const handlePartyOptionChange = (val: string) => {
+      onChange({
+        ...data,
+        partyOption: val,
+        customParty: val === "Others" ? data.customParty : "",
+      });
+    };
 
-          <button
-            onClick={() => {
-              setIsCreating(true);
-              setEditingId(null);
-              setFormData(initialFormState);
-            }}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" /> Add Manually
-          </button>
+    const isOthersSelected = data.reasonOption === "Others";
+    const isPartyOthersSelected = data.partyOption === "Others";
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Txn Date
+            </label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.txnDate}
+              onChange={(e) => handleChange("txnDate", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Value Date
+            </label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.valueDate}
+              onChange={(e) => handleChange("valueDate", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Amount
+            </label>
+            <input
+              type="number"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.amount}
+              onChange={(e) => handleChange("amount", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Type
+            </label>
+            <select
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.type}
+              onChange={(e) => handleChange("type", e.target.value)}
+            >
+              <option value="DEBIT">Debit (Expense)</option>
+              <option value="CREDIT">Credit (Income)</option>
+            </select>
+          </div>
         </div>
-      </div>
 
-      {isCreating && (
-        <div className="p-6 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
-          <h4 className="text-sm font-bold text-blue-800 mb-4">
-            New Transaction
-          </h4>
-          <TransactionForm
-            data={formData}
-            onChange={setFormData}
-            onSave={() => handleSave()}
-            onCancel={() => setIsCreating(false)}
-          />
-        </div>
-      )}
-
-      {renderTransactionList(credits, "Income (Credits)", "text-green-700")}
-      {renderTransactionList(debits, "Expenses (Debits)", "text-red-700")}
-
-      {transactions.length === 0 && (
-        <div className="p-12 text-center text-gray-500 text-sm">
-          No transactions found for this month.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TransactionForm({ data, onChange, onSave, onCancel }: any) {
-  const handleChange = (field: string, value: any) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const handleReasonOptionChange = (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    const val = e.target.value;
-    onChange({
-      ...data,
-      reasonOption: val,
-      customReason: val === "Others" ? data.customReason : "",
-    });
-  };
-
-  const handlePartyOptionChange = (val: string) => {
-    onChange({
-      ...data,
-      partyOption: val,
-      customParty: val === "Others" ? data.customParty : "",
-    });
-  };
-
-  const isOthersSelected = data.reasonOption === "Others";
-  const isPartyOthersSelected = data.partyOption === "Others";
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Txn Date
-          </label>
-          <input
-            type="date"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.txnDate}
-            onChange={(e) => handleChange("txnDate", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Value Date
-          </label>
-          <input
-            type="date"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.valueDate}
-            onChange={(e) => handleChange("valueDate", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Amount
+          <label className="block text-xs font-bold text-gray-700 mb-1">
+            Running Balance (Bank Balance after this txn)
           </label>
           <input
             type="number"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.amount}
-            onChange={(e) => handleChange("amount", e.target.value)}
+            className="w-full md:w-1/4 p-2 border border-gray-300 rounded bg-white text-sm font-mono"
+            value={data.runningBalance}
+            onChange={(e) => handleChange("runningBalance", e.target.value)}
           />
+          <p className="text-[10px] text-gray-400 mt-1">
+            Usually calculated automatically, but you can override here.
+          </p>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Type
-          </label>
-          <select
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.type}
-            onChange={(e) => handleChange("type", e.target.value)}
-          >
-            <option value="DEBIT">Debit (Expense)</option>
-            <option value="CREDIT">Credit (Income)</option>
-          </select>
-        </div>
-      </div>
 
-      <div>
-        <label className="block text-xs font-bold text-gray-700 mb-1">
-          Running Balance (Bank Balance after this txn)
-        </label>
-        <input
-          type="number"
-          className="w-full md:w-1/4 p-2 border border-gray-300 rounded bg-white text-sm font-mono"
-          value={data.runningBalance}
-          onChange={(e) => handleChange("runningBalance", e.target.value)}
-        />
-        <p className="text-[10px] text-gray-400 mt-1">
-          Usually calculated automatically, but you can override here.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Description (Bank)
-          </label>
-          <input
-            type="text"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.description}
-            onChange={(e) => handleChange("description", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Branch Code
-          </label>
-          <input
-            type="text"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.branchCode}
-            onChange={(e) => handleChange("branchCode", e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Ref No.
-          </label>
-          <input
-            type="text"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.refNo}
-            onChange={(e) => handleChange("refNo", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">
-            Txn ID (Optional)
-          </label>
-          <input
-            type="text"
-            className="w-full p-2 border rounded bg-white text-sm"
-            value={data.txnId}
-            onChange={(e) => handleChange("txnId", e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200/50">
-        <div>
-          <label className="block text-xs font-bold text-blue-600 mb-1">
-            Party Name (Who?)
-          </label>
-
-          <div className="space-y-2">
-            <PartySelect
-              value={data.partyOption}
-              onChange={handlePartyOptionChange}
-              placeholder="Search Member/Intern or type 'Others'..."
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Description (Bank)
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.description}
+              onChange={(e) => handleChange("description", e.target.value)}
             />
-            {isPartyOthersSelected && (
-              <input
-                type="text"
-                placeholder="Specify other party name..."
-                autoFocus
-                className="w-full p-2 border border-blue-300 rounded bg-blue-50 text-sm animate-in fade-in slide-in-from-top-1"
-                value={data.customParty}
-                onChange={(e) => handleChange("customParty", e.target.value)}
-              />
-            )}
-            {!isPartyOthersSelected && (
-              <p className="text-[10px] text-gray-400">
-                Tip: Type "Others" above to enter a custom name manually.
-              </p>
-            )}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Branch Code
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.branchCode}
+              onChange={(e) => handleChange("branchCode", e.target.value)}
+            />
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-purple-600 mb-1">
-            Reason (Why?)
-          </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Ref No.
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.refNo}
+              onChange={(e) => handleChange("refNo", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Txn ID (Optional)
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded bg-white text-sm"
+              value={data.txnId}
+              onChange={(e) => handleChange("txnId", e.target.value)}
+            />
+          </div>
+        </div>
 
-          <div className="space-y-2">
-            <select
-              className="w-full p-2 border border-purple-200 rounded bg-white focus:ring-2 focus:ring-purple-500 text-sm"
-              value={data.reasonOption}
-              onChange={handleReasonOptionChange}
-            >
-              <option value="">-- Select Reason --</option>
-              {TRANSACTION_REASONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-              {!TRANSACTION_REASONS.includes("Others") && (
-                <option value="Others">Others</option>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200/50">
+          <div>
+            <label className="block text-xs font-bold text-blue-600 mb-1">
+              Party Name (Who?)
+            </label>
+
+            <div className="space-y-2">
+              <PartySelect
+                value={data.partyOption}
+                onChange={handlePartyOptionChange}
+                placeholder="Search Member/Intern or type 'Others'..."
+              />
+              {isPartyOthersSelected && (
+                <input
+                  type="text"
+                  placeholder="Specify other party name..."
+                  autoFocus
+                  className="w-full p-2 border border-blue-300 rounded bg-blue-50 text-sm animate-in fade-in slide-in-from-top-1"
+                  value={data.customParty}
+                  onChange={(e) => handleChange("customParty", e.target.value)}
+                />
               )}
-            </select>
+              {!isPartyOthersSelected && (
+                <p className="text-[10px] text-gray-400">
+                  Tip: Type "Others" above to enter a custom name manually.
+                </p>
+              )}
+            </div>
+          </div>
 
-            {isOthersSelected && (
-              <input
-                type="text"
-                placeholder="Specify other reason..."
-                autoFocus
-                className="w-full p-2 border border-purple-300 rounded bg-purple-50 text-sm animate-in fade-in slide-in-from-top-1"
-                value={data.customReason}
-                onChange={(e) => handleChange("customReason", e.target.value)}
-              />
-            )}
+          <div>
+            <label className="block text-xs font-bold text-purple-600 mb-1">
+              Reason (Why?)
+            </label>
+
+            <div className="space-y-2">
+              <select
+                className="w-full p-2 border border-purple-200 rounded bg-white focus:ring-2 focus:ring-purple-500 text-sm"
+                value={data.reasonOption}
+                onChange={handleReasonOptionChange}
+              >
+                <option value="">-- Select Reason --</option>
+                {TRANSACTION_REASONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+                {!TRANSACTION_REASONS.includes("Others") && (
+                  <option value="Others">Others</option>
+                )}
+              </select>
+
+              {isOthersSelected && (
+                <input
+                  type="text"
+                  placeholder="Specify other reason..."
+                  autoFocus
+                  className="w-full p-2 border border-purple-300 rounded bg-purple-50 text-sm animate-in fade-in slide-in-from-top-1"
+                  value={data.customReason}
+                  onChange={(e) => handleChange("customReason", e.target.value)}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-end gap-3 mt-4">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onSave}
-          className="px-6 py-2 text-sm bg-gray-900 text-white hover:bg-black rounded-lg flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" /> Save Changes
-        </button>
+        <div className="flex justify-end gap-3 mt-4">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            className="px-6 py-2 text-sm bg-gray-900 text-white hover:bg-black rounded-lg flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" /> Save Changes
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 }
