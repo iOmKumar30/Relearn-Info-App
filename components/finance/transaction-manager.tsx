@@ -1,22 +1,30 @@
 "use client";
 
 import { deleteTransaction, upsertTransaction } from "@/app/actions/finance";
+import {
+  createDonationFromTxn,
+  createGstReceiptFromTxn,
+  createVoucherFromTxn,
+} from "@/app/actions/finance-generators";
 import { TRANSACTION_REASONS } from "@/app/admin/finance/_constants/finance-options";
 import PartySelect from "@/components/finance/party-select";
 import { toLocalDateInput } from "@/libs/finance-utils";
 import {
   CalendarClock,
   Edit2,
+  FileText,
   Hash,
   Landmark,
   Plus,
   Save,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import ExportXlsxButton from "../CrudControls/ExportXlsxButton";
-
+import { ActionDropdown } from "./ActionDropdown";
+// --- HELPER: FORMAT DATE ---
 const formatDateDisplay = (dateStr: string | Date) => {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
@@ -36,9 +44,11 @@ export function TransactionManager({
   transactions: any[];
   statementId: string;
 }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
+  // --- 1. PROCESS DATA ---
   const processedData = useMemo(() => {
     let creditCount = 0;
     let debitCount = 0;
@@ -59,6 +69,7 @@ export function TransactionManager({
   const credits = processedData.filter((t) => t.type === "CREDIT");
   const debits = processedData.filter((t) => t.type === "DEBIT");
 
+  // --- 2. CALCULATE TOTALS ---
   const totalIncome = credits.reduce((sum, t) => sum + Number(t.amount), 0);
   const totalExpense = debits.reduce((sum, t) => sum + Number(t.amount), 0);
   const closingBalance =
@@ -67,6 +78,7 @@ export function TransactionManager({
       : 0;
   const openingBalance = closingBalance - totalIncome + totalExpense;
 
+  // --- 3. FORM STATE ---
   const initialFormState = {
     txnDate: "",
     valueDate: "",
@@ -87,6 +99,44 @@ export function TransactionManager({
 
   const [formData, setFormData] = useState(initialFormState);
 
+  const handleGenerateVoucher = async (txn: any) => {
+    const toastId = toast.loading("Creating Voucher...");
+    const res = await createVoucherFromTxn(txn, txn.serialNo);
+
+    if (res.success) {
+      toast.success("Redirecting to Edit...", { id: toastId });
+      router.push(`/admin/voucher?editId=${res.id}`);
+      toast.dismiss(toastId); // NOTE THIS LINE TO DISMISS
+    } else {
+      toast.error(res.error || "Failed to create voucher", { id: toastId });
+    }
+  };
+
+  const handleGenerateGST = async (txn: any) => {
+    const toastId = toast.loading("Creating Invoice...");
+    const res = await createGstReceiptFromTxn(txn, txn.serialNo);
+    if (res.success) {
+      toast.success("Redirecting to Edit...", { id: toastId });
+      router.push(`/admin/gst-receipt?editId=${res.id}`);
+      toast.dismiss(toastId); // NOTE THIS LINE TO DISMISS
+    } else {
+      toast.error(res.error || "Failed to create invoice", { id: toastId });
+    }
+  };
+
+  const handleGenerateDonation = async (txn: any) => {
+    const toastId = toast.loading("Creating Donation...");
+    const res = await createDonationFromTxn(txn, txn.serialNo);
+    if (res.success) {
+      toast.success("Redirecting to Edit...", { id: toastId });
+      router.push(`/admin/donation-receipt?editId=${res.id}`);
+      toast.dismiss(toastId); // NOTE THIS LINE TO DISMISS
+    } else {
+      toast.error(res.error || "Failed to create donation", { id: toastId });
+    }
+  };
+
+  // --- 5. CRUD HANDLERS ---
   const handleEditClick = (txn: any) => {
     setEditingId(txn.id);
     setIsCreating(false);
@@ -128,7 +178,7 @@ export function TransactionManager({
         runningBalance: existingBalance,
       });
     } catch (error) {
-      console.error("Error while editing transaction:", error);
+      console.error("Error editing transaction:", error);
     }
   };
 
@@ -186,6 +236,177 @@ export function TransactionManager({
     }
   };
 
+  // --- 6. RENDER LIST HELPER ---
+  const renderTransactionList = (
+    list: any[],
+    title: string,
+    colorClass: string,
+  ) => {
+    if (list.length === 0) return null;
+
+    return (
+      <div className="mb-8">
+        <h4
+          className={`px-4 py-2 text-sm font-bold uppercase tracking-wider bg-gray-50 border-y border-gray-100 ${colorClass}`}
+        >
+          {title} ({list.length})
+        </h4>
+        <div className="divide-y divide-gray-100">
+          {list.map((txn: any) => (
+            <div
+              key={txn.id}
+              className="group transition-colors hover:bg-gray-50"
+            >
+              {editingId !== txn.id ? (
+                <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    {/* Tags Row */}
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span
+                        className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded border ${
+                          txn.type === "CREDIT"
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : "bg-red-100 text-red-700 border-red-200"
+                        }`}
+                      >
+                        {txn.serialNo}
+                      </span>
+                      <span className="font-mono text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                        {formatDateDisplay(txn.txnDate)}
+                      </span>
+                      {txn.valueDate && (
+                        <span className="font-mono text-xs text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                          <CalendarClock className="w-3 h-3 text-gray-400" />
+                          {formatDateDisplay(txn.valueDate)}
+                        </span>
+                      )}
+                      {txn.txnId && (
+                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-0.5">
+                          <Hash className="w-3 h-3" />
+                          {txn.txnId}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <p
+                      className="text-sm font-medium text-gray-900 truncate"
+                      title={txn.description}
+                    >
+                      {txn.description}
+                    </p>
+
+                    {/* Meta Row */}
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 font-mono">
+                      {txn.refNo && <span>Ref: {txn.refNo}</span>}
+                      {txn.branchCode && (
+                        <span className="flex items-center gap-1">
+                          <Landmark className="w-3 h-3" />
+                          Branch: {txn.branchCode}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Party/Reason Row */}
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {txn.partyName ? (
+                        <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          Party: {txn.partyName}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
+                          Missing Party
+                        </span>
+                      )}
+                      {txn.reason ? (
+                        <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                          Reason: {txn.reason}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
+                          Missing Reason
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Amounts */}
+                  <div className="text-right w-32 shrink-0">
+                    <p
+                      className={`text-sm font-bold ${
+                        txn.type === "CREDIT"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {txn.type === "CREDIT" ? "+" : "-"}{" "}
+                      {Number(txn.amount).toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Bal: {Number(txn.runningBalance).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+
+                  {/* ACTION BUTTONS (HOVER) */}
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity self-center items-center">
+                    {/* DOCUMENT GENERATORS */}
+                    {txn.type === "DEBIT" ? (
+                      <button
+                        onClick={() => handleGenerateVoucher(txn)}
+                        title="Generate Payment Voucher"
+                        className="p-2 text-purple-600 hover:bg-purple-50 bg-white border border-gray-200 rounded-lg shadow-sm"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      // CREDIT: Dropdown for Invoice/Donation
+
+                      <ActionDropdown
+                        onGenerateGST={() => handleGenerateGST(txn)}
+                        onGenerateDonation={() => handleGenerateDonation(txn)}
+                      />
+                    )}
+
+                    {/* SEPARATOR */}
+                    <div className="w-px h-4 bg-gray-300 mx-1"></div>
+
+                    {/* EDIT / DELETE */}
+                    <button
+                      onClick={() => handleEditClick(txn)}
+                      className="p-2 text-gray-500 hover:text-blue-600 bg-white border border-gray-200 rounded-lg shadow-sm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(txn.id)}
+                      className="p-2 text-gray-500 hover:text-red-600 bg-white border border-gray-200 rounded-lg shadow-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // EDIT FORM IN-PLACE
+                <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400">
+                  <h4 className="text-sm font-bold text-yellow-800 mb-4">
+                    Editing Transaction
+                  </h4>
+                  <TransactionForm
+                    data={formData}
+                    onChange={setFormData}
+                    onSave={() => handleSave(txn.id)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // --- 7. EXPORT SETUP ---
   const exportColumns = [
     { key: "serialNo", label: "SI No" },
     { key: "txnDate", label: "Txn Date" },
@@ -212,154 +433,22 @@ export function TransactionManager({
 
   const exportPreface = [
     { Label: "Generated On", Value: new Date().toLocaleDateString() },
-    { Label: "", Value: "" }, 
+    { Label: "", Value: "" },
     { Label: "Opening Balance", Value: openingBalance },
     { Label: "Total Income (Credits)", Value: totalIncome },
     { Label: "Total Expense (Debits)", Value: totalExpense },
     { Label: "Closing Balance", Value: closingBalance },
   ];
 
-  const renderTransactionList = (
-    list: any[],
-    title: string,
-    colorClass: string,
-  ) => {
-    if (list.length === 0) return null;
-
-    return (
-      <div className="mb-8">
-        <h4
-          className={`px-4 py-2 text-sm font-bold uppercase tracking-wider bg-gray-50 border-y border-gray-100 ${colorClass}`}
-        >
-          {title} ({list.length})
-        </h4>
-        <div className="divide-y divide-gray-100">
-          {list.map((txn: any) => (
-            <div
-              key={txn.id}
-              className="group transition-colors hover:bg-gray-50"
-            >
-              {editingId !== txn.id ? (
-                <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span
-                        className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded border ${txn.type === "CREDIT" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}`}
-                      >
-                        {txn.serialNo}
-                      </span>
-                      {/* --------------------- */}
-
-                      <span className="font-mono text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                        {formatDateDisplay(txn.txnDate)}
-                      </span>
-                      {txn.valueDate && (
-                        <span className="font-mono text-xs text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                          <CalendarClock className="w-3 h-3 text-gray-400" />
-                          {formatDateDisplay(txn.valueDate)}
-                        </span>
-                      )}
-                      {txn.txnId && (
-                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-0.5">
-                          <Hash className="w-3 h-3" />
-                          {txn.txnId}
-                        </span>
-                      )}
-                    </div>
-                    <p
-                      className="text-sm font-medium text-gray-900 truncate"
-                      title={txn.description}
-                    >
-                      {txn.description}
-                    </p>
-                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 font-mono">
-                      {txn.refNo && <span>Ref: {txn.refNo}</span>}
-                      {txn.branchCode && (
-                        <span className="flex items-center gap-1">
-                          <Landmark className="w-3 h-3" />
-                          Branch: {txn.branchCode}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {txn.partyName ? (
-                        <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                          Party: {txn.partyName}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
-                          Missing Party
-                        </span>
-                      )}
-                      {txn.reason ? (
-                        <span className="text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
-                          Reason: {txn.reason}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-red-400 border border-red-100 px-1.5 rounded bg-red-50/50">
-                          Missing Reason
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right w-32 shrink-0">
-                    <p
-                      className={`text-sm font-bold ${
-                        txn.type === "CREDIT"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {txn.type === "CREDIT" ? "+" : "-"}{" "}
-                      {Number(txn.amount).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Bal: {Number(txn.runningBalance).toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                    <button
-                      onClick={() => handleEditClick(txn)}
-                      className="p-2 text-gray-500 hover:text-blue-600 bg-white border border-gray-200 rounded-lg shadow-sm"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(txn.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 bg-white border border-gray-200 rounded-lg shadow-sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400">
-                  <h4 className="text-sm font-bold text-yellow-800 mb-4">
-                    Editing Transaction
-                  </h4>
-                  <TransactionForm
-                    data={formData}
-                    onChange={setFormData}
-                    onSave={() => handleSave(txn.id)}
-                    onCancel={() => setEditingId(null)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
   const getExportFileName = () => {
     const dateRef =
       transactions.length > 0 ? new Date(transactions[0].txnDate) : new Date();
-
     const monthName = dateRef.toLocaleString("default", { month: "long" });
     const year = dateRef.getFullYear();
-
     return `RELF ${monthName}-${year}`;
   };
+
+  // --- 8. MAIN RENDER ---
   return (
     <div>
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -413,6 +502,7 @@ export function TransactionManager({
   );
 }
 
+// --- SUB-COMPONENT: FORM ---
 function TransactionForm({ data, onChange, onSave, onCancel }: any) {
   const handleChange = (field: string, value: any) => {
     onChange({ ...data, [field]: value });

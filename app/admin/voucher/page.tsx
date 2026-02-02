@@ -7,7 +7,8 @@ import PaymentVoucherFormModal from "@/components/voucher/PaymentVoucherFormModa
 import PaymentVoucherPreviewModal from "@/components/voucher/PaymentVoucherPreviewModal";
 import { Badge, Button } from "flowbite-react";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation"; // 1. Import navigation hooks
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
@@ -47,16 +48,20 @@ export default function PaymentVoucherPage() {
   const [pendingDelete, setPendingDelete] = useState<VoucherRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // --- URL MEMO ---
+  // 2. Initialize Hooks
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const editIdParam = searchParams.get("editId");
+  const hasOpenedRef = useRef<string | null>(null);
+
   const url = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set("page", String(page));
     sp.set("pageSize", String(pageSize));
     if (q.trim()) sp.set("q", q.trim());
-    return `/api/admin/voucher/list?${sp.toString()}`; // Adjusted URL
+    return `/api/admin/voucher/list?${sp.toString()}`;
   }, [page, pageSize, q]);
 
-  // --- LOAD DATA ---
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -77,23 +82,45 @@ export default function PaymentVoucherPage() {
     load();
   }, [load]);
 
-  // --- CREATE / UPDATE HANDLER ---
+  // 3. New Effect: Check for editId param and open modal automatically
+  useEffect(() => {
+    if (editIdParam && hasOpenedRef.current !== editIdParam) {
+      hasOpenedRef.current = editIdParam;
+
+      const fetchAndOpen = async () => {
+        const toastId = toast.loading("Opening voucher...");
+        try {
+          const res = await fetch(`/api/admin/voucher/${editIdParam}`);
+          if (!res.ok) throw new Error("Voucher not found");
+          const fullData = await res.json();
+
+          toast.dismiss(toastId);
+          setSelectedRow(fullData);
+          setEditMode("edit");
+          setFormOpen(true);
+          
+          router.replace("/admin/voucher");
+        } catch (e) {
+          toast.error("Could not load voucher from link", { id: toastId });
+        }
+      };
+
+      fetchAndOpen();
+    }
+  }, [editIdParam, router]);
+
   const handleCreateOrUpdate = async (data: any) => {
     try {
       let res;
       if (editMode === "create") {
-        // CREATE Logic
         res = await fetch("/api/admin/voucher", {
-          // Adjusted URL
           method: "POST",
           body: JSON.stringify(data),
           headers: { "Content-Type": "application/json" },
         });
       } else {
-        // EDIT Logic
         if (!selectedRow?.id) return;
         res = await fetch(`/api/admin/voucher/${selectedRow.id}`, {
-          // Adjusted URL
           method: "PUT",
           body: JSON.stringify(data),
           headers: { "Content-Type": "application/json" },
@@ -110,13 +137,12 @@ export default function PaymentVoucherPage() {
         editMode === "create" ? "Voucher Created" : "Voucher Updated",
       );
       load();
-      setFormOpen(false); // Close modal on success
+      setFormOpen(false);
     } catch (e) {
       toast.error("An error occurred");
     }
   };
 
-  // --- DELETE HANDLERS ---
   const confirmDelete = useCallback((row: VoucherRow) => {
     setPendingDelete(row);
   }, []);
@@ -126,7 +152,7 @@ export default function PaymentVoucherPage() {
     try {
       setDeletingId(pendingDelete.id);
       const res = await fetch(
-        `/api/admin/voucher/${encodeURIComponent(pendingDelete.id)}`, // Adjusted URL
+        `/api/admin/voucher/${encodeURIComponent(pendingDelete.id)}`,
         { method: "DELETE" },
       );
       if (!res.ok) throw new Error(await res.text());
@@ -147,10 +173,9 @@ export default function PaymentVoucherPage() {
   };
 
   const openEdit = async (row: VoucherRow) => {
-    // Fetch full details to ensure 'items' array is present if list view omits it
     const toastId = toast.loading("Loading details...");
     try {
-      const res = await fetch(`/api/admin/voucher/${row.id}`); // Adjusted URL
+      const res = await fetch(`/api/admin/voucher/${row.id}`);
       if (!res.ok) throw new Error("Failed");
       const fullData = await res.json();
       toast.dismiss(toastId);
@@ -166,7 +191,7 @@ export default function PaymentVoucherPage() {
 
   const openPreview = async (row: VoucherRow) => {
     try {
-      const res = await fetch(`/api/admin/voucher/${row.id}`); // Adjusted URL
+      const res = await fetch(`/api/admin/voucher/${row.id}`);
       if (!res.ok) throw new Error("Failed to load details");
       const fullData = await res.json();
       setPreviewRow(fullData);
@@ -281,7 +306,7 @@ export default function PaymentVoucherPage() {
                 <tr>
                   <td
                     className="px-3 py-6 text-center text-gray-500"
-                    colSpan={6} // Increased colspan for new column
+                    colSpan={6}
                   >
                     {loading ? (
                       <ClipLoader size={40} />
@@ -295,7 +320,6 @@ export default function PaymentVoucherPage() {
           </table>
         </div>
 
-        {/* ... Pagination ... */}
         <div className="mt-3 flex items-center justify-end gap-2 text-sm">
           <span>
             Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
