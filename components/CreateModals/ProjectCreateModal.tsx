@@ -11,9 +11,9 @@ import {
   Textarea,
   TextInput,
 } from "flowbite-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { HiOutlineStar, HiStar } from "react-icons/hi"; // Icons for rating
+import { HiOutlineStar, HiStar } from "react-icons/hi";
 
 type Props = {
   open: boolean;
@@ -34,13 +34,16 @@ export default function ProjectCreateModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<any>({});
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  const outcomeRef = useRef<HTMLTextAreaElement>(null);
+  const nextRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
       setForm(
         mode === "edit" && initialValues
           ? { ...initialValues }
-          : { status: "ONGOING", funds: 0, rating: 0 } // Default rating 0
+          : { status: "ONGOING", funds: 0, rating: 0 }, // Default rating 0
       );
     }
   }, [open, mode, initialValues]);
@@ -116,6 +119,18 @@ export default function ProjectCreateModal({
       )}
     </div>
   );
+
+  const autoGrow = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+  useEffect(() => {
+    if (open) {
+      descRef.current && autoGrow(descRef.current);
+      outcomeRef.current && autoGrow(outcomeRef.current);
+      nextRef.current && autoGrow(nextRef.current);
+    }
+  }, [open]);
 
   return (
     <Modal show={open} onClose={onClose} size="4xl">
@@ -235,16 +250,26 @@ export default function ProjectCreateModal({
               <Textarea
                 rows={3}
                 value={form.description || ""}
-                onChange={(e) => handleChange("description", e.target.value)}
+                onChange={(e) => {
+                  handleChange("description", e.target.value);
+                  autoGrow(e.target);
+                }}
+                ref={descRef}
+                className="resize-none overflow-hidden min-h-40"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Conclusion</Label>
+                <Label>Outcome</Label>
                 <Textarea
                   rows={2}
                   value={form.conclusion || ""}
-                  onChange={(e) => handleChange("conclusion", e.target.value)}
+                  onChange={(e) => {
+                    handleChange("conclusion", e.target.value);
+                    autoGrow(e.target);
+                  }}
+                  ref={outcomeRef}
+                  className="resize-none overflow-hidden min-h-40"
                 />
               </div>
               <div>
@@ -252,7 +277,12 @@ export default function ProjectCreateModal({
                 <Textarea
                   rows={2}
                   value={form.nextSteps || ""}
-                  onChange={(e) => handleChange("nextSteps", e.target.value)}
+                  onChange={(e) => {
+                    handleChange("nextSteps", e.target.value);
+                    autoGrow(e.target);
+                  }}
+                  ref={nextRef}
+                  className="resize-none overflow-hidden min-h-40"
                 />
               </div>
             </div>

@@ -23,7 +23,6 @@ import {
   HiUsers,
 } from "react-icons/hi";
 
-// --- Custom "Card" Component to guarantee Light Theme ---
 const LightCard = ({
   children,
   className = "",
@@ -38,7 +37,6 @@ const LightCard = ({
   </div>
 );
 
-// --- Reusable Document Viewer Component ---
 const DocumentViewer = ({
   title,
   url,
@@ -299,15 +297,15 @@ export default function ProjectDetailsPage({
           <div className="lg:col-span-8 space-y-8">
             {/* Description Card */}
             <LightCard className="p-6 sm:p-8">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
                   <HiDocumentText className="h-5 w-5" />
                 </div>
-                Project Overview
-              </h3>
+                PROJECT OVERVIEW
+              </h2>
 
               <div className="prose prose-slate prose-lg max-w-none text-gray-600 leading-relaxed mb-8">
-                <p className="whitespace-pre-wrap">
+                <p className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed font-medium">
                   {project.description || "No description provided yet."}
                 </p>
               </div>
@@ -319,7 +317,7 @@ export default function ProjectDetailsPage({
                     <HiCheckCircle className="h-5 w-5 text-blue-600" /> Outcome
                   </h4>
                   <p className="text-sm text-gray-800 leading-relaxed font-medium">
-                    {project.conclusion || "Pending conclusion."}
+                    {project.conclusion || "Pending Outcome."}
                   </p>
                 </div>
 
