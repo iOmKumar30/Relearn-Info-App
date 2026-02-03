@@ -13,7 +13,7 @@ import StateSelect from "@/components/CrudControls/StateSelect";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 
@@ -100,12 +100,24 @@ const classroomFilters: FilterOption[] = [
 ];
 
 export default function ClassroomsPage() {
-  // UI state
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
-  const pageSize = 20;
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+
+  // Initialize filters from URL
+  const [filters, setFilters] = useState<Record<string, string>>(() => {
+    const f: Record<string, string> = {};
+    if (searchParams.get("centreCode"))
+      f.centreCode = searchParams.get("centreCode")!;
+    if (searchParams.get("section")) f.section = searchParams.get("section")!;
+    if (searchParams.get("timing")) f.timing = searchParams.get("timing")!;
+    if (searchParams.get("status")) f.status = searchParams.get("status")!;
+    if (searchParams.get("state")) f.state = searchParams.get("state")!;
+    return f;
+  });
+  const pageSize = 20;
 
   // Create/Edit/Delete state
   const [createOpen, setCreateOpen] = useState(false);
@@ -177,7 +189,7 @@ export default function ClassroomsPage() {
       if (filters.state) url.searchParams.set("state", filters.state);
       return url;
     },
-    [debouncedSearch, filters]
+    [debouncedSearch, filters],
   );
 
   // Fetch all classrooms across pages with current filters/search
@@ -217,7 +229,7 @@ export default function ClassroomsPage() {
           dateClosed: r.dateClosed
             ? new Date(r.dateClosed).toLocaleDateString("en-GB")
             : "",
-        }))
+        })),
       );
 
       if (rows.length < pageSizeAll) break;
@@ -330,9 +342,9 @@ export default function ClassroomsPage() {
       if (!centreId) {
         const centreRes = await fetch(
           `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(
-            centreName
+            centreName,
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         if (!centreRes.ok) throw new Error(await centreRes.text());
         const centreJson = await centreRes.json();
@@ -347,8 +359,8 @@ export default function ClassroomsPage() {
         section: payload.section_code.toUpperCase().startsWith("J")
           ? "JR"
           : payload.section_code.toUpperCase().startsWith("S")
-          ? "SR"
-          : "BOTH",
+            ? "SR"
+            : "BOTH",
         timing: payload.timing.toUpperCase().startsWith("M")
           ? "MORNING"
           : "EVENING",
@@ -391,9 +403,9 @@ export default function ClassroomsPage() {
       if (!centreId) {
         const centreRes = await fetch(
           `/api/admin/centres?page=1&pageSize=1&q=${encodeURIComponent(
-            centreName
+            centreName,
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         if (!centreRes.ok) throw new Error(await centreRes.text());
         const centreJson = await centreRes.json();
@@ -407,8 +419,8 @@ export default function ClassroomsPage() {
         section: payload.section_code.toUpperCase().startsWith("J")
           ? "JR"
           : payload.section_code.toUpperCase().startsWith("S")
-          ? "SR"
-          : "BOTH",
+            ? "SR"
+            : "BOTH",
         timing: payload.timing.toUpperCase().startsWith("M")
           ? "MORNING"
           : "EVENING",
@@ -492,6 +504,23 @@ export default function ClassroomsPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+  // Sync URL with State
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (page > 1) params.set("page", String(page)); // Only set if not default
+
+    // Add filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+
+    // Update URL without refreshing (replace history to avoid cluttering back button)
+    // or push if you want every filter change to be a history step.
+    // "replace" is usually better for typing search, "push" for filters.
+    // For simplicity, let's use replace here so "Back" goes to previous page, not previous filter state.
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [debouncedSearch, filters, page, pathname, router]);
 
   return (
     <RBACGate roles={["ADMIN"]}>

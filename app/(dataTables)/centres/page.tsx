@@ -12,7 +12,7 @@ import StateSelect from "@/components/CrudControls/StateSelect";
 import RBACGate from "@/components/RBACGate";
 import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipLoader } from "react-spinners";
 
@@ -75,10 +75,20 @@ const centreFilters: FilterOption[] = [
 
 export default function CentresPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+  const [filters, setFilters] = useState<Record<string, string>>(() => {
+    const f: Record<string, string> = {};
+    if (searchParams.get("status")) f.status = searchParams.get("status")!;
+    if (searchParams.get("state")) f.state = searchParams.get("state")!;
+    if (searchParams.get("city")) f.city = searchParams.get("city")!;
+    if (searchParams.get("district"))
+      f.district = searchParams.get("district")!;
+    return f;
+  });
   const pageSize = 20;
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,7 +101,7 @@ export default function CentresPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: CentreRow[] } | null>(
-    null
+    null,
   );
   const debouncedSearch = useDebounce(search, 800);
 
@@ -143,7 +153,7 @@ export default function CentresPage() {
       if (filters.district) url.searchParams.set("district", filters.district);
       return url;
     },
-    [debouncedSearch, filters]
+    [debouncedSearch, filters],
   );
 
   // Fetch all rows across pages using the same API & current filters/search
@@ -177,7 +187,7 @@ export default function CentresPage() {
           dateLeft: r.dateLeft
             ? new Date(r.dateLeft).toLocaleDateString("en-GB")
             : "",
-        }))
+        })),
       );
       if (rows.length < pageSizeAll) break;
       pageAll += 1;
@@ -255,7 +265,7 @@ export default function CentresPage() {
       const body = {
         name: String(payload?.name || "").trim(),
         streetAddress: String(
-          payload?.street_address ?? payload?.streetAddress ?? ""
+          payload?.street_address ?? payload?.streetAddress ?? "",
         ).trim(),
         city: payload?.city ? String(payload.city).trim() : null,
         district: payload?.district ? String(payload.district).trim() : null,
@@ -270,8 +280,8 @@ export default function CentresPage() {
         dateLeft: payload?.date_left
           ? String(payload.date_left).trim() || null
           : payload?.dateLeft
-          ? String(payload.dateLeft).trim() || null
-          : null,
+            ? String(payload.dateLeft).trim() || null
+            : null,
       };
 
       if (
@@ -288,7 +298,7 @@ export default function CentresPage() {
 
       if (!body.name || !body.streetAddress || !body.state || !body.pincode) {
         throw new Error(
-          "Please fill name, street address, state, and pincode."
+          "Please fill name, street address, state, and pincode.",
         );
       }
 
@@ -437,7 +447,19 @@ export default function CentresPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (page > 1) params.set("page", String(page));
 
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+
+    const queryString = params.toString();
+    const url = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(url, { scroll: false });
+  }, [debouncedSearch, filters, page, pathname, router]);
   return (
     <RBACGate roles={["ADMIN"]}>
       <h2 className="mb-4 text-2xl font-semibold">Centres</h2>
@@ -448,7 +470,6 @@ export default function CentresPage() {
           value={search}
           onChange={(v) => {
             setSearch(v);
-            setPage(1);
           }}
           placeholder="Search centres..."
         />
@@ -480,7 +501,6 @@ export default function CentresPage() {
             filters={centreFilters}
             onFilterChange={(f) => {
               setFilters(f);
-              setPage(1); // reset paging on filter change
             }}
           />
         </div>
