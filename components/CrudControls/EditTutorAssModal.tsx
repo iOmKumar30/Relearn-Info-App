@@ -41,7 +41,7 @@ export default function EditAssignmentModal({
 }: Props) {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [type, setType] = useState("PRIMARY"); // "PRIMARY" | "SUBSTITUTE"
+  const [type, setType] = useState("ASSIGNED");
 
   useEffect(() => {
     if (open && assignment) {
@@ -51,7 +51,7 @@ export default function EditAssignmentModal({
       setEnd(toInputDate(assignment.__raw?.endDate || assignment.endDate));
       // Map boolean isSubstitute to string for Select
       const isSub = assignment.__raw?.isSubstitute ?? assignment.isSubstitute;
-      setType(isSub ? "SUBSTITUTE" : "PRIMARY");
+      setType(isSub ? "SUBSTITUTE" : "ASSIGNED");
     }
   }, [open, assignment]);
 
@@ -79,8 +79,8 @@ export default function EditAssignmentModal({
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
-              <option value="PRIMARY">Assigned (Primary)</option>
-              <option value="SUBSTITUTE">Replacement (Substitute)</option>
+              <option value="PRIMARY">Assigned</option>
+              <option value="SUBSTITUTE">Substitute</option>
             </Select>
           </div>
 

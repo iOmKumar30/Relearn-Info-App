@@ -348,7 +348,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
         ? new Date(x.startDate).toLocaleDateString("en-GB")
         : "",
       end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
-      tag: x.isSubstitute ? "Substitute" : "Primary",
+      tag: x.isSubstitute ? "Substitute" : "Assigned",
       __raw: x,
     }));
   }, [assignments]);
@@ -494,7 +494,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
             ? new Date(x.startDate).toLocaleDateString("en-GB")
             : "",
           end: x.endDate ? new Date(x.endDate).toLocaleDateString("en-GB") : "",
-          type: x.isSubstitute ? "Substitute" : "Primary",
+          type: x.isSubstitute ? "Substitute" : "Assigned",
         })),
       );
       if (rows.length < pageSizeAll) break;
