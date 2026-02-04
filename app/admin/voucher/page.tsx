@@ -23,6 +23,7 @@ type VoucherRow = {
   createdAt: string;
   items?: any[];
   expenditureHead?: string;
+  paymentRef?: string;
   paymentMode?: string;
   payeeMobile?: string;
 };

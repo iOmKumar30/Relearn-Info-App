@@ -37,6 +37,7 @@ type VoucherData = {
   payeeMobile?: string;
   items: VoucherItem[];
   paymentMode?: string;
+  paymentRef?: string;
   totalAmount?: number;
   amountInWords?: string;
   approvedByName?: string;
@@ -93,7 +94,7 @@ export default function PaymentVoucherCard({
         }}
       >
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-          <Image src={logoSrc} width={400} height={400} alt="watermark" /> 
+          <Image src={logoSrc} width={400} height={400} alt="watermark" />
         </div>
 
         <header className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
@@ -240,6 +241,21 @@ export default function PaymentVoucherCard({
             <span className="font-serif italic text-slate-700 capitalize">
               {amountWords} Only
             </span>
+          </div>
+        </div>
+        {/* Payment Reference Number */}
+        <div className="mb-12">
+          <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-md px-4 py-3">
+            <div className="w-1 h-10 bg-emerald-500 rounded-full" />
+
+            <div>
+              <p className="text-xs uppercase text-slate-400 font-bold tracking-wider">
+                Payment Reference No
+              </p>
+              <p className="font-semibold text-slate-800 text-sm tracking-wide">
+                {data.paymentRef || "N/A"}
+              </p>
+            </div>
           </div>
         </div>
 

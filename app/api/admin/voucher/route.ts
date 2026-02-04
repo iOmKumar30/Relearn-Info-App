@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
   const payeeName = String(body?.payeeName ?? "").trim();
   const payeeMobile = String(body?.payeeMobile ?? "").trim();
-
+  const paymentRef = String(body?.paymentRef ?? "").trim();
   const paymentMode = String(body?.paymentMode ?? "").trim();
 
   const items = Array.isArray(body?.items) ? body.items : [];
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
         payeeName,
         payeeMobile: payeeMobile || null,
-
+        paymentRef: paymentRef || null,
         // JSON Data
         items,
 
@@ -122,8 +122,7 @@ export async function GET(req: Request) {
         ],
       },
       orderBy: { createdAt: "desc" },
-      // Remove // cacheStrategy if your Prisma client doesn't support it (e.g. Accelerate),
-      // otherwise keep it.
+
     });
 
     return NextResponse.json({ rows });

@@ -58,6 +58,7 @@ export default function PaymentVoucherFormModal({
           payeeName: "",
           payeeMobile: "",
           paymentMode: "",
+          paymentRef: "",
         });
         setItems([
           {
@@ -224,6 +225,14 @@ export default function PaymentVoucherFormModal({
                   placeholder="Optional"
                   value={form.payeeMobile || ""}
                   onChange={(e) => handleChange("payeeMobile", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block">Payment Reference Number</Label>
+                <TextInput
+                  placeholder="Optional"
+                  value={form.paymentRef || ""}
+                  onChange={(e) => handleChange("paymentRef", e.target.value)}
                 />
               </div>
             </div>
