@@ -364,25 +364,32 @@ model StudentClassroomAssignment {
 }
 
 model MonthlyClassroomAttendance {
-  id                    String    @id @default(uuid())
-  classroomId           String
-  year                  Int
-  month                 Int
-  totalStudentsEnrolled Int
-  openDays              Int
-  totalPresent          Int
-  attendancePercentage  Decimal   @db.Decimal(5, 2)
-  registerPhotoUrl      String?   @map("register_photo_url")
-  remarks               String?
-  enteredByTutorId      String
-  submittedAt           DateTime  @default(now())
-  lastUpdatedAt         DateTime  @updatedAt
-  classroom             Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  enteredBy             User      @relation("AttendanceEnteredBy", fields: [enteredByTutorId], references: [id], onDelete: Restrict)
+  id          String @id @default(uuid())
+  classroomId String
+  year        Int
+  month       Int
+
+  totalStudentsEnrolled Int?
+  openDays              Int?
+  totalPresent          Int?
+  attendancePercentage  Decimal? @db.Decimal(5, 2)
+
+  registerPhotoUrl String? @map("register_photo_url")
+  remarks          String?
+  tutorPhone       String? @map("tutor_phone")
+
+  submittedAt   DateTime @default(now())
+  lastUpdatedAt DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  enteredById String? @map("entered_by_id")
+  enteredBy   User?   @relation("AttendanceEnteredBy", fields: [enteredById], references: [id], onDelete: Restrict)
 
   @@unique([classroomId, year, month])
-  @@index([enteredByTutorId])
+  @@index([classroomId, year])
   @@index([year, month])
+  @@index([enteredById])
 }
 
 model Donation {
@@ -562,28 +569,30 @@ model GstReceipt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model PaymentVoucher {
-  id              String   @id @default(uuid())
-  voucherNo       String   @unique
-  paymentDate     DateTime
+  id          String   @id @default(uuid())
+  voucherNo   String   @unique
+  paymentDate DateTime
 
   projectName     String?
   expenditureHead String?
 
-  payeeName       String
-  payeeMobile     String?
+  payeeName   String
+  payeeMobile String?
 
-  items           Json?
+  items Json?
 
-  totalAmount     Float
-  amountInWords   String
+  totalAmount   Float
+  amountInWords String
 
-  paymentMode     String?
-  paymentRef      String?
+  paymentMode String?
+  paymentRef  String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
 model InvoiceCounter {
   id            String @id @default(uuid())
   financialYear String @unique // e.g. "25-26"
@@ -625,7 +634,6 @@ enum AssignmentStatus {
   ACTIVE
   LEFT
 }
-
 
 enum Gender {
   M

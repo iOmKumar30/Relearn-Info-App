@@ -12,7 +12,7 @@ import { AppRole, mapBackendRolesToUi } from "@/libs/roles";
 import { Badge, Button, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "react-hot-toast"; // Import toast
+import { toast } from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
 type Row = {
@@ -24,8 +24,13 @@ type Row = {
   gender: string | null;
   status: "ACTIVE" | "INACTIVE";
   onboardingStatus: string;
-  roles: string[]; // Backend RoleName[] from API
+  roles: string[];
   createdAt?: string;
+  member?: {
+    status: string;
+    memberType?: string;
+    typeHistory?: Array<{ memberType: string; endDate?: string | null }>;
+  } | null;
 };
 
 const columns = [
@@ -36,6 +41,23 @@ const columns = [
   { key: "roles", label: "Roles" },
   { key: "status", label: "Status" },
 ];
+
+const formatMemberType = (type: string) => {
+  switch (type) {
+    case "ANNUAL":
+      return "Annual Member";
+    case "LIFE":
+      return "Life Member";
+    case "HONORARY":
+      return "Honorary Member";
+    case "INTERN":
+      return "Intern";
+    case "FOUNDER":
+      return "Founder";
+    default:
+      return "Member";
+  }
+};
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
@@ -54,7 +76,6 @@ export default function UsersPage() {
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
 
-  // Build list URL with pagination and search
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -115,7 +136,7 @@ export default function UsersPage() {
             name: u.name || "",
             email: u.email,
             phone: u.phone || "",
-            gender: genderLabels[u.gender] || "Not Available",
+            gender: genderLabels[u.gender as string] || "Not Available",
             roles: mapBackendRolesToUi(u.roles as any).join(", "),
             status: u.status,
             onboardingStatus: u.onboardingStatus,
@@ -142,13 +163,12 @@ export default function UsersPage() {
     F: "Female",
     O: "Others",
   };
-  // Visible rows formatted for export (no JSX)
   const formattedVisibleForExport = useMemo(() => {
     return rawRows.map((u) => ({
       name: u.name || "",
       email: u.email,
       phone: u.phone || "",
-      gender: genderLabels[u.gender] || "Not Available",
+      gender: genderLabels[u.gender as string] || "Not Available",
       roles: mapBackendRolesToUi(u.roles as any).join(", "),
       status: u.status,
       onboardingStatus: u.onboardingStatus,
@@ -188,7 +208,22 @@ export default function UsersPage() {
 
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((u) => {
-      const uiRoleLabels = mapBackendRolesToUi(u.roles as any);
+      const resolvedRoles = u.roles.map((r) => {
+        if (r === "MEMBER") {
+          if (u.member && u.member.status === "ACTIVE") {
+            if (u.member.typeHistory?.length) {
+              const active = u.member.typeHistory.find((h) => !h.endDate);
+              if (active) return formatMemberType(active.memberType);
+            }
+            if (u.member.memberType)
+              return formatMemberType(u.member.memberType);
+          }
+          return "Member";
+        }
+        return r;
+      });
+
+      const uiRoleLabels = mapBackendRolesToUi(resolvedRoles);
 
       return {
         ...u,
@@ -223,31 +258,91 @@ export default function UsersPage() {
     gender: string;
     status: "ACTIVE" | "INACTIVE";
     roles: AppRole[];
+    memberType?: string; // Add this
   }) => {
     const toastId = toast.loading("Creating user...");
     try {
       setLoading(true);
       setError(null);
 
-      const body = {
+      // 1. Create User First
+      const userBody = {
         name: payload.name?.trim(),
         email: payload.email?.trim(),
         phone: payload.phone?.trim(),
         address: payload.address?.trim(),
         gender: payload.gender,
         roles: payload.roles,
+        // We do NOT send memberType to User API anymore
       };
 
-      const res = await fetch("/api/admin/users", {
+      const userRes = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(userBody),
       });
-      if (!res.ok) throw new Error(await res.text());
+
+      if (!userRes.ok) throw new Error(await userRes.text());
+      const createdUser = await userRes.json();
+
+      // 2. If a Member Type is selected, Call the Specific Member API
+      // We check if "MEMBER" role is present AND memberType is set
+      if (payload.roles.includes("MEMBER") && payload.memberType) {
+        // Determine correct endpoint based on type
+        let memberEndpoint = "";
+        switch (payload.memberType) {
+          case "ANNUAL":
+            memberEndpoint = "/api/admin/members/annual";
+            break;
+          case "LIFE":
+            memberEndpoint = "/api/admin/members/life";
+            break;
+          case "HONORARY":
+            memberEndpoint = "/api/admin/members/honorary";
+            break;
+        }
+
+        if (memberEndpoint) {
+          toast.loading(`Creating ${payload.memberType} record...`, {
+            id: toastId,
+          });
+
+          // Construct payload for Member API
+          // Your Member APIs likely expect: { name, email, phone, pan, joiningDate, fees... }
+          // Since User is already created with this email, the Member API logic
+          // (which we optimized previously) should find the user by email and just link the member record.
+
+          const memberBody = {
+            name: payload.name,
+            email: payload.email,
+            phone: payload.phone,
+            // You might want to add fields like PAN or Joining Date to User Modal if needed,
+            // otherwise send defaults or empty
+            pan: "",
+            joiningDate: new Date().toISOString().slice(0, 10), // Default to today
+            fees: {}, // No fees initially from User Modal
+            typeHistory: [], // Let API handle default history
+          };
+
+          const memberRes = await fetch(memberEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(memberBody),
+          });
+
+          if (!memberRes.ok) {
+            // CRITICAL: User created, but Member failed.
+            // In a real app, you might want to "undo" user creation here, or just warn the admin.
+            throw new Error(
+              `User created, but failed to create Member record: ${await memberRes.text()}`,
+            );
+          }
+        }
+      }
 
       await fetchRows();
       setCreateOpen(false);
-      toast.success("User created successfully", { id: toastId });
+      toast.success("User (and Member) created successfully", { id: toastId });
     } catch (e: any) {
       const msg = e?.message || "Failed to create user";
       setError(msg);
@@ -265,6 +360,7 @@ export default function UsersPage() {
       email: string;
       phone: string;
       address: string;
+      memberType?: string;
       gender: string;
       status: "ACTIVE" | "INACTIVE";
       roles: AppRole[];
@@ -281,6 +377,7 @@ export default function UsersPage() {
         address: payload.address?.trim(),
         gender: payload.gender,
         status: payload.status,
+        memberType: payload.memberType,
         roles: payload.roles,
       };
       const res = await fetch(`/api/admin/users/${user_id}`, {
@@ -458,6 +555,24 @@ export default function UsersPage() {
           gender: editRow?.gender || "",
           status: editRow?.status,
           roles: (editRow?.roles as AppRole[]) || [],
+
+          memberType: (() => {
+            if (editRow?.member && editRow.member.status === "ACTIVE") {
+              // 1. Priority: Check history for active type (endDate is null)
+              if (
+                editRow.member.typeHistory &&
+                editRow.member.typeHistory.length > 0
+              ) {
+                const activeEntry = editRow.member.typeHistory.find(
+                  (h: any) => !h.endDate,
+                );
+                if (activeEntry) return activeEntry.memberType;
+              }
+              // 2. Fallback: Use direct memberType field
+              return editRow.member.memberType;
+            }
+            return "";
+          })(),
         }}
         onUpdate={(user_id, payload) => handleUpdate(user_id, payload as any)}
         onClose={() => {

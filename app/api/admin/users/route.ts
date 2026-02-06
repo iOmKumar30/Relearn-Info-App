@@ -53,6 +53,19 @@ export async function GET(req: Request) {
           where: { endDate: null },
           select: { role: { select: { name: true } } },
         },
+        member: {
+          select: {
+            status: true,
+            memberType: true,
+            typeHistory: {
+              where: { endDate: null }, 
+              select: {
+                memberType: true,
+                endDate: true,
+              },
+            },
+          },
+        },
       },
     }),
   ]);
@@ -67,11 +80,13 @@ export async function GET(req: Request) {
     status: u.status,
     onboardingStatus: u.onboardingStatus,
     roles: u.roleHistory.map((h: any) => h.role.name),
+    member: u.member, 
     createdAt: u.createdAt,
   }));
 
   return NextResponse.json({ page, pageSize, total, rows: mapped });
 }
+
 
 // POST /api/admin/users (create user + credentials + assign roles immediately)
 export async function POST(req: Request) {

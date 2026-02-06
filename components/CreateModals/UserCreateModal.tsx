@@ -23,7 +23,7 @@ interface Props {
 
   // Edit flow
   mode?: "create" | "edit";
-  initialValues?: Partial<FormState>;
+  initialValues?: Partial<FormState> & { memberType?: string }; // Allow passing memberType in initialValues
   onUpdate?: (user_id: string, payload: Omit<FormState, "user_id">) => void;
 }
 
@@ -36,6 +36,7 @@ type FormState = {
   status: "ACTIVE" | "INACTIVE";
   roles: AppRole[]; // use canonical role type
   gender: string;
+  memberType?: string; // New field to track specific member type
 };
 
 const EMPTY_FORM: FormState = {
@@ -46,7 +47,15 @@ const EMPTY_FORM: FormState = {
   status: "ACTIVE",
   roles: [],
   gender: "",
+  memberType: "",
 };
+
+// Custom labels for the UI split
+const MEMBER_SUB_TYPES = [
+  { label: "Annual Member", value: "ANNUAL" },
+  { label: "Life Member", value: "LIFE" },
+  { label: "Honorary Member", value: "HONORARY" },
+];
 
 export default function UserCreateModal({
   open,
@@ -62,6 +71,8 @@ export default function UserCreateModal({
     if (!open) return;
 
     if (mode === "edit" && initialValues) {
+      // Determine member type from initial values if passed, or default to empty
+      // The parent component needs to pass memberType if it exists
       setForm({
         user_id: initialValues.user_id || "",
         name: initialValues.name || "",
@@ -73,6 +84,7 @@ export default function UserCreateModal({
           (initialValues as any).rolesPlain ?? initialValues.roles,
         ),
         gender: initialValues.gender || "",
+        memberType: initialValues.memberType || "",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -87,11 +99,43 @@ export default function UserCreateModal({
   const toggleRole = (role: AppRole) => {
     setForm((prev) => {
       const exists = prev.roles.includes(role);
+      // If unchecking MEMBER directly (though we hid the checkbox, keeping logic safe)
+      if (role === "MEMBER" && exists) {
+        return {
+          ...prev,
+          roles: prev.roles.filter((r) => r !== role),
+          memberType: "", // Reset member type if member role is removed
+        };
+      }
       return {
         ...prev,
         roles: exists
           ? prev.roles.filter((r) => r !== role)
           : [...prev.roles, role],
+      };
+    });
+  };
+
+  const toggleMemberType = (type: string) => {
+    setForm((prev) => {
+      // If clicking the same type, uncheck it (remove MEMBER role)
+      if (prev.memberType === type) {
+        return {
+          ...prev,
+          memberType: "",
+          roles: prev.roles.filter((r) => r !== "MEMBER"),
+        };
+      }
+
+      // If clicking a new type, set it and ensure MEMBER role is present
+      const newRoles = prev.roles.includes("MEMBER")
+        ? prev.roles
+        : [...prev.roles, "MEMBER" as AppRole];
+
+      return {
+        ...prev,
+        memberType: type,
+        roles: newRoles,
       };
     });
   };
@@ -234,7 +278,8 @@ export default function UserCreateModal({
           <div>
             <Label className="mb-2 block">Assign Roles</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {ALL_ROLES.map((role) => (
+              {/* 1. Render Standard Roles (Exclude MEMBER) */}
+              {ALL_ROLES.filter((r) => r !== "MEMBER").map((role) => (
                 <div key={role} className="flex items-center gap-2">
                   <Checkbox
                     id={`role-${role}`}
@@ -244,6 +289,18 @@ export default function UserCreateModal({
                     onChange={() => toggleRole(role)}
                   />
                   <Label htmlFor={`role-${role}`}>{ROLE_LABELS[role]}</Label>
+                </div>
+              ))}
+
+              {/* 2. Render Custom Member Type Checkboxes */}
+              {MEMBER_SUB_TYPES.map((sub) => (
+                <div key={sub.value} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`member-${sub.value}`}
+                    checked={form.memberType === sub.value}
+                    onChange={() => toggleMemberType(sub.value)}
+                  />
+                  <Label htmlFor={`member-${sub.value}`}>{sub.label}</Label>
                 </div>
               ))}
             </div>
