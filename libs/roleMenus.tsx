@@ -95,6 +95,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
             },
             { type: "item", label: "Life Members", href: "/members/life" },
             { type: "item", label: "Annual Members", href: "/members/annual" },
+            { type: "item", label: "GB Members", href: "/members/gb" },
             { type: "item", label: "Intern Members", href: "/members/interns" },
           ],
         },

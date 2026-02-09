@@ -224,23 +224,25 @@ model Employee {
 }
 
 model Member {
-  id          String              @id @default(uuid())
-  memberId    String?             @unique
-  userId      String              @unique // for 1:1 relationship with the user
-  memberType  MemberType
-  joiningDate DateTime
-  leavingDate DateTime?
-  status      MemberStatus        @default(ACTIVE)
-  feeAmount   Decimal?            @db.Decimal(12, 2)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  pan         String?             @db.VarChar(10)
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fees        MemberFee[]
-  typeHistory MemberTypeHistory[]
+  id              String              @id @default(uuid())
+  memberId        String?             @unique
+  userId          String              @unique // for 1:1 relationship with the user
+  memberType      MemberType
+  joiningDate     DateTime
+  leavingDate     DateTime?
+  status          MemberStatus        @default(ACTIVE)
+  feeAmount       Decimal?            @db.Decimal(12, 2)
+  isGoverningBody Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  pan             String?             @db.VarChar(10)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fees            MemberFee[]
+  typeHistory     MemberTypeHistory[]
 
   @@index([status])
   @@index([memberType])
+  @@index([isGoverningBody])
 }
 
 model MemberFee {
