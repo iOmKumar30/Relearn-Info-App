@@ -2,6 +2,7 @@
 
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import MemberSelect from "@/components/CrudControls/MemberSelect";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
@@ -111,12 +112,40 @@ export default function GoverningBodyPage() {
     }
   };
 
+  async function fetchAllForExport(): Promise<Record<string, any>[]> {
+    const url = new URL("/api/admin/members/gb", window.location.origin);
+    url.searchParams.set("page", "1");
+    url.searchParams.set("pageSize", "1000");
+    if (search) url.searchParams.set("q", search);
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch all data");
+    const json = await res.json();
+    const rows = json.rows || [];
+
+    return rows.map((d: any) => ({
+      memberId: d.memberId,
+      name: d.name,
+      email: d.email,
+      memberType: d.memberType,
+      joiningDate: d.joiningDate
+        ? new Date(d.joiningDate).toLocaleDateString("en-GB")
+        : "",
+    }));
+  }
+
+  const exportVisibleRows = data.map((d) => ({
+    memberId: d.memberId,
+    name: d.name,
+    email: d.email,
+    memberType: d.memberType,
+  }));
+
   const columns = [
     { key: "memberId", label: "Member ID" },
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
     { key: "memberType", label: "Type" },
-    { key: "joiningDate", label: "Since" },
   ];
 
   const rows = data.map((d) => ({
@@ -143,15 +172,30 @@ export default function GoverningBodyPage() {
           Governing Body Members
         </h1>
 
-        {/* Toolbar Line */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-2 rounded-lg">
-          {/* Left: Table Search */}
-          <div className="w-full md:w-1/3">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Search GB members..."
-            />
+          <div className="flex w-full md:w-1/2 gap-2 items-center">
+            <div className="flex-1">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search GB members..."
+              />
+            </div>
+            <div className="z-50">
+              <ExportXlsxButton
+                fileName="governing_body_members"
+                sheetName="Governing Body"
+                visibleRows={exportVisibleRows}
+                fetchAll={fetchAllForExport}
+                columns={[
+                  { key: "memberId", label: "Member ID" },
+                  { key: "name", label: "Name" },
+                  { key: "email", label: "Email" },
+                  { key: "memberType", label: "Type" },
+                  { key: "joiningDate", label: "Joining Date" },
+                ]}
+              />
+            </div>
           </div>
 
           <div className="flex w-full md:w-auto items-center gap-2">
@@ -183,7 +227,6 @@ export default function GoverningBodyPage() {
           pageSize={pageSize}
         />
 
-        {/* Pagination */}
         <div className="flex justify-end gap-2 mt-4">
           <Button
             size="xs"
