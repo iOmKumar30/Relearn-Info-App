@@ -341,6 +341,8 @@ export default function CentreClient({ centreId }: { centreId: string }) {
           dateClosed: r.dateClosed
             ? new Date(r.dateClosed).toLocaleDateString("en-GB")
             : "",
+          centre_name: r.centre?.name || "",
+          centre_code: r.centre?.code || "",
         })),
       );
       if (rows.length < pageSizeAll) break;
@@ -430,14 +432,15 @@ export default function CentreClient({ centreId }: { centreId: string }) {
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-medium">Classrooms</h3>
           <div className="z-100">
-            {" "}
-            {/* export control should sit above popovers/menus */}
             <ExportXlsxButton
               fileName={`centre_${centre?.code || centreId}_classrooms`}
               sheetName="Classrooms"
               columns={[
+                { key: "centre_name", label: "Centre Name" },
+                { key: "centre_code", label: "Centre Code" },
                 { key: "code", label: "Classroom Code" },
                 { key: "section", label: "Section" },
+                { key: "tutor", label: "Tutor" },
                 { key: "timing", label: "Timing" },
                 { key: "monthlyAllowance", label: "Monthly Allowance" },
                 { key: "status", label: "Status" },

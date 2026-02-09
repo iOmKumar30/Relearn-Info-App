@@ -6,9 +6,11 @@ import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
+import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { AppRole, mapBackendRolesToUi } from "@/libs/roles";
+import { FilterOption } from "@/types/filterOptions";
 import { Badge, Button, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -63,7 +65,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
-
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
@@ -76,13 +78,45 @@ export default function UsersPage() {
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
 
+  const filterOptions: FilterOption[] = [
+    {
+      key: "gender",
+      label: "Gender",
+      type: "select",
+      options: ["M", "F", "O"],
+    },
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      options: ["ACTIVE", "INACTIVE"],
+    },
+    {
+      key: "role",
+      label: "Role",
+      type: "select",
+      options: [
+        "ADMIN",
+        "FACILITATOR",
+        "MEMBER",
+        "TUTOR",
+        "RELF_EMPLOYEE",
+        "TUTOR_OF_TUTOR",
+        "PENDING",
+      ],
+    },
+  ];
+
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/users", window.location.origin);
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", String(pageSize));
     if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+    if (filters.gender) url.searchParams.set("gender", filters.gender);
+    if (filters.status) url.searchParams.set("status", filters.status);
+    if (filters.role) url.searchParams.set("role", filters.role);
     return url.toString();
-  }, [page, pageSize, debouncedSearch]);
+  }, [page, pageSize, debouncedSearch, filters]);
 
   const fetchRows = useCallback(async () => {
     try {
@@ -112,9 +146,12 @@ export default function UsersPage() {
       url.searchParams.set("page", String(pageParam));
       url.searchParams.set("pageSize", String(pageSizeParam));
       if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
+      if (filters.gender) url.searchParams.set("gender", filters.gender);
+      if (filters.status) url.searchParams.set("status", filters.status);
+      if (filters.role) url.searchParams.set("role", filters.role);
       return url;
     },
-    [debouncedSearch],
+    [debouncedSearch, filters],
   );
 
   async function fetchAllUsers(): Promise<Record<string, any>[]> {
@@ -475,6 +512,13 @@ export default function UsersPage() {
             setPage(1);
           }}
           placeholder="Search users by name, email, or phone..."
+        />
+        <FilterDropdown
+          filters={filterOptions}
+          onFilterChange={(newFilters) => {
+            setFilters(newFilters);
+            setPage(1); // Reset to page 1 when filters change
+          }}
         />
         <div className="flex-1 flex justify-end gap-3 z-100">
           <ExportXlsxButton

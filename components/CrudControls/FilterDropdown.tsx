@@ -2,7 +2,7 @@
 
 import { FilterOption } from "@/types/filterOptions";
 import { FunnelIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface FilterDropdownProps {
   filters: FilterOption[];
@@ -21,9 +21,25 @@ export default function FilterDropdown({
     setSelected(updated);
     onFilterChange(updated);
   }
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
 
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [wrapperRef]);
   return (
-    <div className="relative ml-2">
+    <div ref={wrapperRef} className="relative ml-2">
       <button
         className="inline-flex items-center px-3 py-2 rounded-lg border bg-white text-sm font-medium shadow group"
         onClick={() => setOpen(!open)}

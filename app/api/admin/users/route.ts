@@ -1,7 +1,13 @@
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
-import { OnboardingStatus, Prisma, RoleName, UserStatus } from "@prisma/client";
+import {
+  Gender,
+  OnboardingStatus,
+  Prisma,
+  RoleName,
+  UserStatus,
+} from "@prisma/client";
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -21,16 +27,36 @@ export async function GET(req: Request) {
     Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const q = (searchParams.get("q") || "").trim();
+  const gender = (searchParams.get("gender") || "").trim();
+  const status = (searchParams.get("status") || "").trim();
+  const role = (searchParams.get("role") || "").trim();
+  const where: Prisma.UserWhereInput = {};
 
-  const where: Prisma.UserWhereInput = q
-    ? {
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
-          { phone: { contains: q, mode: "insensitive" } },
-        ],
-      }
-    : {};
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  if (gender) {
+    where.gender = gender as Gender;
+  }
+  if (status) {
+    where.status = status as UserStatus;
+  }
+
+  if (role) {
+    where.roleHistory = {
+      some: {
+        endDate: null, 
+        role: {
+          name: role as RoleName,
+        },
+      },
+    };
+  }
 
   const [total, rows] = await Promise.all([
     prisma.user.count({ where }),
@@ -58,7 +84,7 @@ export async function GET(req: Request) {
             status: true,
             memberType: true,
             typeHistory: {
-              where: { endDate: null }, 
+              where: { endDate: null },
               select: {
                 memberType: true,
                 endDate: true,
@@ -80,13 +106,12 @@ export async function GET(req: Request) {
     status: u.status,
     onboardingStatus: u.onboardingStatus,
     roles: u.roleHistory.map((h: any) => h.role.name),
-    member: u.member, 
+    member: u.member,
     createdAt: u.createdAt,
   }));
 
   return NextResponse.json({ page, pageSize, total, rows: mapped });
 }
-
 
 // POST /api/admin/users (create user + credentials + assign roles immediately)
 export async function POST(req: Request) {
