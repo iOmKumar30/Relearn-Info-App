@@ -19,9 +19,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const [user, setUser] = useState<any>(null);
-  const [assignments, setAssignments] = useState<any[]>([]); 
-  const [facCentreLinks, setFacCentreLinks] = useState<any[]>([]); 
-  const [facClassrooms, setFacClassrooms] = useState<any[]>([]); 
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [facCentreLinks, setFacCentreLinks] = useState<any[]>([]);
+  const [facClassrooms, setFacClassrooms] = useState<any[]>([]);
   const [employeeForFacilitator, setEmployeeForFacilitator] = useState<
     any | null
   >(null);
@@ -45,12 +45,13 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     null,
   );
 
-
   async function fetchUser() {
     const res = await fetch(`/api/admin/users/${userId}`, {
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
     return res.json();
   }
 
@@ -163,8 +164,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
-
-
 
   // Assign a new classroom to tutor
   async function handleAssignTutor() {
@@ -570,7 +569,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }
 
-
   if (initialLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-20">
@@ -805,7 +803,6 @@ export default function UserProfileClient({ userId }: { userId: string }) {
           />
         </div>
       )}
-
 
       <EditAssignmentModal
         open={editModalOpen}

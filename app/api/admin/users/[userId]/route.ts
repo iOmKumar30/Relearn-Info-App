@@ -239,7 +239,55 @@ export async function PUT(
     return new NextResponse("Failed to update user", { status: 500 });
   }
 }
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ userId?: string }> },
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id)
+    return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
+  const { userId } = await ctx.params; // ✅ await params
+  if (!userId)
+    return new NextResponse("Bad Request: missing userId", { status: 400 });
+
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      address: true,
+      status: true,
+      onboardingStatus: true,
+      roleHistory: {
+        where: { endDate: null },
+        select: { role: { select: { name: true } } },
+      },
+      createdAt: true,
+      updatedAt: true,
+    },
+    // cacheStrategy: { ttl: 60, swr: 60 },
+  });
+  if (!u) return new NextResponse("Not Found", { status: 404 });
+
+  const currentRoles = (u.roleHistory ?? []).map((h) => h.role.name);
+  return NextResponse.json({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    address: u.address,
+    status: u.status,
+    onboardingStatus: u.onboardingStatus,
+    currentRoles,
+    createdAt: u.createdAt,
+    updatedAt: u.updatedAt,
+  });
+}
 // DELETE
 export async function DELETE(
   _req: Request,

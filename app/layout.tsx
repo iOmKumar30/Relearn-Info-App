@@ -6,7 +6,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Relearn Foundation",
   description: "Welcome to Relearn Foundation",
-  viewport: "width=device-width, initial-scale=1.0",
 };
 
 export default function RootLayout({
