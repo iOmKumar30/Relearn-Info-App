@@ -10,10 +10,12 @@ export default function ClassroomSelect({
   value,
   onChange,
   placeholder = "Search classrooms...",
+  centreId, 
 }: {
   value?: { id: string; label: string } | null;
   onChange: (v: { id: string; label: string } | null) => void;
-  placeholder?: string;
+    placeholder?: string;
+    centreId?: string
 }) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
@@ -31,6 +33,7 @@ export default function ClassroomSelect({
         url.searchParams.set("page", "1");
         url.searchParams.set("pageSize", "10");
         if (term.trim()) url.searchParams.set("q", term.trim());
+        if (centreId) url.searchParams.set("centreId", centreId);
         const res = await fetch(url.toString(), { cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
@@ -49,7 +52,7 @@ export default function ClassroomSelect({
     return () => {
       if (t.current) clearTimeout(t.current);
     };
-  }, [term, open]);
+  }, [term, open, centreId]);
 
   return (
     <div className="relative">

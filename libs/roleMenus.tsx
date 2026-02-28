@@ -1,5 +1,6 @@
 import {
   BuildingStorefrontIcon,
+  CalendarDaysIcon,
   ClipboardIcon,
   DocumentCheckIcon,
   DocumentCurrencyRupeeIcon,
@@ -58,6 +59,16 @@ const donate: NavItem = {
   href: "https://rzp-payment-serverless.vercel.app",
   icon: FaDonate as any,
   external: true,
+};
+
+// Reusable Attendance Group
+const attendanceGroup: NavGroup = {
+  type: "group",
+  label: "Attendance",
+  icon: CalendarDaysIcon,
+  children: [
+    { type: "item", label: "Student Attendance", href: "/attendance" },
+  ],
 };
 
 export const roleMenus: Record<Role, NavEntry[]> = {
@@ -120,6 +131,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
         },
       ],
     },
+    attendanceGroup, 
     {
       type: "group",
       label: "Certificates",
@@ -198,6 +210,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
         { type: "item", label: "Annual Members", href: "/members/annual" },
       ],
     },
+    attendanceGroup, 
     projects,
     donate,
   ],
@@ -210,6 +223,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
       href: "/classrooms",
       icon: BuildingStorefrontIcon,
     },
+    attendanceGroup, 
     projects,
     donate,
   ],
