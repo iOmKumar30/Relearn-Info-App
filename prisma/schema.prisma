@@ -393,7 +393,11 @@ model MonthlyClassroomAttendance {
   @@index([year, month])
   @@index([enteredById])
 }
-
+model AcademicYear {
+  year      Int      @id
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
 model Donation {
   id            String   @id @default(cuid())
   pan           String

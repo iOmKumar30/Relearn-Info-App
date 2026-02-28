@@ -637,7 +637,7 @@ export default function ClientPageContent({
         </ModalHeader>
         <ModalBody>
           <div className="space-y-4">
-            <p className="text-sm leading-relaxed text-gray-500">
+            <p className="text-sm leading-relaxed text-white">
               Upload the completed Smart Template (.xlsx). Make sure the
               "Tutor's Name (Code)" format remains unchanged.
             </p>

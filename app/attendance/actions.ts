@@ -2,7 +2,20 @@
 
 import prisma from "@/libs/prismadb";
 import { revalidatePath } from "next/cache";
+export async function createAcademicYear(year: number) {
+  try {
+    await prisma.academicYear.upsert({
+      where: { year: year },
+      update: {}, // Do nothing if it already exists
+      create: { year: year },
+    });
 
+    revalidatePath("/attendance");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to create year" };
+  }
+}
 export async function getAttendanceData(year: number, month: number) {
   // 1. Fetch all Active Centres
   const centres = await prisma.centre.findMany({
@@ -139,13 +152,16 @@ export async function deleteAttendance(
 }
 
 export async function getActiveYears() {
-  const records = await prisma.monthlyClassroomAttendance.findMany({
-    select: { year: true },
-    distinct: ["year"],
-    orderBy: { year: "desc" },
-  });
+  try {
+    const academicYears = await prisma.academicYear.findMany({
+      orderBy: { year: "desc" },
+    });
 
-  return records.map((r) => r.year);
+    return academicYears.map((ay) => ay.year);
+  } catch (error) {
+    console.error("Failed to fetch years:", error);
+    return [];
+  }
 }
 
 export async function createYear(year: number) {
