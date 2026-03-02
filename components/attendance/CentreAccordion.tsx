@@ -31,18 +31,17 @@ export default function CentreAccordion({
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [selectedRow, setSelectedRow] = useState<any>(null);
 
-  // FIX: Removed the empty function argument
   const columns = getAttendanceColumns();
 
   const rows = processRows(classrooms);
 
-  // Calculate how many classrooms have submitted attendance
   const submittedCount = classrooms.filter((c) => c.isSubmitted).length;
   const isComplete = submittedCount === classrooms.length;
 
   const openModal = (mode: "create" | "edit", row: any) => {
     setModalMode(mode);
-    setSelectedRow(row);
+    const rawClassroomData = classrooms.find((c) => c.id == row.id);
+    setSelectedRow(rawClassroomData || row);
     setIsModalOpen(true);
   };
 
@@ -92,7 +91,6 @@ export default function CentreAccordion({
             actions={(row) =>
               renderActions(
                 row,
-                // The action passes back the mode ('create' for pending, 'edit' for existing)
                 (selectedRow, mode) => openModal(mode, selectedRow),
                 () => onDelete(row.id),
               )

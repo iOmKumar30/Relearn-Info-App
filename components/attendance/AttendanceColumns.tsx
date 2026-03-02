@@ -23,7 +23,6 @@ export const getAttendanceColumns = () => [
   { key: "remarks", label: "Remarks" },
 ];
 
-// Helper to transform raw API data into Table Rows
 export const processRows = (classrooms: any[]) => {
   return classrooms.map((c) => {
     if (!c.isSubmitted) {

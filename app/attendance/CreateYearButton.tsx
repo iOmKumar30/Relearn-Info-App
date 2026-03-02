@@ -65,7 +65,6 @@ export default function CreateYearButton({
         <HiPlus className="h-5 w-5 text-gray-300 group-hover:text-white transition-colors" />
         <span>Create New Year</span>
       </button>
-
       <Modal
         show={isModalOpen}
         onClose={() => {
@@ -75,11 +74,12 @@ export default function CreateYearButton({
         }}
         size="md"
         popup
-        className="backdrop-blur-sm bg-gray-900/20"
+        className="backdrop-blur-sm bg-gray-900/20 dark:bg-gray-900/60"
         theme={{
           content: {
+            // Added dark mode background (dark:bg-gray-800)
             inner:
-              "relative bg-white rounded-3xl shadow-2xl flex flex-col w-full",
+              "relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl flex flex-col w-full",
           },
         }}
       >
@@ -87,16 +87,17 @@ export default function CreateYearButton({
           {/* Header */}
           <div className="flex items-center justify-between p-5 pb-0">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+              <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
                 <HiOutlineAcademicCap className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold text-white">
+              {/* Adjusted text color for light/dark */}
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                 New Academic Year
               </h3>
             </div>
             <button
               onClick={() => setModalOpen(false)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
               <HiXMark className="h-5 w-5" />
             </button>
@@ -106,12 +107,14 @@ export default function CreateYearButton({
           <div className="p-6">
             <div className="space-y-4">
               <div>
+                {/* Adjusted label color */}
                 <label
                   htmlFor="year"
-                  className="block text-sm font-medium text-white mb-2"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
                 >
                   Enter Year <span className="text-red-500">*</span>
                 </label>
+                {/* Adjusted input background, text, borders, and placeholder for dark mode */}
                 <input
                   id="year"
                   type="number"
@@ -125,18 +128,19 @@ export default function CreateYearButton({
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     error
-                      ? "border-red-300 focus:ring-red-100 focus:border-red-400"
-                      : "border-gray-200 focus:ring-blue-100 focus:border-blue-400"
-                  } bg-gray-50/50 text-gray-900 text-lg transition-all focus:ring-4 focus:outline-none placeholder:text-gray-400`}
+                      ? "border-red-300 dark:border-red-500/50 focus:ring-red-100 dark:focus:ring-red-900/30 focus:border-red-400"
+                      : "border-gray-200 dark:border-gray-600 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400"
+                  } bg-gray-50/50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg transition-all focus:ring-4 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-400`}
                 />
                 {error && (
-                  <p className="mt-2 text-sm text-red-500 font-medium flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-red-500"></span>
+                  <p className="mt-2 text-sm text-red-500 dark:text-red-400 font-medium flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-red-500 dark:bg-red-400"></span>
                     {error}
                   </p>
                 )}
               </div>
-              <p className="text-sm text-white leading-relaxed">
+              {/* Adjusted paragraph text color */}
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                 Initialize a new workspace to start uploading and managing
                 monthly attendance records for this specific year.
               </p>
@@ -145,17 +149,18 @@ export default function CreateYearButton({
 
           {/* Footer */}
           <div className="p-5 pt-0 mt-2 flex gap-3">
+            {/* Adjusted cancel button for dark mode */}
             <button
               onClick={() => setModalOpen(false)}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-3 text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-medium transition-colors"
+              className="flex-1 px-4 py-3 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white rounded-xl font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={isSubmitting || !newYear}
-              className="flex-1 px-4 py-3 text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-blue-300 rounded-xl font-medium transition-all shadow-sm shadow-blue-600/20"
+              className="flex-1 px-4 py-3 text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-blue-300 dark:disabled:bg-blue-800/50 rounded-xl font-medium transition-all shadow-sm shadow-blue-600/20"
             >
               {isSubmitting ? "Creating..." : "Create Year"}
             </button>
