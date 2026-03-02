@@ -6,7 +6,6 @@ import { ClassroomStatus, ClassTiming, SectionCode } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// GET /api/admin/classrooms/:id
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -45,8 +44,7 @@ export async function GET(
   return NextResponse.json(row);
 }
 
-// PUT /api/admin/classrooms/:id (update editable fields; code is immutable)
-// PUT /api/admin/classrooms/:id (update editable fields; code auto-changes with section)
+
 export async function PUT(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -96,10 +94,8 @@ export async function PUT(
       const newCentreId = data.centreId ?? current.centreId;
       const newSection = data.section ?? current.section;
 
-      // Regenerate code if centreId OR section changes
       if (
-        (data.centreId !== undefined && data.centreId !== current.centreId) ||
-        (data.section !== undefined && data.section !== current.section)
+        (data.centreId !== undefined && data.centreId !== current.centreId)
       ) {
         const newCode = await generateClassroomCode(tx, newCentreId);
         codeUpdate = { code: newCode };

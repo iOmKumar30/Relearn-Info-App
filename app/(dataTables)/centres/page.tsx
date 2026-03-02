@@ -5,7 +5,7 @@ import CentreCreateModal from "@/components/CreateModals/CentreCreateModal";
 import AddButton from "@/components/CrudControls/AddButton";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import StateSelect from "@/components/CrudControls/StateSelect";
@@ -14,6 +14,7 @@ import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
 type CentreRow = {
@@ -99,13 +100,11 @@ export default function CentresPage() {
   const [deleteRow, setDeleteRow] = useState<CentreRow | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ total: number; rows: CentreRow[] } | null>(
     null,
   );
   const debouncedSearch = useDebounce(search, 800);
 
-  // Build list URL with pagination + filters + search
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/centres", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -121,13 +120,14 @@ export default function CentresPage() {
   const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
       const res = await fetch(buildUrl(), { cache: "no-store" });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       setData({ total: json.total, rows: json.rows });
     } catch (e: any) {
-      setError(e?.message || "Failed to load centres");
+      toast.error(e?.message || "Failed to load centres", {
+        id: "fetch-error",
+      });
     } finally {
       setLoading(false);
     }
@@ -137,10 +137,8 @@ export default function CentresPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Keep raw data for export (avoid JSX)
   const rawRows = useMemo(() => data?.rows ?? [], [data]);
 
-  // Helper to build the same list URL with custom page/pageSize
   const buildListUrl = useCallback(
     (pageParam: number, pageSizeParam: number) => {
       const url = new URL("/api/admin/centres", window.location.origin);
@@ -156,54 +154,61 @@ export default function CentresPage() {
     [debouncedSearch, filters],
   );
 
-  // Fetch all rows across pages using the same API & current filters/search
   async function fetchAllCentres(): Promise<Record<string, any>[]> {
     const pageSizeAll = 1000;
     let pageAll = 1;
     const out: Record<string, any>[] = [];
+    const toastId = toast.loading("Preparing export...", {
+      id: "export-loading",
+    });
 
-    while (true) {
-      const url = buildListUrl(pageAll, pageSizeAll);
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      const rows = (json?.rows || []) as any[];
+    try {
+      while (true) {
+        const url = buildListUrl(pageAll, pageSizeAll);
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        const rows = (json?.rows || []) as any[];
 
-      out.push(
-        ...rows.map((r) => ({
-          code: r.code,
-          name: r.name,
-          streetAddress: r.streetAddress,
-          facilitatorName: r.facilitator?.name || "",
-          facilitatorEmail: r.facilitator?.email || "",
-          city: r.city,
-          district: r.district,
-          state: r.state,
-          pincode: r.pincode,
-          status: r.status,
-          dateAssociated: r.dateAssociated
-            ? new Date(r.dateAssociated).toLocaleDateString("en-GB")
-            : "",
-          dateLeft: r.dateLeft
-            ? new Date(r.dateLeft).toLocaleDateString("en-GB")
-            : "",
-        })),
-      );
-      if (rows.length < pageSizeAll) break;
-      pageAll += 1;
-      if (pageAll > 200) break;
+        out.push(
+          ...rows.map((r) => ({
+            code: r.code,
+            name: r.name,
+            streetAddress: r.streetAddress,
+            facilitatorName: r.facilitator?.name || "",
+            facilitatorEmail: r.facilitator?.email || "",
+            city: r.city,
+            district: r.district,
+            state: r.state,
+            pincode: r.pincode,
+            status: r.status,
+            dateAssociated: r.dateAssociated
+              ? new Date(r.dateAssociated).toLocaleDateString("en-GB")
+              : "",
+            dateLeft: r.dateLeft
+              ? new Date(r.dateLeft).toLocaleDateString("en-GB")
+              : "",
+          })),
+        );
+        if (rows.length < pageSizeAll) break;
+        pageAll += 1;
+        if (pageAll > 200) break;
+      }
+      toast.success("Export successful", { id: toastId });
+      return out;
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export centres", { id: toastId });
+      throw e;
     }
-    return out;
   }
 
-  // avoding JSX for export
   const formattedVisibleForExport = useMemo(() => {
     return rawRows.map((r: any) => ({
       code: r.code,
       name: r.name,
       streetAddress: r.streetAddress,
-      facilitatorName: r.facilitator?.name || "", // NEW
-      facilitatorEmail: r.facilitator?.email || "", // NEW
+      facilitatorName: r.facilitator?.name || "",
+      facilitatorEmail: r.facilitator?.email || "",
       city: r.city,
       district: r.district,
       state: r.state,
@@ -258,9 +263,11 @@ export default function CentresPage() {
   }, [data]);
 
   const handleCreate = async (payload: any) => {
+    const toastId = toast.loading("Creating centre...", {
+      id: "create-centre",
+    });
     try {
       setLoading(true);
-      setError(null);
 
       const body = {
         name: String(payload?.name || "").trim(),
@@ -288,7 +295,6 @@ export default function CentresPage() {
         typeof body.dateAssociated === "string" &&
         body.dateAssociated.length > 0
       ) {
-        // keep as string; backend parses
       } else if (!body.dateAssociated) {
         body.dateAssociated = new Date().toISOString();
       }
@@ -311,17 +317,20 @@ export default function CentresPage() {
 
       await fetchRows();
       setCreateOpen(false);
+      toast.success("Centre created successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to create centre");
+      toast.error(e?.message || "Failed to create centre", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdate = async (centreId: string, payload: any) => {
+    const toastId = toast.loading("Updating centre...", {
+      id: "update-centre",
+    });
     try {
       setLoading(true);
-      setError(null);
       const body = {
         ...(payload?.name !== undefined && {
           name: String(payload.name).trim(),
@@ -391,8 +400,9 @@ export default function CentresPage() {
       await fetchRows();
       setEditOpen(false);
       setEditRow(null);
+      toast.success("Centre updated successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to update centre");
+      toast.error(e?.message || "Failed to update centre", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -400,9 +410,11 @@ export default function CentresPage() {
 
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
+    const toastId = toast.loading("Deleting centre...", {
+      id: "delete-centre",
+    });
     try {
       setLoading(true);
-      setError(null);
       const res = await fetch(`/api/admin/centres/${deleteRow.id}`, {
         method: "DELETE",
       });
@@ -410,8 +422,9 @@ export default function CentresPage() {
       await fetchRows();
       setDeleteOpen(false);
       setDeleteRow(null);
+      toast.success("Centre deleted successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to delete centre");
+      toast.error(e?.message || "Failed to delete centre", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -422,7 +435,8 @@ export default function CentresPage() {
       <Button
         size="xs"
         color="blue"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setEditRow(raw);
@@ -434,7 +448,8 @@ export default function CentresPage() {
       <Button
         size="xs"
         color="failure"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setDeleteRow(raw);
@@ -447,6 +462,7 @@ export default function CentresPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
@@ -460,11 +476,11 @@ export default function CentresPage() {
     const url = queryString ? `${pathname}?${queryString}` : pathname;
     router.replace(url, { scroll: false });
   }, [debouncedSearch, filters, page, pathname, router]);
+
   return (
     <RBACGate roles={["ADMIN"]}>
       <h2 className="mb-4 text-2xl font-semibold">Centres</h2>
 
-      {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <SearchBar
           value={search}
@@ -491,9 +507,7 @@ export default function CentresPage() {
               { key: "dateAssociated", label: "Date Associated" },
               { key: "dateLeft", label: "Date Left" },
             ]}
-            // Visible (current page) with pretty formatting for dates/facilitator
             visibleRows={formattedVisibleForExport}
-            // All rows across pages via the same API respecting filters/search
             fetchAll={fetchAllCentres}
           />
           <AddButton label="Add Centre" onClick={() => setCreateOpen(true)} />
@@ -506,14 +520,8 @@ export default function CentresPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-3 rounded border border-red-400 bg-red-50 p-3 text-red-700">
-          {error}
-        </div>
-      )}
-
       {loading && !data ? (
-        <div className="flex justify-center items-center h-screen">
+        <div className="flex justify-center items-center h-[50vh]">
           <ClipLoader size={40} />
         </div>
       ) : (
@@ -524,12 +532,11 @@ export default function CentresPage() {
           onRowClick={(row: any) =>
             router.push(`/centres/${encodeURIComponent(row.id)}`)
           }
-          page={page} // keep
-          pageSize={pageSize} // keep
+          page={page}
+          pageSize={pageSize}
         />
       )}
 
-      {/* Pager */}
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button
           size="xs"
@@ -552,7 +559,6 @@ export default function CentresPage() {
         </Button>
       </div>
 
-      {/* Create modal */}
       <CentreCreateModal
         open={createOpen}
         mode="create"
@@ -560,7 +566,6 @@ export default function CentresPage() {
         onCreate={handleCreate}
       />
 
-      {/* Edit modal */}
       <CentreCreateModal
         open={editOpen}
         mode="edit"
@@ -591,7 +596,6 @@ export default function CentresPage() {
         }}
       />
 
-      {/* Delete confirm modal */}
       <ConfirmDeleteModal
         open={deleteOpen}
         title="Delete Centre"

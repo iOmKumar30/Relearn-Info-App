@@ -6,7 +6,7 @@ import AddButton from "@/components/CrudControls/AddButton";
 import CentreSelectAll from "@/components/CrudControls/CentreSelectAll";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import StateSelect from "@/components/CrudControls/StateSelect";
@@ -15,6 +15,7 @@ import type { FilterOption } from "@/types/filterOptions";
 import { Badge, Button } from "flowbite-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
 type ClassroomRow = {
@@ -42,7 +43,6 @@ type ClassroomRow = {
   }>;
 };
 
-// DataTable columns
 const columns = [
   { key: "code", label: "Classroom Code" },
   { key: "centre_name", label: "Centre Name" },
@@ -59,7 +59,6 @@ const columns = [
   { key: "dateClosed", label: "Date Closed" },
 ];
 
-// Filter config for UI
 const classroomFilters: FilterOption[] = [
   {
     key: "status",
@@ -106,7 +105,6 @@ export default function ClassroomsPage() {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
 
-  // Initialize filters from URL
   const [filters, setFilters] = useState<Record<string, string>>(() => {
     const f: Record<string, string> = {};
     if (searchParams.get("centreCode"))
@@ -119,7 +117,6 @@ export default function ClassroomsPage() {
   });
   const pageSize = 20;
 
-  // Create/Edit/Delete state
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<ClassroomRow | null>(null);
@@ -127,16 +124,13 @@ export default function ClassroomsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<ClassroomRow | null>(null);
 
-  // Data state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{
     total: number;
     rows: ClassroomRow[];
   } | null>(null);
   const debouncedSearch = useDebounce(search, 800);
 
-  // Build list URL with pagination, search, and facet filters
   const buildUrl = useCallback(() => {
     const url = new URL("/api/admin/classrooms", window.location.origin);
     url.searchParams.set("page", String(page));
@@ -151,17 +145,17 @@ export default function ClassroomsPage() {
     return url.toString();
   }, [page, pageSize, debouncedSearch, filters]);
 
-  // Fetch rows
   const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
       const res = await fetch(buildUrl(), { cache: "no-store" });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       setData({ total: json.total, rows: json.rows });
     } catch (e: any) {
-      setError(e?.message || "Failed to load classrooms");
+      toast.error(e?.message || "Failed to load classrooms", {
+        id: "fetch-error",
+      });
     } finally {
       setLoading(false);
     }
@@ -171,10 +165,8 @@ export default function ClassroomsPage() {
     fetchRows();
   }, [fetchRows]);
 
-  // Raw rows for export (avoid JSX)
   const rawRows = useMemo(() => data?.rows ?? [], [data]);
 
-  // Helper to build same URL with custom page/pageSize (for export all)
   const buildListUrl = useCallback(
     (pageParam: number, pageSizeParam: number) => {
       const url = new URL("/api/admin/classrooms", window.location.origin);
@@ -192,55 +184,61 @@ export default function ClassroomsPage() {
     [debouncedSearch, filters],
   );
 
-  // Fetch all classrooms across pages with current filters/search
   async function fetchAllClassrooms(): Promise<Record<string, any>[]> {
     const pageSizeAll = 1000;
     let pageAll = 1;
     const out: Record<string, any>[] = [];
+    const toastId = toast.loading("Preparing export...", {
+      id: "export-loading",
+    });
 
-    while (true) {
-      const url = buildListUrl(pageAll, pageSizeAll);
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      const rows: ClassroomRow[] = json?.rows || [];
+    try {
+      while (true) {
+        const url = buildListUrl(pageAll, pageSizeAll);
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        const rows: ClassroomRow[] = json?.rows || [];
 
-      out.push(
-        ...rows.map((r) => ({
-          code: r.code,
-          centreName: r.centre?.name || "",
-          centreCode: r.centre?.code || "",
-          section: r.section,
-          streetAddress: r.streetAddress,
-          district: r.district,
-          state: r.state,
-          currentTutor:
-            r.tutorAssignments && r.tutorAssignments.length > 0
-              ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
-                  r.tutorAssignments[0].user.email
-                })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+        out.push(
+          ...rows.map((r) => ({
+            code: r.code,
+            centreName: r.centre?.name || "",
+            centreCode: r.centre?.code || "",
+            section: r.section,
+            streetAddress: r.streetAddress,
+            district: r.district,
+            state: r.state,
+            currentTutor:
+              r.tutorAssignments && r.tutorAssignments.length > 0
+                ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
+                    r.tutorAssignments[0].user.email
+                  })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+                : "",
+            timing: r.timing,
+            monthlyAllowance: r.monthlyAllowance,
+            status: r.status,
+            dateCreated: r.dateCreated
+              ? new Date(r.dateCreated).toLocaleDateString("en-GB")
               : "",
-          timing: r.timing,
-          monthlyAllowance: r.monthlyAllowance,
-          status: r.status,
-          dateCreated: r.dateCreated
-            ? new Date(r.dateCreated).toLocaleDateString("en-GB")
-            : "",
-          dateClosed: r.dateClosed
-            ? new Date(r.dateClosed).toLocaleDateString("en-GB")
-            : "",
-        })),
-      );
+            dateClosed: r.dateClosed
+              ? new Date(r.dateClosed).toLocaleDateString("en-GB")
+              : "",
+          })),
+        );
 
-      if (rows.length < pageSizeAll) break;
-      pageAll += 1;
-      if (pageAll > 200) break; // safety
+        if (rows.length < pageSizeAll) break;
+        pageAll += 1;
+        if (pageAll > 200) break;
+      }
+      toast.success("Export successful", { id: toastId });
+      return out;
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export classrooms", { id: toastId });
+      throw e;
     }
-
-    return out;
   }
 
-  // Visible rows formatted for export (no JSX)
   const formattedVisibleForExport = useMemo(() => {
     return rawRows.map((r) => ({
       code: r.code,
@@ -268,7 +266,6 @@ export default function ClassroomsPage() {
     }));
   }, [rawRows]);
 
-  // Map rows for DataTable render (with JSX)
   const rows = useMemo(() => {
     return (data?.rows ?? []).map((r) => ({
       ...r,
@@ -330,11 +327,12 @@ export default function ClassroomsPage() {
     }));
   }, [data]);
 
-  // Create → POST
   const handleCreate = async (payload: any) => {
+    const toastId = toast.loading("Creating classroom...", {
+      id: "create-classroom",
+    });
     try {
       setLoading(true);
-      setError(null);
 
       let centreId = payload.centre_id?.trim();
       const centreName = payload.centre_name?.trim();
@@ -384,18 +382,20 @@ export default function ClassroomsPage() {
 
       await fetchRows();
       setCreateOpen(false);
+      toast.success("Classroom created successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to create classroom");
+      toast.error(e?.message || "Failed to create classroom", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // Update → PUT
   const handleUpdate = async (classroom_id: string, payload: any) => {
+    const toastId = toast.loading("Updating classroom...", {
+      id: "update-classroom",
+    });
     try {
       setLoading(true);
-      setError(null);
 
       let centreId = payload.centre_id?.trim();
       const centreName = payload.centre_name?.trim();
@@ -445,20 +445,22 @@ export default function ClassroomsPage() {
       await fetchRows();
       setEditOpen(false);
       setEditRow(null);
+      toast.success("Classroom updated successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to update classroom");
+      toast.error(e?.message || "Failed to update classroom", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // Delete → DELETE
   const [deleting, setDeleting] = useState(false);
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
+    const toastId = toast.loading("Deleting classroom...", {
+      id: "delete-classroom",
+    });
     try {
       setDeleting(true);
-      setError(null);
       const res = await fetch(`/api/admin/classrooms/${deleteRow.id}`, {
         method: "DELETE",
       });
@@ -466,20 +468,21 @@ export default function ClassroomsPage() {
       await fetchRows();
       setDeleteOpen(false);
       setDeleteRow(null);
+      toast.success("Classroom deleted successfully", { id: toastId });
     } catch (e: any) {
-      setError(e?.message || "Failed to delete classroom");
+      toast.error(e?.message || "Failed to delete classroom", { id: toastId });
     } finally {
       setDeleting(false);
     }
   };
 
-  // Actions column
   const renderActions = (row: any) => (
     <div className="flex gap-2">
       <Button
         size="xs"
         color="blue"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setEditRow(raw);
@@ -491,7 +494,8 @@ export default function ClassroomsPage() {
       <Button
         size="xs"
         color="failure"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const raw = data?.rows.find((x) => x.id === row.id);
           if (!raw) return;
           setDeleteRow(raw);
@@ -504,21 +508,16 @@ export default function ClassroomsPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
-  // Sync URL with State
+
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
-    if (page > 1) params.set("page", String(page)); // Only set if not default
+    if (page > 1) params.set("page", String(page));
 
-    // Add filters
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
 
-    // Update URL without refreshing (replace history to avoid cluttering back button)
-    // or push if you want every filter change to be a history step.
-    // "replace" is usually better for typing search, "push" for filters.
-    // For simplicity, let's use replace here so "Back" goes to previous page, not previous filter state.
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [debouncedSearch, filters, page, pathname, router]);
 
@@ -526,7 +525,6 @@ export default function ClassroomsPage() {
     <RBACGate roles={["ADMIN"]}>
       <h2 className="text-2xl font-semibold mb-4">Classrooms</h2>
 
-      {/* Control bar */}
       <div className="flex flex-wrap items-center gap-4 mb-4">
         <SearchBar
           value={search}
@@ -572,14 +570,8 @@ export default function ClassroomsPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-3 rounded border border-red-400 bg-red-50 p-3 text-red-700">
-          {error}
-        </div>
-      )}
-
       {loading && !data ? (
-        <div className="flex justify-center items-center h-screen">
+        <div className="flex justify-center items-center h-[50vh]">
           <ClipLoader size={40} />
         </div>
       ) : (
@@ -595,7 +587,6 @@ export default function ClassroomsPage() {
         />
       )}
 
-      {/* Pager */}
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button
           size="xs"
@@ -618,7 +609,6 @@ export default function ClassroomsPage() {
         </Button>
       </div>
 
-      {/* Create modal */}
       <ClassroomCreateModal
         open={createOpen}
         mode="create"
@@ -626,7 +616,6 @@ export default function ClassroomsPage() {
         onCreate={handleCreate}
       />
 
-      {/* Edit modal */}
       <ClassroomCreateModal
         open={editOpen}
         mode="edit"
@@ -661,7 +650,6 @@ export default function ClassroomsPage() {
         }}
       />
 
-      {/* Delete confirm modal */}
       <ConfirmDeleteModal
         open={deleteOpen}
         title="Delete Classroom"
