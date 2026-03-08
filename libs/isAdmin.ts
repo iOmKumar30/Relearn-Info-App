@@ -1,4 +1,3 @@
-// RBAC: ADMIN only (server-side)
 import prisma from "@/libs/prismadb";
 export async function isAdmin(userId?: string) {
   if (!userId) return false;

@@ -61,13 +61,13 @@ const donate: NavItem = {
   external: true,
 };
 
-// Reusable Attendance Group
 const attendanceGroup: NavGroup = {
   type: "group",
   label: "Attendance",
   icon: CalendarDaysIcon,
   children: [
     { type: "item", label: "Student Attendance", href: "/attendance" },
+    { type: "item", label: "Tutor Attendance", href: "/tutor-attendance" },
   ],
 };
 
