@@ -91,6 +91,7 @@ model User {
   roleRequests             RoleRequest[]
   facilitatorEmployeeLinks FacilitatorEmployee[]        @relation("FacilitatorToEmployee")
   employeeFacilitatorLinks FacilitatorEmployee[]        @relation("EmployeeToFacilitator")
+  trainingAttendances      TutorTrainingAttendance[]    @relation("UserToAttendance")
 
   @@index([status])
   @@index([email])
@@ -393,11 +394,13 @@ model MonthlyClassroomAttendance {
   @@index([year, month])
   @@index([enteredById])
 }
+
 model AcademicYear {
   year      Int      @id
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
 model Donation {
   id            String   @id @default(cuid())
   pan           String
@@ -775,4 +778,45 @@ model Transaction {
 enum TransactionType {
   DEBIT
   CREDIT
+}
+
+enum TrainingAttendanceStatus {
+  ABSENT
+  PRESENT
+  PRESENT_RESPONDED
+}
+
+model TutorTrainingAttendance {
+  id        String                   @id @default(uuid())
+  classId   String                   @map("class_id")
+  tutorId   String                   @map("tutor_id")
+  status    TrainingAttendanceStatus
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  class     TutorTrainingClass       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  tutor     User                     @relation("UserToAttendance", fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, tutorId])
+  @@index([tutorId])
+}
+
+model TutorTrainingClass {
+  id          String                    @id @default(uuid())
+  yearId      Int                       @map("year_id")
+  month       Int
+  date        DateTime
+  trainingBy  String
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  year        TutorTrainingYear         @relation(fields: [yearId], references: [year], onDelete: Cascade)
+  attendances TutorTrainingAttendance[]
+
+  @@index([yearId, month])
+}
+
+model TutorTrainingYear {
+  year      Int                  @id
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  classes   TutorTrainingClass[]
 }
