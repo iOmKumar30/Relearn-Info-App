@@ -94,6 +94,7 @@ export async function saveAttendance(data: any, year: number, month: number) {
       totalPresent,
       remarks,
       tutorPhone,
+      registerPhotoUrl,
     } = data;
 
     if (!classroomId) throw new Error("Classroom ID is required");
@@ -110,6 +111,7 @@ export async function saveAttendance(data: any, year: number, month: number) {
         totalStudentsEnrolled,
         openDays,
         totalPresent,
+        registerPhotoUrl,
         remarks,
         tutorPhone,
       },
@@ -122,6 +124,7 @@ export async function saveAttendance(data: any, year: number, month: number) {
         totalPresent,
         remarks,
         tutorPhone,
+        registerPhotoUrl,
       },
     });
 
