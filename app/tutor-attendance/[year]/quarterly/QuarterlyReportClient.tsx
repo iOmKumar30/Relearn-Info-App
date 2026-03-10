@@ -1,7 +1,8 @@
 "use client";
 
+import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import { ChartBarIcon, FunnelIcon } from "@heroicons/react/24/outline";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { getQuarterlyReportData } from "../../actions";
 
@@ -53,6 +54,45 @@ export default function QuarterlyReportClient({ year }: { year: number }) {
   const handleGenerate = () => {
     fetchReportData(startMonth, endMonth);
   };
+
+  const currentRangeString = useMemo(() => {
+    const startName = MONTHS.find((m) => m.id === startMonth)?.name;
+    const endName = MONTHS.find((m) => m.id === endMonth)?.name;
+    if (startName === endName) return `${startName}-${year}`;
+    return `${startName}-${endName}-${year}`;
+  }, [startMonth, endMonth, year]);
+
+  const tutorExportColumns = [
+    { label: "S.No", key: "sno" },
+    { label: "Tutor Name", key: "name" },
+    { label: "Facilitator Name", key: "facilitatorName" },
+    { label: "Total Payout (₹)", key: "totalPayout" },
+  ];
+
+  const tutorExportRows = useMemo(() => {
+    if (!data) return [];
+    return data.tutors.map((tutor, idx) => ({
+      sno: idx + 1,
+      name: tutor.name,
+      facilitatorName: tutor.facilitatorName,
+      totalPayout: `₹${tutor.totalPayout}`,
+    }));
+  }, [data]);
+
+  const facilitatorExportColumns = [
+    { label: "S.No", key: "sno" },
+    { label: "Facilitator Name", key: "name" },
+    { label: "Total Amount (₹)", key: "totalAmount" },
+  ];
+
+  const facilitatorExportRows = useMemo(() => {
+    if (!data) return [];
+    return data.facilitatorSummary.map((fac, idx) => ({
+      sno: idx + 1,
+      name: fac.name,
+      totalAmount: `₹${fac.totalAmount}`,
+    }));
+  }, [data]);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -125,6 +165,14 @@ export default function QuarterlyReportClient({ year }: { year: number }) {
             <h2 className="text-xl font-bold text-gray-900 tracking-tight px-1">
               Tutor Aggregate Payouts
             </h2>
+            {data.tutors.length > 0 && (
+              <ExportXlsxButton
+                fileName={`${currentRangeString}-Tutor-Attendance`}
+                columns={tutorExportColumns}
+                visibleRows={tutorExportRows}
+                sheetName="Tutor Payouts"
+              />
+            )}
             <div className="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
@@ -179,6 +227,14 @@ export default function QuarterlyReportClient({ year }: { year: number }) {
             <h2 className="text-xl font-bold text-gray-900 tracking-tight px-1">
               Facilitator Summary
             </h2>
+            {data.facilitatorSummary.length > 0 && (
+              <ExportXlsxButton
+                fileName={`${currentRangeString}-Facilitator-Summary`}
+                columns={facilitatorExportColumns}
+                visibleRows={facilitatorExportRows}
+                sheetName="Facilitator Summary"
+              />
+            )}
             <div className="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100 overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">

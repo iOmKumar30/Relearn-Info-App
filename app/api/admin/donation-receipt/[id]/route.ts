@@ -4,18 +4,19 @@ import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-// --- GET SINGLE DONATION ---
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
 
   try {
+    const { id } = await params;
+
     const donation = await prisma.donation.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       // cacheStrategy: { ttl: 60, swr: 60 },
     });
 
@@ -29,10 +30,9 @@ export async function GET(
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
-// --- UPDATE DONATION ---
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -44,9 +44,10 @@ export async function PUT(
   }
 
   try {
+    const { id } = await params;
+    
     const body = await req.json();
 
-    // Sanitize and Format
     const name = String(body?.name ?? "").trim();
     const email = String(body?.email ?? "").trim();
     const contact = String(body?.contact ?? "").trim();
@@ -55,13 +56,12 @@ export async function PUT(
     const reason = String(body?.reason ?? "").trim();
     const method = String(body?.method ?? "").trim();
     const transactionId = String(body?.transactionId ?? "").trim();
-
-    // Parse numeric/date fields
+    const gstno = String(body?.gstno ?? "N/A").trim();
+    
     const amount = Number(body?.amount);
     const dateStr = body?.date;
-    const date = dateStr ? new Date(dateStr) : undefined; // Only update if provided
+    const date = dateStr ? new Date(dateStr) : undefined;
 
-    // Validation
     if (!name || !amount || !transactionId) {
       return new NextResponse("Name, Amount, and Transaction ID are required", {
         status: 400,
@@ -69,7 +69,7 @@ export async function PUT(
     }
 
     const updated = await prisma.donation.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         name,
         email,
@@ -79,10 +79,9 @@ export async function PUT(
         amount,
         reason,
         method,
+        gstno,
         transactionId,
-        date, // Updates date if provided
-        // Note: receiptNumber is usually not updated to preserve audit trails,
-        // but if you need to fix a typo, you can add: receiptNumber: body.receiptNumber
+        date,
       },
     });
 
@@ -90,7 +89,6 @@ export async function PUT(
   } catch (error: any) {
     console.error("DONATION_UPDATE_ERROR", error);
 
-    // Handle Unique Constraint (e.g., duplicate Transaction ID)
     if (error.code === "P2002") {
       return new NextResponse("Transaction ID already exists", { status: 409 });
     }
@@ -98,12 +96,12 @@ export async function PUT(
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
-// --- DELETE DONATION ---
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id)
     return new NextResponse("Unauthorized", { status: 401 });
 
@@ -112,8 +110,10 @@ export async function DELETE(
   }
 
   try {
+    const { id } = await params;
+
     await prisma.donation.delete({
-      where: { id: params.id },
+      where: { id: id }, 
     });
 
     return new NextResponse("Deleted", { status: 200 });

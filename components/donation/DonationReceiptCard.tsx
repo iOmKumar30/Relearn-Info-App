@@ -13,6 +13,7 @@ type DonationData = {
   email: string;
   amount: number;
   method: string;
+  gstno?: string;
   transactionId: string;
 };
 
@@ -121,7 +122,7 @@ export default function DonationReceiptCard({
             help the Relearn Foundation to implement our mission in the areas of
             Education, Environment and Empowerment. This receipt is an
             attestation that we have gratefully received your generous
-            contribution. Keep this receipt for your tax filing purposes.
+            contribution. This receipt maybe kept for tax filling purpose.
           </p>
         </div>
 
@@ -142,6 +143,12 @@ export default function DonationReceiptCard({
             <div className="grid grid-cols-[140px_1fr]">
               <span className="font-bold">PAN No:</span>
               <span>{data.pan}</span>
+            </div>
+          )}
+          {data.gstno && (
+            <div className="grid grid-cols-[140px_1fr]">
+              <span className="font-bold">GST No:</span>
+              <span>{data.gstno}</span>
             </div>
           )}
           <div className="grid grid-cols-[140px_1fr]">
@@ -171,7 +178,7 @@ export default function DonationReceiptCard({
           <div className="grid grid-cols-[160px_1fr]">
             <span className="font-bold">In words:</span>
             <span className="capitalize italic">
-              {toWords.convert(Number(data.amount))} Only
+              {toWords.convert(Number(data.amount))}
             </span>
           </div>
           <div className="grid grid-cols-[160px_1fr]">

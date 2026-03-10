@@ -2,17 +2,31 @@
 
 import { Modal } from "flowbite-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { HiPlus, HiXMark } from "react-icons/hi2";
-import { addTrainingClass } from "../../actions";
+import { addTrainingClass, updateTrainingClass } from "../../actions";
+
+type Mode = "create" | "edit";
+
+type InitialClass = {
+  id: string;
+  date: string | Date;
+  trainingBy: string;
+};
 
 export default function AddClassModal({
   year,
   month,
+  mode = "create",
+  initialClass,
+  trigger,
 }: {
   year: number;
   month: number;
+  mode?: Mode;
+  initialClass?: InitialClass;
+  trigger?: React.ReactNode;
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -20,24 +34,55 @@ export default function AddClassModal({
   const [trainingBy, setTrainingBy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!date || !trainingBy) return toast.error("Please fill all fields");
+  const formatDateForInput = (d: string | Date) => {
+    const dt = typeof d === "string" ? new Date(d) : d;
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
-    setIsSubmitting(true);
-    const toastId = toast.loading("Adding class...");
-
-    try {
-      const result = await addTrainingClass(
-        year,
-        month,
-        new Date(date),
-        trainingBy,
-      );
-      if (result.success) {
-        toast.success("Class added successfully!", { id: toastId });
-        setIsOpen(false);
+  useEffect(() => {
+    if (isOpen) {
+      if (mode === "edit" && initialClass) {
+        setDate(formatDateForInput(initialClass.date));
+        setTrainingBy(initialClass.trainingBy);
+      } else {
         setDate("");
         setTrainingBy("");
+      }
+    }
+  }, [isOpen, mode, initialClass]);
+
+  const handleSubmit = async () => {
+    if (!date || !trainingBy.trim())
+      return toast.error("Please fill all fields");
+
+    setIsSubmitting(true);
+    const toastId = toast.loading(
+      mode === "create" ? "Adding class..." : "Updating class...",
+    );
+
+    try {
+      const result =
+        mode === "create"
+          ? await addTrainingClass(year, month, new Date(date), trainingBy)
+          : await updateTrainingClass(
+              year,
+              month,
+              initialClass!.id,
+              new Date(date),
+              trainingBy,
+            );
+
+      if (result.success) {
+        toast.success(
+          mode === "create"
+            ? "Class added successfully!"
+            : "Class updated successfully!",
+          { id: toastId },
+        );
+        setIsOpen(false);
         router.refresh();
       } else {
         toast.error(result.error || "Error", { id: toastId });
@@ -51,13 +96,22 @@ export default function AddClassModal({
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
-      >
-        <HiPlus className="w-4 h-4" />
-        Add Class
-      </button>
+      {trigger ? (
+        <span
+          onClick={() => setIsOpen(true)}
+          className="inline-block cursor-pointer"
+        >
+          {trigger}
+        </span>
+      ) : (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
+        >
+          <HiPlus className="w-4 h-4" />
+          Add Class
+        </button>
+      )}
 
       <Modal
         show={isOpen}
@@ -74,7 +128,7 @@ export default function AddClassModal({
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-              Add Training Class
+              {mode === "create" ? "Add Training Class" : "Edit Training Class"}
             </h3>
             <button
               onClick={() => setIsOpen(false)}
@@ -113,7 +167,13 @@ export default function AddClassModal({
               disabled={isSubmitting}
               className="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmitting ? "Adding..." : "Add Class"}
+              {isSubmitting
+                ? mode === "create"
+                  ? "Adding..."
+                  : "Updating..."
+                : mode === "create"
+                  ? "Add Class"
+                  : "Save Changes"}
             </button>
           </div>
         </div>

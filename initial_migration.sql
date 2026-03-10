@@ -1,3 +1,18 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "InternStatus" AS ENUM ('ACTIVE', 'COMPLETED', 'DROPPED', 'PENDING_START');
+
+-- CreateEnum
+CREATE TYPE "WorkingMode" AS ENUM ('ONSITE', 'REMOTE', 'HYBRID');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('PAID', 'PENDING', 'WAIVED');
+
+-- CreateEnum
+CREATE TYPE "CertificateType" AS ENUM ('PARTICIPATION', 'INTERNSHIP', 'TRAINING');
+
 -- CreateEnum
 CREATE TYPE "CentreStatus" AS ENUM ('ACTIVE', 'INACTIVE');
 
@@ -29,7 +44,7 @@ CREATE TYPE "RoleName" AS ENUM ('PENDING', 'ADMIN', 'TUTOR', 'FACILITATOR', 'REL
 CREATE TYPE "OnboardingStatus" AS ENUM ('PENDING_PROFILE', 'SUBMITTED_PROFILE', 'PENDING_ROLE', 'ACTIVE', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "MemberType" AS ENUM ('ANNUAL', 'INTERN', 'HONORARY', 'LIFE');
+CREATE TYPE "MemberType" AS ENUM ('ANNUAL', 'INTERN', 'HONORARY', 'LIFE', 'FOUNDER');
 
 -- CreateEnum
 CREATE TYPE "MemberStatus" AS ENUM ('ACTIVE', 'INACTIVE');
@@ -39,6 +54,12 @@ CREATE TYPE "KPIValueSource" AS ENUM ('MANUAL', 'AUTO');
 
 -- CreateEnum
 CREATE TYPE "KPIUnit" AS ENUM ('COUNT', 'PERCENT', 'LAKHS');
+
+-- CreateEnum
+CREATE TYPE "ProjectStatus" AS ENUM ('PLANNED', 'ONGOING', 'COMPLETED', 'ON_HOLD');
+
+-- CreateEnum
+CREATE TYPE "TransactionType" AS ENUM ('DEBIT', 'CREDIT');
 
 -- CreateTable
 CREATE TABLE "Centre" (
@@ -112,6 +133,7 @@ CREATE TABLE "User" (
     "roleRequestedAt" TIMESTAMP(3),
     "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
     "sessionVersion" INTEGER DEFAULT 0,
+    "gender" "Gender",
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -247,6 +269,8 @@ CREATE TABLE "Member" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "pan" VARCHAR(10),
+    "memberId" TEXT,
+    "isGoverningBody" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Member_pkey" PRIMARY KEY ("id")
 );
@@ -262,6 +286,49 @@ CREATE TABLE "MemberFee" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "MemberFee_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MemberTypeHistory" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "memberType" "MemberType" NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endDate" TIMESTAMP(3),
+    "changedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MemberTypeHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Intern" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT,
+    "mobile" TEXT,
+    "address" TEXT,
+    "gender" "Gender",
+    "dateOfBirth" TIMESTAMP(3),
+    "educationCompleted" TEXT,
+    "institution" TEXT,
+    "ongoingCourse" TEXT,
+    "areasOfInterest" TEXT,
+    "joiningDate" TIMESTAMP(3),
+    "completionDate" TIMESTAMP(3),
+    "preferredHoursPerDay" TEXT,
+    "workingMode" "WorkingMode",
+    "associatedAfter" BOOLEAN DEFAULT false,
+    "comments" TEXT,
+    "status" "InternStatus" DEFAULT 'ACTIVE',
+    "feeAmount" INTEGER,
+    "feePaidDate" TIMESTAMP(3),
+    "paymentStatus" "PaymentStatus" DEFAULT 'PENDING',
+    "memberId" TEXT,
+
+    CONSTRAINT "Intern_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -304,17 +371,27 @@ CREATE TABLE "MonthlyClassroomAttendance" (
     "classroomId" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
     "month" INTEGER NOT NULL,
-    "totalStudentsEnrolled" INTEGER NOT NULL,
-    "openDays" INTEGER NOT NULL,
-    "totalPresent" INTEGER NOT NULL,
-    "attendancePercentage" DECIMAL(5,2) NOT NULL,
+    "totalStudentsEnrolled" INTEGER,
+    "openDays" INTEGER,
+    "totalPresent" INTEGER,
+    "attendancePercentage" DECIMAL(5,2),
     "register_photo_url" TEXT,
     "remarks" TEXT,
-    "enteredByTutorId" TEXT NOT NULL,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUpdatedAt" TIMESTAMP(3) NOT NULL,
+    "entered_by_id" TEXT,
+    "tutor_phone" TEXT,
 
     CONSTRAINT "MonthlyClassroomAttendance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AcademicYear" (
+    "year" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AcademicYear_pkey" PRIMARY KEY ("year")
 );
 
 -- CreateTable
@@ -400,6 +477,169 @@ CREATE TABLE "MembershipCertificate" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "MembershipCertificate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ParticipationCertificate" (
+    "id" TEXT NOT NULL,
+    "certificateNo" TEXT,
+    "name" TEXT NOT NULL,
+    "aadhaar" TEXT,
+    "classYear" TEXT,
+    "institute" TEXT NOT NULL,
+    "duration" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "issueDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "eventName" TEXT,
+    "type" "CertificateType" NOT NULL DEFAULT 'PARTICIPATION',
+
+    CONSTRAINT "ParticipationCertificate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Project" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "status" "ProjectStatus" NOT NULL DEFAULT 'ONGOING',
+    "conclusion" TEXT,
+    "nextSteps" TEXT,
+    "mentors" TEXT,
+    "sponsoredBy" TEXT,
+    "year" TEXT,
+    "funds" DECIMAL(10,2),
+    "place" TEXT,
+    "targetGroup" TEXT,
+    "beneficiaries" TEXT,
+    "reportUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "approvalUrl" TEXT,
+    "proposalUrl" TEXT,
+    "rating" INTEGER DEFAULT 0,
+    "utilizationUrl" TEXT,
+
+    CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GstReceipt" (
+    "id" TEXT NOT NULL,
+    "invoiceNo" TEXT NOT NULL,
+    "invoiceDate" TIMESTAMP(3) NOT NULL,
+    "dateOfSupply" TEXT,
+    "placeOfSupply" TEXT,
+    "reverseCharge" TEXT DEFAULT 'N',
+    "billToName" TEXT NOT NULL,
+    "billToGstin" TEXT DEFAULT 'NA',
+    "billToState" TEXT NOT NULL DEFAULT 'Jharkhand',
+    "billToCode" TEXT DEFAULT '20',
+    "shipToName" TEXT,
+    "shipToGstin" TEXT DEFAULT 'NA',
+    "shipToState" TEXT DEFAULT 'Jharkhand',
+    "shipToCode" TEXT DEFAULT '20',
+    "items" JSONB,
+    "totalAmount" DOUBLE PRECISION NOT NULL,
+    "totalTax" DOUBLE PRECISION NOT NULL,
+    "grandTotal" DOUBLE PRECISION NOT NULL,
+    "amountInWords" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GstReceipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaymentVoucher" (
+    "id" TEXT NOT NULL,
+    "voucherNo" TEXT NOT NULL,
+    "paymentDate" TIMESTAMP(3) NOT NULL,
+    "projectName" TEXT,
+    "expenditureHead" TEXT,
+    "payeeName" TEXT NOT NULL,
+    "payeeMobile" TEXT,
+    "items" JSONB,
+    "totalAmount" DOUBLE PRECISION NOT NULL,
+    "amountInWords" TEXT NOT NULL,
+    "paymentMode" TEXT,
+    "paymentRef" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PaymentVoucher_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InvoiceCounter" (
+    "id" TEXT NOT NULL,
+    "financialYear" TEXT NOT NULL,
+    "currentSeq" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "InvoiceCounter_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GlobalSequence" (
+    "id" TEXT NOT NULL DEFAULT 'member_seq',
+    "current" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "GlobalSequence_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FinancialYear" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FinancialYear_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MonthlyStatement" (
+    "id" TEXT NOT NULL,
+    "month" INTEGER NOT NULL,
+    "year" INTEGER NOT NULL,
+    "dataPopulatedDate" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "startBalance" DECIMAL(15,2),
+    "endBalance" DECIMAL(15,2),
+    "statementFileUrl" TEXT,
+    "financialYearId" TEXT NOT NULL,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MonthlyStatement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Transaction" (
+    "id" TEXT NOT NULL,
+    "txnDate" TIMESTAMP(3),
+    "valueDate" TIMESTAMP(3),
+    "description" TEXT,
+    "txnId" TEXT,
+    "refNo" TEXT,
+    "branchCode" TEXT,
+    "type" "TransactionType" NOT NULL,
+    "amount" DECIMAL(15,2),
+    "runningBalance" DECIMAL(15,2),
+    "partyName" TEXT,
+    "reason" TEXT,
+    "statementId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -490,16 +730,28 @@ CREATE UNIQUE INDEX "Employee_userId_key" ON "Employee"("userId");
 CREATE UNIQUE INDEX "Member_userId_key" ON "Member"("userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Member_memberId_key" ON "Member"("memberId");
+
+-- CreateIndex
 CREATE INDEX "Member_status_idx" ON "Member"("status");
 
 -- CreateIndex
 CREATE INDEX "Member_memberType_idx" ON "Member"("memberType");
 
 -- CreateIndex
+CREATE INDEX "Member_isGoverningBody_idx" ON "Member"("isGoverningBody");
+
+-- CreateIndex
 CREATE INDEX "MemberFee_fiscalLabel_idx" ON "MemberFee"("fiscalLabel");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MemberFee_memberId_fiscalLabel_key" ON "MemberFee"("memberId", "fiscalLabel");
+
+-- CreateIndex
+CREATE INDEX "MemberTypeHistory_memberId_idx" ON "MemberTypeHistory"("memberId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Intern_memberId_key" ON "Intern"("memberId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "student_aadhaar_unique" ON "Student"("aadhaarNo");
@@ -517,10 +769,13 @@ CREATE INDEX "StudentClassroomAssignment_studentId_status_idx" ON "StudentClassr
 CREATE INDEX "StudentClassroomAssignment_classroomId_join_date_leave_date_idx" ON "StudentClassroomAssignment"("classroomId", "join_date", "leave_date");
 
 -- CreateIndex
-CREATE INDEX "MonthlyClassroomAttendance_enteredByTutorId_idx" ON "MonthlyClassroomAttendance"("enteredByTutorId");
+CREATE INDEX "MonthlyClassroomAttendance_classroomId_year_idx" ON "MonthlyClassroomAttendance"("classroomId", "year");
 
 -- CreateIndex
 CREATE INDEX "MonthlyClassroomAttendance_year_month_idx" ON "MonthlyClassroomAttendance"("year", "month");
+
+-- CreateIndex
+CREATE INDEX "MonthlyClassroomAttendance_entered_by_id_idx" ON "MonthlyClassroomAttendance"("entered_by_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MonthlyClassroomAttendance_classroomId_year_month_key" ON "MonthlyClassroomAttendance"("classroomId", "year", "month");
@@ -557,4 +812,43 @@ CREATE INDEX "MembershipCertificate_year_idx" ON "MembershipCertificate"("year")
 
 -- CreateIndex
 CREATE INDEX "MembershipCertificate_dateIssued_idx" ON "MembershipCertificate"("dateIssued");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ParticipationCertificate_certificateNo_key" ON "ParticipationCertificate"("certificateNo");
+
+-- CreateIndex
+CREATE INDEX "ParticipationCertificate_name_idx" ON "ParticipationCertificate"("name");
+
+-- CreateIndex
+CREATE INDEX "ParticipationCertificate_aadhaar_idx" ON "ParticipationCertificate"("aadhaar");
+
+-- CreateIndex
+CREATE INDEX "Project_status_idx" ON "Project"("status");
+
+-- CreateIndex
+CREATE INDEX "Project_year_idx" ON "Project"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GstReceipt_invoiceNo_key" ON "GstReceipt"("invoiceNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PaymentVoucher_voucherNo_key" ON "PaymentVoucher"("voucherNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InvoiceCounter_financialYear_key" ON "InvoiceCounter"("financialYear");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FinancialYear_name_key" ON "FinancialYear"("name");
+
+-- CreateIndex
+CREATE INDEX "MonthlyStatement_financialYearId_idx" ON "MonthlyStatement"("financialYearId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MonthlyStatement_month_year_key" ON "MonthlyStatement"("month", "year");
+
+-- CreateIndex
+CREATE INDEX "Transaction_statementId_idx" ON "Transaction"("statementId");
+
+-- CreateIndex
+CREATE INDEX "Transaction_txnDate_idx" ON "Transaction"("txnDate");
 

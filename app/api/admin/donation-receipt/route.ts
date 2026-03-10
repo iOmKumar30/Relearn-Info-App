@@ -18,7 +18,6 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // --- EXTRACT FIELDS ---
     const name = String(body?.name ?? "").trim();
     const email = String(body?.email ?? "").trim();
     const contact = String(body?.contact ?? "").trim();
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
     const reason = String(body?.reason ?? "Voluntary Contribution").trim();
     const method = String(body?.method ?? "UPI").trim();
     const transactionId = String(body?.transactionId ?? "").trim();
-
+    const gstno = String(body?.gstno ?? "N/A").trim();
     // Parse Date
     const dateStr = body?.date;
     const date = dateStr ? new Date(dateStr) : new Date();
@@ -66,6 +65,7 @@ export async function POST(req: Request) {
         amount,
         reason,
         method,
+        gstno,
         transactionId,
       },
     });

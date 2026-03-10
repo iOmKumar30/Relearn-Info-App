@@ -13,7 +13,6 @@ import { ClipLoader } from "react-spinners";
 // 1. IMPORT NAVIGATION HOOKS
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Matches your Donation Schema & API Response
 type DonationRow = {
   id: string;
   receiptNumber: string;

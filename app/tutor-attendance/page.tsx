@@ -1,11 +1,13 @@
 import { PresentationChartLineIcon } from "@heroicons/react/24/outline";
 import { Suspense } from "react";
-import { getTutorTrainingYears } from "./actions";
+import { getPayoutRates, getTutorTrainingYears } from "./actions";
 import CreateYearButton from "./CreateYearButton";
+import PayoutRateModal from "./PayoutRateModal";
 import YearGrid from "./YearGrid";
 
 export default async function TutorAttendancePage() {
   const years = await getTutorTrainingYears();
+  const currentRates = await getPayoutRates();
 
   return (
     <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-100px)]">
@@ -25,7 +27,8 @@ export default async function TutorAttendancePage() {
           </div>
         </div>
 
-        <div className="shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
+          <PayoutRateModal currentRates={currentRates} />
           <CreateYearButton existingYears={years} />
         </div>
       </div>

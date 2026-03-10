@@ -50,6 +50,7 @@ export default function DonationFormModal({
           amount: "",
           reason: "Voluntary Contribution",
           method: "UPI",
+          gstno: "N/A",
           transactionId: "",
         });
       }
@@ -81,12 +82,12 @@ export default function DonationFormModal({
     return isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
-  return (
-    <Modal show={open} onClose={onClose} size="4xl">
+  return ( 
+    <Modal show={open} onClose={onClose} size="4xl" >
       <ModalHeader>
         {mode === "create" ? "Create Donation Receipt" : "Edit Donation"}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Row 1: Receipt Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -147,6 +148,13 @@ export default function DonationFormModal({
               <TextInput
                 value={form.pan || ""}
                 onChange={(e) => handleChange("pan", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Donor's GST No</Label>
+              <TextInput
+                value={form.gstno || "N/A"}
+                onChange={(e) => handleChange("gstno", e.target.value)}
               />
             </div>
           </div>

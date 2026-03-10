@@ -1,6 +1,6 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { getMonthlyTrainingData } from "../../actions";
+import { getMonthlyTrainingData, getPayoutRates } from "../../actions";
 import MonthlyAttendanceClient from "./MonthlyAttendanceClient";
 
 export default async function MonthPage({
@@ -30,7 +30,7 @@ export default async function MonthPage({
   const monthName = monthNames[month];
 
   const data = await getMonthlyTrainingData(year, month);
-
+  const currentRates = await getPayoutRates();
   return (
     <div className="p-6 max-w-[1600px] mx-auto min-h-[calc(100vh-100px)] bg-gray-50/30">
       <div className="mb-6">
@@ -48,6 +48,7 @@ export default async function MonthPage({
         month={month}
         monthName={monthName}
         initialData={data}
+        currentRates = {currentRates}
       />
     </div>
   );
