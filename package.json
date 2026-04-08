@@ -16,9 +16,10 @@
     "@heroicons/react": "^2.2.0",
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/extension-accelerate": "^3.0.1",
-    "@trigger.dev/nextjs": "4.4.3",
-    "@trigger.dev/react": "4.4.3",
-    "@trigger.dev/sdk": "4.4.3",
+    "@trigger.dev/nextjs": "^3.3.12",
+    "@trigger.dev/react": "^3.3.12",
+    "@trigger.dev/sdk": "^3.3.12",
+
     "@uploadthing/react": "^7.3.3",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
