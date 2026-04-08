@@ -18,7 +18,7 @@ export default function KpiEntryCard() {
     >
       {/* Decorative gradient blob */}
       <div
-        className={`pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-gradient-to-tr from-blue-500/10 via-indigo-500/10 to-fuchsia-500/10 blur-2xl transition-transform duration-500 ${
+        className={`pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-linear-to-tr from-blue-500/10 via-indigo-500/10 to-fuchsia-500/10 blur-2xl transition-transform duration-500 ${
           hovered ? "scale-110" : "scale-100"
         }`}
       />
@@ -66,7 +66,7 @@ export default function KpiEntryCard() {
       </div>
 
       {/* Hover underline accent */}
-      <div className="mt-6 h-0.5 w-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-fuchsia-500 transition-all duration-500 group-hover:w-full" />
+      <div className="mt-6 h-0.5 w-0 bg-linear-to-r from-blue-500 via-indigo-500 to-fuchsia-500 transition-all duration-500 group-hover:w-full" />
     </button>
   );
 }

@@ -1,4 +1,3 @@
-// POST method for manually upserting KPI Data
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import { firstDayOfMonthFromYYYYMM } from "@/libs/kpi/month";

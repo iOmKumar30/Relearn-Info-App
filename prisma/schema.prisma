@@ -92,6 +92,7 @@ model User {
   facilitatorEmployeeLinks FacilitatorEmployee[]        @relation("FacilitatorToEmployee")
   employeeFacilitatorLinks FacilitatorEmployee[]        @relation("EmployeeToFacilitator")
   trainingAttendances      TutorTrainingAttendance[]    @relation("UserToAttendance")
+  boardExamResults         BoardExamResult[]            @relation("TutorToBoardResult")
 
   @@index([status])
   @@index([email])
@@ -300,23 +301,45 @@ model Intern {
   memberId             String?        @unique
 }
 
+enum Category {
+  GENERAL
+  EWS
+  OBC
+  SC
+  ST
+}
+
+enum SchoolType {
+  GOVERNMENT
+  PRIVATE
+  GOVT_AIDED
+}
+
 model Student {
-  id            String                       @id @default(uuid())
+  id            String      @id @default(uuid())
   name          String
-  aadhaarNo     String?                      @unique(map: "student_aadhaar_unique")
-  rollNo        String                       @unique
+  aadhaarNo     String?     @unique(map: "student_aadhaar_unique")
+  rollNo        String      @unique
   gender        Gender?
+  category      Category?
+  schoolName    String?
+  schoolType    SchoolType?
   dob           DateTime?
-  streetAddress String?                      @map("street_address")
+  streetAddress String?     @map("street_address")
   city          String?
   district      String?
   state         String?
-  pincode       String?                      @db.VarChar(10)
+  pincode       String?     @db.VarChar(10)
   fatherName    String?
   motherName    String?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
-  assignments   StudentClassroomAssignment[]
+  parentPhone   String?
+  admissionDate DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  assignments StudentClassroomAssignment[]
+
+  boardResult BoardExamResult?
 
   @@index([city, state])
 }
@@ -334,6 +357,27 @@ model StudentClassroomAssignment {
 
   @@index([studentId, status])
   @@index([classroomId, joinDate, leaveDate])
+}
+
+model BoardExamResult {
+  id String @id @default(uuid())
+
+  studentId String @unique
+
+  passingYear   Int
+  totalMarks    Float
+  marksObtained Float
+  grade         String
+  spTutorId     String?
+  spTutor       User?   @relation("TutorToBoardResult", fields: [spTutorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([passingYear])
+  @@index([spTutorId])
 }
 
 model MonthlyClassroomAttendance {
@@ -368,7 +412,7 @@ model AcademicYear {
 
 model Donation {
   id            String   @id @default(cuid())
-  pan           String
+  pan           String?
   name          String
   address       String
   email         String
@@ -773,4 +817,23 @@ model TrainingPayoutRate {
   presentAmount    Int      @default(50)
   presentResponded Int      @default(75)
   updatedAt        DateTime @updatedAt
+}
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model KpiJobQueue {
+  id          String    @id @default(uuid())
+  targetMonth String    @db.VarChar(7) // Format: YYYY-MM
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  lastError   String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@map("kpi_job_queue")
 }

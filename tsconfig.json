@@ -29,7 +29,10 @@
     ".next/types/**/*.ts",
     "types/next-auth.d.ts",
     "scripts/migrations/2025-11-05-recode-classrooms.js"
-  ],
+,
+"prisma/seed-kpis.js",
+"trigger.config.ts"
+],
   "typeRoots": ["./types", "./node_modules/@types"],
   "ignoreDeprecations": "6.0",
   "exclude": ["node_modules"]
