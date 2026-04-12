@@ -459,3 +459,20 @@ export async function getYearlyAnalytics(yearId: string) {
     return { success: false, error: "Failed to calculate analytics" };
   }
 }
+
+
+export async function toggleFinancialYearStatus(yearId: string, isActive: boolean) {
+  try {
+    await prisma.financialYear.update({
+      where: { id: yearId },
+      data: { isActive },
+    });
+
+    revalidatePath(`/admin/finance`);
+    revalidatePath(`/admin/finance/${yearId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Toggle Status Error:", error);
+    return { success: false, error: "Failed to update financial year status" };
+  }
+}

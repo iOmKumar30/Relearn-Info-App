@@ -3,6 +3,8 @@ import {
   getYearlyAnalytics,
 } from "@/app/actions/finance";
 import { AnalyticsDashboard } from "@/components/finance/analytics-dashboard";
+import { YearStatusToggle } from "@/components/finance/year-status-toggle";
+import { YearlyExportButton } from "@/components/finance/yearly-export-button"; // <-- NEW IMPORT
 import {
   AlertCircle,
   ArrowLeft,
@@ -29,6 +31,21 @@ const getMonthName = (monthNumber: number) => {
   return date.toLocaleString("default", { month: "long" });
 };
 
+const exportColumns = [
+  { key: "serialNo", label: "SI No" },
+  { key: "txnDate", label: "Txn Date" },
+  { key: "valueDate", label: "Value Date" },
+  { key: "description", label: "Description" },
+  { key: "txnId", label: "Txn ID" },
+  { key: "refNo", label: "Ref No / Cheque No" },
+  { key: "branchCode", label: "Branch Code" },
+  { key: "type", label: "Type" },
+  { key: "amount", label: "Amount" },
+  { key: "runningBalance", label: "Balance" },
+  { key: "reason", label: "Reason (Why?)" },
+  { key: "partyName", label: "Person Received/Paid" },
+];
+
 export default async function FinancialYearDetail({
   params,
 }: {
@@ -48,6 +65,31 @@ export default async function FinancialYearDetail({
   if (!detailsRes.success || !year) {
     return notFound();
   }
+
+  const sortedMonths = [...year.months].sort((a, b) => {
+    const getFiscalOrder = (m: number) => (m >= 4 ? m - 4 : m + 8);
+    return getFiscalOrder(a.month) - getFiscalOrder(b.month);
+  });
+
+  const openingBalance =
+    sortedMonths.length > 0 ? Number(sortedMonths[0].startBalance) : 0;
+  const closingBalance =
+    sortedMonths.length > 0
+      ? Number(sortedMonths[sortedMonths.length - 1].endBalance)
+      : 0;
+  const totalIncome = analytics?.summary.totalIncome || 0;
+  const totalExpense = analytics?.summary.totalExpense || 0;
+  const netSurplus = totalIncome - totalExpense;
+
+  const prefaceData = [
+    { Label: "Starting Balance", Value: openingBalance },
+    { Label: "Closing Balance", Value: closingBalance },
+    { Label: "", Value: "" },
+    { Label: "Total Income", Value: totalIncome },
+    { Label: "Total Expenses", Value: totalExpense },
+    { Label: "Net Surplus", Value: netSurplus },
+    { Label: "", Value: "" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 md:p-8 space-y-8">
@@ -82,25 +124,20 @@ export default async function FinancialYearDetail({
           </div>
         </div>
 
-        <div className="bg-white px-6 py-3 rounded-xl border border-gray-200 shadow-sm">
-          <div className="text-right">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Status
-            </p>
-            <p
-              className={`text-sm font-bold px-2 py-0.5 rounded-full inline-block ${
-                year.isActive
-                  ? "bg-green-100 text-green-700"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {year.isActive ? "Active Year" : "Archived"}
-            </p>
+        <div className="flex items-center gap-3">
+          <YearlyExportButton
+            yearId={year.id}
+            fileName={`RELF_FY_${year.name}_Transactions`}
+            columns={exportColumns}
+            preface={prefaceData}
+          />
+
+          <div className="bg-white px-6 py-3 rounded-xl border border-gray-200 shadow-sm">
+            <YearStatusToggle yearId={year.id} initialStatus={year.isActive} />
           </div>
         </div>
       </div>
 
-      {/* Month Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {year.months.map((statement: any) => {
           return (

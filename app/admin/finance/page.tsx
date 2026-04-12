@@ -25,11 +25,15 @@ export default async function FinancePage() {
           >
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden">
               {/* Active Badge */}
-              {year.isActive && (
-                <span className="absolute top-4 right-4 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                  Active
-                </span>
-              )}
+              <span
+                className={`text-sm font-bold px-2 py-0.5 rounded-full inline-block min-w-[100px] text-center ${
+                  year.isActive
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {year.isActive ? "Active Year" : "Archived"}
+              </span>
 
               <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-600">
                 {year.name}
@@ -72,9 +76,7 @@ export default async function FinancePage() {
 
         {(!years || years.length === 0) && (
           <div className="col-span-full text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-500">
-              No financial years found
-            </p>
+            <p className="text-gray-500">No financial years found</p>
           </div>
         )}
       </div>

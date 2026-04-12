@@ -65,6 +65,14 @@ export async function getMonthlyTrainingData(year: number, month: number) {
       role: {
         name: "TUTOR",
       },
+      user: {
+        status: "ACTIVE",
+        tutorAssignments: {
+          some: {
+            endDate: null,
+          },
+        },
+      },
     },
     include: {
       user: {

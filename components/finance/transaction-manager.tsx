@@ -592,10 +592,10 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
           onChange={(e) => handleChange("runningBalance", e.target.value)}
         />
         <p className="text-[10px] text-gray-400 mt-1">
-          Usually calculated automatically, but you can override here.
+           (You have to manually enter this based on your bank statement. It is not auto-calculated. This is because sometimes transactions are entered after the fact and the balance at that time may differ from the current balance.)
         </p>
       </div>
-
+    
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <label className="block text-xs font-semibold text-gray-500 mb-1">
