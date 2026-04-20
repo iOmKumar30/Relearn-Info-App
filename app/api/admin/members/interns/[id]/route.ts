@@ -9,10 +9,9 @@ export const dynamic = "force-dynamic";
 // PUT: Update Intern
 export async function PUT(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await ctx.params; // <-- get id from URL
-
+  const { id } = await ctx.params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -22,15 +21,17 @@ export async function PUT(
   if (!(await isAdmin(session.user.id))) {
     return new NextResponse("Forbidden", { status: 403 });
   }
-
   try {
     const body = await req.json();
 
-    // never trust the body id — ignore it
     const { createdAt, updatedAt, id: _ignore, ...updateData } = body;
 
+    if (updateData.gender === "") updateData.gender = null;
+    if (updateData.workingMode === "") updateData.workingMode = null;
+    if (updateData.institution === "") updateData.institution = null;
+
     const intern = await prisma.intern.update({
-      where: { id }, // <-- SAFE
+      where: { id },
       data: updateData,
     });
 
@@ -42,7 +43,7 @@ export async function PUT(
         message: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
@@ -50,7 +51,7 @@ export async function PUT(
 // DELETE: Remove Intern
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -74,7 +75,7 @@ export async function DELETE(
         message: "Internal Server Error",
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }

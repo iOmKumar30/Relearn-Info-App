@@ -76,7 +76,8 @@ export default function InternCreateModal({
     try {
       // Clean up empty strings to null for optional fields
       const payload = { ...formData };
-
+      if (payload.gender === "") payload.gender = null;
+      if (payload.workingMode === "") payload.workingMode = null;
       // Convert numeric fee
       // Convert numeric fee ("" -> null, "1000" -> 1000)
       payload.feeAmount =
@@ -89,7 +90,7 @@ export default function InternCreateModal({
         (key) => {
           if (!payload[key]) payload[key] = null;
           else payload[key] = new Date(payload[key]);
-        }
+        },
       );
 
       if (mode === "create" && onCreate) {
@@ -396,8 +397,8 @@ export default function InternCreateModal({
           {loading
             ? "Processing..."
             : mode === "create"
-            ? "Create Intern"
-            : "Save Changes"}
+              ? "Create Intern"
+              : "Save Changes"}
         </Button>
       </ModalFooter>
     </Modal>
