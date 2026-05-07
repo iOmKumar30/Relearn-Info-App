@@ -138,6 +138,7 @@ export async function GET(req: Request) {
                     OR: [
                       { name: { contains: q, mode: "insensitive" } },
                       { email: { contains: q, mode: "insensitive" } },
+                      { phone: { contains: q, mode: "insensitive" } },
                     ],
                   },
                 },
@@ -188,7 +189,7 @@ export async function GET(req: Request) {
             id: true,
             isSubstitute: true,
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, name: true, email: true, phone: true},
             },
           },
         },

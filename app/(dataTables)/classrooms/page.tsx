@@ -39,14 +39,18 @@ type ClassroomRow = {
   tutorAssignments?: Array<{
     id: string;
     isSubstitute: boolean;
-    user: { id: string; name: string | null; email: string };
+    user: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+    };
   }>;
 };
 
 const columns = [
   { key: "code", label: "Classroom Code" },
   { key: "centre_name", label: "Centre Name" },
-  { key: "centre_code", label: "Centre Code" },
   { key: "section", label: "Section" },
   { key: "streetAddress", label: "Street Address" },
   { key: "district", label: "District" },
@@ -66,7 +70,7 @@ const classroomFilters: FilterOption[] = [
     type: "select",
     options: ["ACTIVE", "INACTIVE"],
   },
-  { key: "section", label: "Section", type: "select", options: ["JR", "SR"] },
+  { key: "section", label: "Section", type: "select", options: ["JR", "SR", "BOTH"] },
   {
     key: "timing",
     label: "Timing",
@@ -204,7 +208,6 @@ export default function ClassroomsPage() {
           ...rows.map((r) => ({
             code: r.code,
             centreName: r.centre?.name || "",
-            centreCode: r.centre?.code || "",
             section: r.section,
             streetAddress: r.streetAddress,
             district: r.district,
@@ -212,8 +215,8 @@ export default function ClassroomsPage() {
             currentTutor:
               r.tutorAssignments && r.tutorAssignments.length > 0
                 ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
-                    r.tutorAssignments[0].user.email
-                  })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+                    r.tutorAssignments[0].user.email || "No email"
+                  })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""} (${r.tutorAssignments[0].user.phone || "No phone"})`
                 : "",
             timing: r.timing,
             monthlyAllowance: r.monthlyAllowance,
@@ -243,7 +246,6 @@ export default function ClassroomsPage() {
     return rawRows.map((r) => ({
       code: r.code,
       centreName: r.centre?.name || "",
-      centreCode: r.centre?.code || "",
       section: r.section,
       streetAddress: r.streetAddress,
       district: r.district,
@@ -251,8 +253,8 @@ export default function ClassroomsPage() {
       currentTutor:
         r.tutorAssignments && r.tutorAssignments.length > 0
           ? `${r.tutorAssignments[0].user.name || "Unnamed"} (${
-              r.tutorAssignments[0].user.email
-            })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""}`
+              r.tutorAssignments[0].user.email || "No email"
+            })${r.tutorAssignments[0].isSubstitute ? " [SUB]" : ""} (${r.tutorAssignments[0].user.phone || "No phone"})`
           : "",
       timing: r.timing,
       monthlyAllowance: r.monthlyAllowance,
@@ -270,7 +272,6 @@ export default function ClassroomsPage() {
     return (data?.rows ?? []).map((r) => ({
       ...r,
       centre_name: r.centre?.name || "",
-      centre_code: r.centre?.code || "",
       section:
         r.section === "JR" ? (
           <Badge color="pink" className="uppercase">
@@ -313,6 +314,9 @@ export default function ClassroomsPage() {
                 SUB
               </Badge>
             )}
+            <span className="block font-bold text-sm mt-1">
+              {r.tutorAssignments[0].user.phone || "No phone"}
+            </span>
           </span>
         ) : (
           "—"
@@ -541,7 +545,6 @@ export default function ClassroomsPage() {
             columns={[
               { key: "code", label: "Classroom Code" },
               { key: "centreName", label: "Centre Name" },
-              { key: "centreCode", label: "Centre Code" },
               { key: "section", label: "Section" },
               { key: "streetAddress", label: "Street Address" },
               { key: "district", label: "District" },
