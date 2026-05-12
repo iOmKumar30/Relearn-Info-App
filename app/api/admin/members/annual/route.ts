@@ -145,7 +145,6 @@ export async function GET(req: Request) {
 }
 
 // POST: Create Annual Member with Fees & Amounts
-// POST: Create Annual Member with Fees & Amounts
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

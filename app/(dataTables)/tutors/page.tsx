@@ -16,7 +16,7 @@ const columns = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "roles", label: "Current Roles" },
-  { key: "onboardingStatus", label: "Onboarding" },
+  { key: "status", label: "Status" },
 ];
 
 type Row = {
@@ -25,7 +25,7 @@ type Row = {
   name?: string | null;
   phone?: string | null;
   address?: string | null;
-  onboardingStatus: string;
+  status: string;
   createdAt: string;
   currentRoles: string[];
 };
@@ -84,7 +84,7 @@ export default function TutorsPage() {
       if (debouncedSearch) url.searchParams.set("q", debouncedSearch);
       return url;
     },
-    [role, debouncedSearch]
+    [role, debouncedSearch],
   );
 
   // Export: fetch all pages with current search
@@ -106,12 +106,12 @@ export default function TutorsPage() {
           email: u.email,
           phone: u.phone || "",
           roles: (u.currentRoles || []).join(", "),
-          onboardingStatus: u.onboardingStatus,
+          status: u.status,
           createdAt: u.createdAt
             ? new Date(u.createdAt).toLocaleDateString("en-GB")
             : "",
           address: u.address || "",
-        }))
+        })),
       );
 
       if (rows.length < pageSizeAll) break;
@@ -129,7 +129,7 @@ export default function TutorsPage() {
       email: u.email,
       phone: u.phone || "",
       roles: (u.currentRoles || []).join(", "),
-      onboardingStatus: u.onboardingStatus,
+      status: u.status,
       createdAt: u.createdAt
         ? new Date(u.createdAt).toLocaleDateString("en-GB")
         : "",
@@ -150,9 +150,9 @@ export default function TutorsPage() {
           ))}
         </>
       ),
-      onboardingStatus: (
+      status: (
         <Badge color="indigo" className="uppercase">
-          {u.onboardingStatus}
+          {u.status}
         </Badge>
       ),
     }));
@@ -183,7 +183,7 @@ export default function TutorsPage() {
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
               { key: "roles", label: "Current Roles" },
-              { key: "onboardingStatus", label: "Onboarding" },
+              { key: "status", label: "Status" },
               { key: "createdAt", label: "Created" },
               { key: "address", label: "Address" },
             ]}

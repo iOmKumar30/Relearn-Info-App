@@ -241,7 +241,6 @@ export async function PUT(
     });
   }
 }
-// DELETE: Remove Member record (keeps User, but removes Member role)
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -255,9 +254,19 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Cascade delete in schema will handle fees.
-    await prisma.member.delete({
+    // Find member and its user
+    const member = await prisma.member.findUnique({
       where: { id },
+      select: { userId: true },
+    });
+
+    if (!member) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+
+    // Delete the user; cascade will delete member, fees, etc.
+    await prisma.user.delete({
+      where: { id: member.userId },
     });
 
     return NextResponse.json({ success: true });

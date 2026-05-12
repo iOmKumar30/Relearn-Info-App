@@ -93,6 +93,7 @@ model User {
   employeeFacilitatorLinks FacilitatorEmployee[]        @relation("EmployeeToFacilitator")
   trainingAttendances      TutorTrainingAttendance[]    @relation("UserToAttendance")
   boardExamResults         BoardExamResult[]            @relation("TutorToBoardResult")
+  intern                   Intern?
 
   @@index([status])
   @@index([email])
@@ -119,6 +120,7 @@ model UserRoleHistory {
   @@index([userId, startDate])
   @@index([userId, endDate])
   @@index([roleId])
+  @@index([roleId, endDate])
 }
 
 model EmailCredential {
@@ -183,6 +185,7 @@ model FacilitatorAssignment {
 
   @@index([userId])
   @@index([centreId, startDate, endDate])
+  @@index([userId, endDate])
 }
 
 model FacilitatorEmployee {
@@ -212,6 +215,7 @@ model TutorAssignment {
   @@index([userId])
   @@index([classroomId, startDate, endDate])
   @@index([isSubstitute])
+  @@index([userId, endDate])
 }
 
 model Employee {
@@ -299,6 +303,9 @@ model Intern {
   feePaidDate          DateTime?
   paymentStatus        PaymentStatus? @default(PENDING)
   memberId             String?        @unique
+  userId               String?        @unique // link to User when needed
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Category {
@@ -818,6 +825,7 @@ model TrainingPayoutRate {
   presentResponded Int      @default(75)
   updatedAt        DateTime @updatedAt
 }
+
 enum JobStatus {
   PENDING
   PROCESSING

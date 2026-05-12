@@ -247,7 +247,20 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.member.delete({ where: { id } });
+    // Find member and its user
+    const member = await prisma.member.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+
+    if (!member) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+
+    // Delete the user; cascade will delete member, fees, etc.
+    await prisma.user.delete({
+      where: { id: member.userId },
+    });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });

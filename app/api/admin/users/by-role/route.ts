@@ -58,6 +58,7 @@ export async function GET(req: Request) {
         phone: true,
         address: true,
         onboardingStatus: true,
+        status: true,
         createdAt: true,
         roleHistory: {
           where: { endDate: null },
@@ -74,9 +75,9 @@ export async function GET(req: Request) {
     name: u.name,
     phone: u.phone,
     address: u.address,
-    onboardingStatus: u.onboardingStatus,
+    status: u.status,
     createdAt: u.createdAt,
-    currentRoles: u.roleHistory.map((h) => h.role.name),
+    currentRoles: u.roleHistory.map((h: any) => h.role.name),
   }));
 
   return NextResponse.json({ page, pageSize, total, rows });

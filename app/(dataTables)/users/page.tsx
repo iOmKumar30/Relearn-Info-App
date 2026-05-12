@@ -295,14 +295,14 @@ export default function UsersPage() {
     gender: string;
     status: "ACTIVE" | "INACTIVE";
     roles: AppRole[];
-    memberType?: string; // Add this
+    memberType?: string;
   }) => {
     const toastId = toast.loading("Creating user...");
     try {
       setLoading(true);
       setError(null);
 
-      // 1. Create User First
+      // Create User First (now includes memberType for backend)
       const userBody = {
         name: payload.name?.trim(),
         email: payload.email?.trim(),
@@ -310,7 +310,7 @@ export default function UsersPage() {
         address: payload.address?.trim(),
         gender: payload.gender,
         roles: payload.roles,
-        // We do NOT send memberType to User API anymore
+        memberType: payload.memberType, // send to backend
       };
 
       const userRes = await fetch("/api/admin/users", {
@@ -322,11 +322,11 @@ export default function UsersPage() {
       if (!userRes.ok) throw new Error(await userRes.text());
       const createdUser = await userRes.json();
 
-      // 2. If a Member Type is selected, Call the Specific Member API
+      /*       // If a Member Type is selected, optionally call the specific Member API
       // We check if "MEMBER" role is present AND memberType is set
       if (payload.roles.includes("MEMBER") && payload.memberType) {
-        // Determine correct endpoint based on type
         let memberEndpoint = "";
+
         switch (payload.memberType) {
           case "ANNUAL":
             memberEndpoint = "/api/admin/members/annual";
@@ -337,6 +337,9 @@ export default function UsersPage() {
           case "HONORARY":
             memberEndpoint = "/api/admin/members/honorary";
             break;
+          case "INTERN":
+            memberEndpoint = ""; //INTERN handled entirely in /api/admin/users
+            break;
         }
 
         if (memberEndpoint) {
@@ -344,21 +347,14 @@ export default function UsersPage() {
             id: toastId,
           });
 
-          // Construct payload for Member API
-          // Your Member APIs likely expect: { name, email, phone, pan, joiningDate, fees... }
-          // Since User is already created with this email, the Member API logic
-          // (which we optimized previously) should find the user by email and just link the member record.
-
           const memberBody = {
             name: payload.name,
             email: payload.email,
             phone: payload.phone,
-            // You might want to add fields like PAN or Joining Date to User Modal if needed,
-            // otherwise send defaults or empty
             pan: "",
-            joiningDate: new Date().toISOString().slice(0, 10), // Default to today
-            fees: {}, // No fees initially from User Modal
-            typeHistory: [], // Let API handle default history
+            joiningDate: new Date().toISOString().slice(0, 10),
+            fees: {},
+            typeHistory: [],
           };
 
           const memberRes = await fetch(memberEndpoint, {
@@ -368,15 +364,13 @@ export default function UsersPage() {
           });
 
           if (!memberRes.ok) {
-            // CRITICAL: User created, but Member failed.
-            // In a real app, you might want to "undo" user creation here, or just warn the admin.
             throw new Error(
               `User created, but failed to create Member record: ${await memberRes.text()}`,
             );
           }
         }
       }
-
+ */
       await fetchRows();
       setCreateOpen(false);
       toast.success("User (and Member) created successfully", { id: toastId });

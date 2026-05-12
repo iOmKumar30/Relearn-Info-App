@@ -55,6 +55,7 @@ const MEMBER_SUB_TYPES = [
   { label: "Annual Member", value: "ANNUAL" },
   { label: "Life Member", value: "LIFE" },
   { label: "Honorary Member", value: "HONORARY" },
+  {label: "Intern Member", value: "INTERN"}
 ];
 
 export default function UserCreateModal({
