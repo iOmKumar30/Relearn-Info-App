@@ -9,9 +9,7 @@
     "lint": "next lint",
     "postinstall": "prisma generate"
   },
-  "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  },
+  "prisma": {},
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@prisma/adapter-pg": "^7.1.0",
@@ -19,8 +17,9 @@
     "@trigger.dev/nextjs": "^3.3.12",
     "@trigger.dev/react": "^3.3.12",
     "@trigger.dev/sdk": "^3.3.12",
-
     "@uploadthing/react": "^7.3.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "clsx": "^2.1.1",

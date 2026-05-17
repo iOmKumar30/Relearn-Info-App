@@ -10,12 +10,13 @@ import bcrypt from "bcrypt";
 import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { verifyTurnstile } from "./turnstile";
 // Credentials: checks EmailCredential.passwordHash
 // Google: upserts User + Account, assigns PENDING role on first login
 // JWT strategy; enrich token with userId, roles, onboardingStatus
 // Ensure the PENDING role exists (used on first OAuth sign-in)
 async function ensurePendingRole(
-  tx: PrismaClient | Prisma.TransactionClient = prisma
+  tx: PrismaClient | Prisma.TransactionClient = prisma,
 ) {
   let role = await tx.role.findUnique({ where: { name: RoleName.PENDING } });
   if (!role) {
@@ -65,32 +66,104 @@ export const authOptions: AuthOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
+        cfToken: { label: "Turnstile Token", type: "text" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
+      async authorize(credentials, req) {
+        try {
+          const rawEmail = credentials?.email;
+          const password = credentials?.password;
+          const cfToken = credentials?.cfToken;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: {
-            emailCredential: true,
-            roleHistory: { where: { endDate: null }, include: { role: true } },
-          },
-        });
-        if (!user || !user.emailCredential?.passwordHash) return null;
+          const email =
+            typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
-        const ok = await bcrypt.compare(
-          credentials.password,
-          user.emailCredential.passwordHash
-        );
-        if (!ok) return null;
+          const ip =
+            req?.headers?.["x-forwarded-for"]
+              ?.toString()
+              .split(",")[0]
+              .trim() ||
+            req?.headers?.["x-real-ip"]?.toString() ||
+            "unknown";
 
-        // Minimal user object returned to NextAuth
-        return {
-          id: user.id,
-          email: user.email,
-          onboardingStatus: user.onboardingStatus,
-          roles: extractRoleNames(user),
-        } as any;
+          if (!email || !password) {
+            console.warn("LOGIN_REJECTED", {
+              reason: "missing_fields",
+              ip,
+              email,
+            });
+            return null;
+          }
+
+          if (!cfToken || typeof cfToken !== "string") {
+            console.warn("LOGIN_REJECTED", {
+              reason: "missing_turnstile_token",
+              ip,
+              email,
+            });
+            return null;
+          }
+
+          const isHuman = await verifyTurnstile(cfToken, ip);
+
+          if (!isHuman) {
+            console.warn("LOGIN_REJECTED", {
+              reason: "turnstile_failed",
+              ip,
+              email,
+            });
+            return null;
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { email },
+            include: {
+              emailCredential: true,
+              roleHistory: {
+                where: { endDate: null },
+                include: { role: true },
+              },
+            },
+          });
+
+          if (!user || !user.emailCredential?.passwordHash) {
+            console.warn("LOGIN_REJECTED", {
+              reason: "user_not_found_or_no_password",
+              ip,
+              email,
+            });
+            return null;
+          }
+
+          const ok = await bcrypt.compare(
+            password,
+            user.emailCredential.passwordHash,
+          );
+
+          if (!ok) {
+            console.warn("LOGIN_REJECTED", {
+              reason: "invalid_password",
+              ip,
+              email,
+            });
+            return null;
+          }
+
+          console.info("LOGIN_SUCCESS", {
+            ip,
+            userId: user.id,
+            email: user.email,
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            onboardingStatus: user.onboardingStatus,
+            roles: extractRoleNames(user),
+          } as any;
+        } catch (error) {
+          console.error("LOGIN_ERROR", error);
+          return null;
+        }
       },
     }),
   ],
@@ -231,7 +304,7 @@ export const authOptions: AuthOptions = {
                 .map((rh: any) => rh.role?.name)
                 .filter(Boolean);
               token.roles = Array.from(
-                new Set([...(token.roles || []), ...roleNames])
+                new Set([...(token.roles || []), ...roleNames]),
               );
             } else {
               // Ensure roles is at least an empty array — avoids `Array.isArray` checks failing
@@ -275,5 +348,3 @@ export const authOptions: AuthOptions = {
   },
 };
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };

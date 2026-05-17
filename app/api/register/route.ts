@@ -1,36 +1,85 @@
 import prisma from "@/libs/prismadb";
+import { verifyTurnstile } from "@/libs/turnstile";
 import { OnboardingStatus, RoleName, UserStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { email, password } = body ?? {};
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
 
-    if (!email || !password) {
+    const userAgent = req.headers.get("user-agent") ?? "unknown";
+
+    const body = await req.json();
+    const { email, password, cfToken } = body ?? {};
+
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail || !password) {
+      console.warn("REGISTER_REJECTED", {
+        reason: "missing_fields",
+        ip,
+        userAgent,
+      });
       return new NextResponse("Missing fields", { status: 400 });
     }
+
     if (typeof password !== "string" || password.length < 6) {
+      console.warn("REGISTER_REJECTED", {
+        reason: "password_too_short",
+        ip,
+        userAgent,
+        email: normalizedEmail,
+      });
       return new NextResponse("Password too short", { status: 400 });
     }
 
-    // 1) check existing
+    if (!cfToken) {
+      console.warn("REGISTER_REJECTED", {
+        reason: "missing_turnstile_token",
+        ip,
+        userAgent,
+        email: normalizedEmail,
+      });
+      return new NextResponse("Missing verification token", { status: 400 });
+    }
+
+    const isHuman = await verifyTurnstile(cfToken, ip);
+
+    if (!isHuman) {
+      console.warn("REGISTER_REJECTED", {
+        reason: "turnstile_failed",
+        ip,
+        userAgent,
+        email: normalizedEmail,
+      });
+      return new NextResponse("Bot verification failed", { status: 403 });
+    }
+
     const existingByEmail = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: { id: true },
-      // cacheStrategy: { ttl: 60, swr: 60 },
     });
+
     if (existingByEmail) {
+      console.warn("REGISTER_REJECTED", {
+        reason: "user_already_exists",
+        ip,
+        userAgent,
+        email: normalizedEmail,
+      });
       return new NextResponse("User already exists", { status: 400 });
     }
 
-    // 2) ensure PENDING role exists (idempotent)
     let pendingRole = await prisma.role.findUnique({
       where: { name: RoleName.PENDING },
       select: { id: true, name: true },
-      // cacheStrategy: { ttl: 60, swr: 60 },
     });
+
     if (!pendingRole) {
       pendingRole = await prisma.role.create({
         data: {
@@ -41,14 +90,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3) hash and create everything in a transaction
     const passwordHash = await bcrypt.hash(password, 10);
 
     const created = await prisma.$transaction(async (tx) => {
-      // create minimal user (no name/phone/address yet)
       const user = await tx.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           status: UserStatus.ACTIVE,
           onboardingStatus: OnboardingStatus.PENDING_PROFILE,
         },
@@ -61,29 +108,32 @@ export async function POST(req: Request) {
         },
       });
 
-      // create local credential
       await tx.emailCredential.create({
         data: {
           userId: user.id,
-          email, // login email
-          passwordHash, // argon2/bcrypt hash only
+          email: normalizedEmail,
+          passwordHash,
         },
       });
 
-      // attach PENDING role
       await tx.userRoleHistory.create({
         data: {
           userId: user.id,
           roleId: pendingRole.id,
-          // startDate defaults to now()
-          // endDate: null means currently active entry for PENDING
         },
       });
 
       return user;
     });
 
-    // 4) safe response (no secrets)
+    console.info("REGISTER_SUCCESS", {
+      ip,
+      userAgent,
+      userId: created.id,
+      email: created.email,
+      createdAt: created.createdAt,
+    });
+
     return NextResponse.json({
       id: created.id,
       email: created.email,
