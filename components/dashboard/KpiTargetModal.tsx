@@ -168,7 +168,7 @@ export function KpiTargetModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} color="green">
               {loading ? "Saving..." : "Save Target"}
             </Button>
           </div>
