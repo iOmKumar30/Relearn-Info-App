@@ -12,8 +12,9 @@
   "prisma": {},
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@prisma/adapter-pg": "^7.1.0",
-    "@prisma/extension-accelerate": "^3.0.1",
     "@trigger.dev/nextjs": "^3.3.12",
     "@trigger.dev/react": "^3.3.12",
     "@trigger.dev/sdk": "^3.3.12",
@@ -24,7 +25,7 @@
     "bcrypt": "^6.0.0",
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "file-saver": "^2.0.5",
     "flowbite": "^3.1.2",
     "flowbite-react": "^0.12.13",
@@ -51,7 +52,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@prisma/client": "^7.5.0",
+    "@prisma/client": "^7.8.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^20.19.9",
@@ -60,10 +61,10 @@
     "@types/react-dom": "^19.2.2",
     "eslint": "^9",
     "eslint-config-next": "15.4.3",
-    "prisma": "^7.5.0",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.8.3"
   }
 }

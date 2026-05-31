@@ -303,50 +303,33 @@ model Intern {
   feePaidDate          DateTime?
   paymentStatus        PaymentStatus? @default(PENDING)
   memberId             String?        @unique
-  userId               String?        @unique // link to User when needed
-
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-enum Category {
-  GENERAL
-  EWS
-  OBC
-  SC
-  ST
-}
-
-enum SchoolType {
-  GOVERNMENT
-  PRIVATE
-  GOVT_AIDED
+  userId               String?        @unique
+  user                 User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Student {
-  id            String      @id @default(uuid())
+  id            String                       @id @default(uuid())
   name          String
-  aadhaarNo     String?     @unique(map: "student_aadhaar_unique")
-  rollNo        String      @unique
+  aadhaarNo     String?                      @unique(map: "student_aadhaar_unique")
+  rollNo        String                       @unique
   gender        Gender?
-  category      Category?
-  schoolName    String?
-  schoolType    SchoolType?
   dob           DateTime?
-  streetAddress String?     @map("street_address")
+  streetAddress String?                      @map("street_address")
   city          String?
   district      String?
   state         String?
-  pincode       String?     @db.VarChar(10)
+  pincode       String?                      @db.VarChar(10)
   fatherName    String?
   motherName    String?
-  parentPhone   String?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
   admissionDate DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  assignments StudentClassroomAssignment[]
-
-  boardResult BoardExamResult?
+  category      Category?
+  parentPhone   String?
+  schoolName    String?
+  schoolType    SchoolType?
+  assignments   StudentClassroomAssignment[]
+  boardResult   BoardExamResult?
 
   @@index([city, state])
 }
@@ -367,21 +350,17 @@ model StudentClassroomAssignment {
 }
 
 model BoardExamResult {
-  id String @id @default(uuid())
-
-  studentId String @unique
-
+  id            String   @id @default(uuid())
+  studentId     String   @unique
   passingYear   Int
   totalMarks    Float
   marksObtained Float
   grade         String
   spTutorId     String?
-  spTutor       User?   @relation("TutorToBoardResult", fields: [spTutorId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  spTutor       User?    @relation("TutorToBoardResult", fields: [spTutorId], references: [id], onDelete: SetNull)
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([passingYear])
   @@index([spTutorId])
@@ -425,12 +404,12 @@ model Donation {
   email         String
   contact       String
   reason        String
-  gstno         String   @default("N/A")
   method        String
   amount        Decimal  @db.Decimal(12, 2)
   date          DateTime
   receiptNumber String   @unique
   transactionId String   @unique
+  gstno         String   @default("N/A")
 
   @@index([date])
   @@index([email])
@@ -655,6 +634,77 @@ model Transaction {
   @@index([txnDate])
 }
 
+model TutorTrainingAttendance {
+  id        String                   @id @default(uuid())
+  classId   String                   @map("class_id")
+  tutorId   String                   @map("tutor_id")
+  status    TrainingAttendanceStatus
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  amount    Int                      @default(0)
+  class     TutorTrainingClass       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  tutor     User                     @relation("UserToAttendance", fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, tutorId])
+  @@index([tutorId])
+}
+
+model TutorTrainingClass {
+  id          String                    @id @default(uuid())
+  yearId      Int                       @map("year_id")
+  month       Int
+  date        DateTime
+  trainingBy  String
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  year        TutorTrainingYear         @relation(fields: [yearId], references: [year], onDelete: Cascade)
+  attendances TutorTrainingAttendance[]
+
+  @@index([yearId, month])
+}
+
+model TutorTrainingYear {
+  year      Int                  @id
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  classes   TutorTrainingClass[]
+}
+
+model TrainingPayoutRate {
+  id               String   @id @default("default_rate")
+  absentAmount     Int      @default(0)
+  presentAmount    Int      @default(50)
+  presentResponded Int      @default(75)
+  updatedAt        DateTime @updatedAt
+}
+
+model KpiJobQueue {
+  id          String    @id @default(uuid())
+  targetMonth String    @db.VarChar(7)
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@map("kpi_job_queue")
+}
+
+enum Category {
+  GENERAL
+  EWS
+  OBC
+  SC
+  ST
+}
+
+enum SchoolType {
+  GOVERNMENT
+  PRIVATE
+  GOVT_AIDED
+}
+
 enum InternStatus {
   ACTIVE
   COMPLETED
@@ -782,66 +832,9 @@ enum TrainingAttendanceStatus {
   PRESENT_RESPONDED
 }
 
-model TutorTrainingAttendance {
-  id        String                   @id @default(uuid())
-  classId   String                   @map("class_id")
-  tutorId   String                   @map("tutor_id")
-  status    TrainingAttendanceStatus
-  amount    Int                      @default(0)
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
-  class     TutorTrainingClass       @relation(fields: [classId], references: [id], onDelete: Cascade)
-  tutor     User                     @relation("UserToAttendance", fields: [tutorId], references: [id], onDelete: Cascade)
-
-  @@unique([classId, tutorId])
-  @@index([tutorId])
-}
-
-model TutorTrainingClass {
-  id          String                    @id @default(uuid())
-  yearId      Int                       @map("year_id")
-  month       Int
-  date        DateTime
-  trainingBy  String
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  year        TutorTrainingYear         @relation(fields: [yearId], references: [year], onDelete: Cascade)
-  attendances TutorTrainingAttendance[]
-
-  @@index([yearId, month])
-}
-
-model TutorTrainingYear {
-  year      Int                  @id
-  isActive  Boolean              @default(true)
-  createdAt DateTime             @default(now())
-  classes   TutorTrainingClass[]
-}
-
-model TrainingPayoutRate {
-  id               String   @id @default("default_rate") // Singleton record
-  absentAmount     Int      @default(0)
-  presentAmount    Int      @default(50)
-  presentResponded Int      @default(75)
-  updatedAt        DateTime @updatedAt
-}
-
 enum JobStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
-}
-
-model KpiJobQueue {
-  id          String    @id @default(uuid())
-  targetMonth String    @db.VarChar(7) // Format: YYYY-MM
-  status      JobStatus @default(PENDING)
-  attempts    Int       @default(0)
-  lastError   String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([status, createdAt])
-  @@map("kpi_job_queue")
 }
