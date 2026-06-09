@@ -75,7 +75,7 @@ export default function AttendanceToggle({
             ? "bg-green-400 text-white shadow-sm ring-2 ring-green-200"
             : "text-gray-500 hover:bg-green-100 hover:text-green-600"
         }`}
-        title={`Absent(₹${currentRates.presentAmount})`}
+        title={`Present(₹${currentRates.presentAmount})`}
       >
         P
       </button>

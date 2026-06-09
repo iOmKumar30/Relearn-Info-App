@@ -33,7 +33,7 @@ export default function AddClassModal({
   const [date, setDate] = useState("");
   const [trainingBy, setTrainingBy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [dateError, setDateError] = useState<string | null>(null);
   const formatDateForInput = (d: string | Date) => {
     const dt = typeof d === "string" ? new Date(d) : d;
     const yyyy = dt.getFullYear();
@@ -41,7 +41,15 @@ export default function AddClassModal({
     const dd = String(dt.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   };
+  const isDateInCurrentMonthYear = (value: string) => {
+    if (!value) return false;
+    const selected = new Date(value);
 
+    const selectedYear = selected.getFullYear();
+    const selectedMonth = selected.getMonth() + 1;
+
+    return selectedYear === year && selectedMonth === month;
+  };
   useEffect(() => {
     if (isOpen) {
       if (mode === "edit" && initialClass) {
@@ -93,7 +101,11 @@ export default function AddClassModal({
       setIsSubmitting(false);
     }
   };
-
+  const isFormValid =
+    !!date &&
+    !!trainingBy.trim() &&
+    isDateInCurrentMonthYear(date) &&
+    !dateError;
   return (
     <>
       {trigger ? (
@@ -146,10 +158,44 @@ export default function AddClassModal({
               <input
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDate(value);
+
+                  if (!value) {
+                    setDateError("Please choose a date.");
+                    return;
+                  }
+
+                  if (!isDateInCurrentMonthYear(value)) {
+                    setDateError(
+                      "Choose a date within the selected month and year.",
+                    );
+                  } else {
+                    setDateError(null);
+                  }
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
+              {dateError && (
+                <div className="mt-1 flex items-center text-sm text-red-600">
+                  <svg
+                    className="h-4 w-4 mr-1 shrink-0"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.366-.772 1.42-.772 1.786 0l6.518 13.743A1 1 0 0115.66 18H4.34a1 1 0 01-.901-1.158L8.257 3.1zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v3a1 1 0 01-1 1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>{dateError}</span>
+                </div>
+              )}
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Training By
@@ -164,8 +210,8 @@ export default function AddClassModal({
             </div>
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              disabled={isSubmitting || !isFormValid}
+              className="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting
                 ? mode === "create"
