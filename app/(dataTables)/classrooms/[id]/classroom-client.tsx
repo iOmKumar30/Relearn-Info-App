@@ -304,6 +304,7 @@ export default function ClassroomProfileClient({
           </div>
           <div>Section: {classroom.section}</div>
           <div>Timing: {classroom.timing}</div>
+          <div>Sponsored By: {classroom.sponsoredBy || "—"}</div>
           {/* Add other fields as needed */}
         </div>
       )}

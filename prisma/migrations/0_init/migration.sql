@@ -2,6 +2,12 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
+CREATE TYPE "Category" AS ENUM ('GENERAL', 'EWS', 'OBC', 'SC', 'ST');
+
+-- CreateEnum
+CREATE TYPE "SchoolType" AS ENUM ('GOVERNMENT', 'PRIVATE', 'GOVT_AIDED');
+
+-- CreateEnum
 CREATE TYPE "InternStatus" AS ENUM ('ACTIVE', 'COMPLETED', 'DROPPED', 'PENDING_START');
 
 -- CreateEnum
@@ -60,6 +66,12 @@ CREATE TYPE "ProjectStatus" AS ENUM ('PLANNED', 'ONGOING', 'COMPLETED', 'ON_HOLD
 
 -- CreateEnum
 CREATE TYPE "TransactionType" AS ENUM ('DEBIT', 'CREDIT');
+
+-- CreateEnum
+CREATE TYPE "TrainingAttendanceStatus" AS ENUM ('ABSENT', 'PRESENT', 'PRESENT_RESPONDED');
+
+-- CreateEnum
+CREATE TYPE "JobStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 
 -- CreateTable
 CREATE TABLE "Centre" (
@@ -327,6 +339,7 @@ CREATE TABLE "Intern" (
     "feePaidDate" TIMESTAMP(3),
     "paymentStatus" "PaymentStatus" DEFAULT 'PENDING',
     "memberId" TEXT,
+    "userId" TEXT,
 
     CONSTRAINT "Intern_pkey" PRIMARY KEY ("id")
 );
@@ -348,6 +361,11 @@ CREATE TABLE "Student" (
     "motherName" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "admissionDate" TIMESTAMP(3),
+    "category" "Category",
+    "parentPhone" TEXT,
+    "schoolName" TEXT,
+    "schoolType" "SchoolType",
 
     CONSTRAINT "Student_pkey" PRIMARY KEY ("id")
 );
@@ -363,6 +381,21 @@ CREATE TABLE "StudentClassroomAssignment" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "StudentClassroomAssignment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BoardExamResult" (
+    "id" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "passingYear" INTEGER NOT NULL,
+    "totalMarks" DOUBLE PRECISION NOT NULL,
+    "marksObtained" DOUBLE PRECISION NOT NULL,
+    "grade" TEXT NOT NULL,
+    "spTutorId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BoardExamResult_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -397,7 +430,7 @@ CREATE TABLE "AcademicYear" (
 -- CreateTable
 CREATE TABLE "donation" (
     "id" TEXT NOT NULL,
-    "pan" TEXT NOT NULL,
+    "pan" TEXT,
     "name" TEXT NOT NULL,
     "address" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -408,6 +441,7 @@ CREATE TABLE "donation" (
     "date" TIMESTAMP(3) NOT NULL,
     "receiptNumber" TEXT NOT NULL,
     "transactionId" TEXT NOT NULL,
+    "gstno" TEXT NOT NULL DEFAULT 'N/A',
 
     CONSTRAINT "donation_pkey" PRIMARY KEY ("id")
 );
@@ -642,6 +676,65 @@ CREATE TABLE "Transaction" (
     CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "TutorTrainingAttendance" (
+    "id" TEXT NOT NULL,
+    "class_id" TEXT NOT NULL,
+    "tutor_id" TEXT NOT NULL,
+    "status" "TrainingAttendanceStatus" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amount" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "TutorTrainingAttendance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TutorTrainingClass" (
+    "id" TEXT NOT NULL,
+    "year_id" INTEGER NOT NULL,
+    "month" INTEGER NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "trainingBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TutorTrainingClass_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TutorTrainingYear" (
+    "year" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TutorTrainingYear_pkey" PRIMARY KEY ("year")
+);
+
+-- CreateTable
+CREATE TABLE "TrainingPayoutRate" (
+    "id" TEXT NOT NULL DEFAULT 'default_rate',
+    "absentAmount" INTEGER NOT NULL DEFAULT 0,
+    "presentAmount" INTEGER NOT NULL DEFAULT 50,
+    "presentResponded" INTEGER NOT NULL DEFAULT 75,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TrainingPayoutRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "kpi_job_queue" (
+    "id" TEXT NOT NULL,
+    "targetMonth" VARCHAR(7) NOT NULL,
+    "status" "JobStatus" NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "kpi_job_queue_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Centre_code_key" ON "Centre"("code");
 
@@ -685,6 +778,9 @@ CREATE INDEX "UserRoleHistory_userId_endDate_idx" ON "UserRoleHistory"("userId",
 CREATE INDEX "UserRoleHistory_roleId_idx" ON "UserRoleHistory"("roleId");
 
 -- CreateIndex
+CREATE INDEX "UserRoleHistory_roleId_endDate_idx" ON "UserRoleHistory"("roleId", "endDate");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "EmailCredential_userId_key" ON "EmailCredential"("userId");
 
 -- CreateIndex
@@ -709,6 +805,9 @@ CREATE INDEX "FacilitatorAssignment_userId_idx" ON "FacilitatorAssignment"("user
 CREATE INDEX "FacilitatorAssignment_centreId_startDate_endDate_idx" ON "FacilitatorAssignment"("centreId", "startDate", "endDate");
 
 -- CreateIndex
+CREATE INDEX "FacilitatorAssignment_userId_endDate_idx" ON "FacilitatorAssignment"("userId", "endDate");
+
+-- CreateIndex
 CREATE INDEX "FacilitatorEmployee_facilitatorId_idx" ON "FacilitatorEmployee"("facilitatorId");
 
 -- CreateIndex
@@ -722,6 +821,9 @@ CREATE INDEX "TutorAssignment_classroomId_startDate_endDate_idx" ON "TutorAssign
 
 -- CreateIndex
 CREATE INDEX "TutorAssignment_isSubstitute_idx" ON "TutorAssignment"("isSubstitute");
+
+-- CreateIndex
+CREATE INDEX "TutorAssignment_userId_endDate_idx" ON "TutorAssignment"("userId", "endDate");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Employee_userId_key" ON "Employee"("userId");
@@ -754,6 +856,9 @@ CREATE INDEX "MemberTypeHistory_memberId_idx" ON "MemberTypeHistory"("memberId")
 CREATE UNIQUE INDEX "Intern_memberId_key" ON "Intern"("memberId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Intern_userId_key" ON "Intern"("userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "student_aadhaar_unique" ON "Student"("aadhaarNo");
 
 -- CreateIndex
@@ -767,6 +872,15 @@ CREATE INDEX "StudentClassroomAssignment_studentId_status_idx" ON "StudentClassr
 
 -- CreateIndex
 CREATE INDEX "StudentClassroomAssignment_classroomId_join_date_leave_date_idx" ON "StudentClassroomAssignment"("classroomId", "join_date", "leave_date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BoardExamResult_studentId_key" ON "BoardExamResult"("studentId");
+
+-- CreateIndex
+CREATE INDEX "BoardExamResult_passingYear_idx" ON "BoardExamResult"("passingYear");
+
+-- CreateIndex
+CREATE INDEX "BoardExamResult_spTutorId_idx" ON "BoardExamResult"("spTutorId");
 
 -- CreateIndex
 CREATE INDEX "MonthlyClassroomAttendance_classroomId_year_idx" ON "MonthlyClassroomAttendance"("classroomId", "year");
@@ -851,4 +965,16 @@ CREATE INDEX "Transaction_statementId_idx" ON "Transaction"("statementId");
 
 -- CreateIndex
 CREATE INDEX "Transaction_txnDate_idx" ON "Transaction"("txnDate");
+
+-- CreateIndex
+CREATE INDEX "TutorTrainingAttendance_tutor_id_idx" ON "TutorTrainingAttendance"("tutor_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TutorTrainingAttendance_class_id_tutor_id_key" ON "TutorTrainingAttendance"("class_id", "tutor_id");
+
+-- CreateIndex
+CREATE INDEX "TutorTrainingClass_year_id_month_idx" ON "TutorTrainingClass"("year_id", "month");
+
+-- CreateIndex
+CREATE INDEX "kpi_job_queue_status_createdAt_idx" ON "kpi_job_queue"("status", "createdAt");
 

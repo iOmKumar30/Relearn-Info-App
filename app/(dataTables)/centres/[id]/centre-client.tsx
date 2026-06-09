@@ -152,6 +152,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       { key: "tutor", label: "Tutor" },
       { key: "timing", label: "Timing" },
       { key: "monthlyAllowance", label: "Monthly Allowance" },
+      { key: "sponsoredBy", label: "Sponsored By" },
       { key: "status", label: "Status" },
       { key: "dateCreated", label: "Date Created" },
       { key: "dateClosed", label: "Date Closed" },
@@ -334,6 +335,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
             : r.tutorAssignments?.[0]?.userId || "",
           timing: r.timing,
           monthlyAllowance: r.monthlyAllowance,
+          sponsoredBy: r.sponsoredBy || "",
           status: r.status,
           dateCreated: r.dateCreated
             ? new Date(r.dateCreated).toLocaleDateString("en-GB")
@@ -443,6 +445,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
                 { key: "tutor", label: "Tutor" },
                 { key: "timing", label: "Timing" },
                 { key: "monthlyAllowance", label: "Monthly Allowance" },
+                { key: "sponsoredBy", label: "Sponsored By" },
                 { key: "status", label: "Status" },
                 { key: "dateCreated", label: "Date Created" },
                 { key: "dateClosed", label: "Date Closed" },

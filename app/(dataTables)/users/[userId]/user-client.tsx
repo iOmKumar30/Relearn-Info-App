@@ -548,6 +548,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
       section: c.section,
       timing: c.timing,
       allowance: c.monthlyAllowance,
+      sponsoredBy: c.sponsoredBy || "",
       status: c.status,
     }));
   }
@@ -719,6 +720,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                     { key: "section", label: "Section" },
                     { key: "timing", label: "Timing" },
                     { key: "allowance", label: "Allowance" },
+                    { key: "sponsoredBy", label: "Sponsored By" },
                     { key: "status", label: "Status" },
                   ]}
                   visibleRows={[]}
@@ -733,6 +735,7 @@ export default function UserProfileClient({ userId }: { userId: string }) {
                 { key: "section", label: "Section" },
                 { key: "timing", label: "Timing" },
                 { key: "monthlyAllowance", label: "Allowance" },
+                { key: "sponsoredBy", label: "Sponsored By" },
                 { key: "status", label: "Status" },
               ]}
               rows={classroomRowsFormatted}

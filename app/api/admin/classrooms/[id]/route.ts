@@ -32,6 +32,7 @@ export async function GET(
       pincode: true,
       timing: true,
       monthlyAllowance: true,
+      sponsoredBy: true,
       status: true,
       dateCreated: true,
       dateClosed: true,
@@ -65,6 +66,8 @@ export async function PUT(
   if (body.timing !== undefined) data.timing = body.timing as ClassTiming;
   if (body.monthlyAllowance !== undefined)
     data.monthlyAllowance = Number(body.monthlyAllowance);
+  if (body.sponsoredBy !== undefined)
+    data.sponsoredBy = String(body.sponsoredBy).trim();
   if (body.status !== undefined) data.status = body.status as ClassroomStatus;
   if (body.streetAddress !== undefined)
     data.streetAddress = String(body.streetAddress).trim();
@@ -118,6 +121,7 @@ export async function PUT(
           pincode: true,
           timing: true,
           monthlyAllowance: true,
+          sponsoredBy: true,
           status: true,
           dateCreated: true,
           dateClosed: true,

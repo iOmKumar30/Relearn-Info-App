@@ -31,6 +31,7 @@ type ClassroomRow = {
   pincode: string;
   timing: "MORNING" | "EVENING";
   monthlyAllowance: number;
+  sponsoredBy: string;
   status: "ACTIVE" | "INACTIVE";
   dateCreated: string;
   dateClosed: string | null;
@@ -58,6 +59,7 @@ const columns = [
   { key: "currentTutor", label: "Current Tutor" },
   { key: "timing", label: "Timing" },
   { key: "monthlyAllowance", label: "Monthly Allowance" },
+  { key: "sponsoredBy", label: "Sponsored By" },
   { key: "status", label: "Status" },
   { key: "dateCreated", label: "Date Created" },
   { key: "dateClosed", label: "Date Closed" },
@@ -220,6 +222,7 @@ export default function ClassroomsPage() {
                 : "",
             timing: r.timing,
             monthlyAllowance: r.monthlyAllowance,
+            sponsoredBy: r.sponsoredBy || "",
             status: r.status,
             dateCreated: r.dateCreated
               ? new Date(r.dateCreated).toLocaleDateString("en-GB")
@@ -258,6 +261,7 @@ export default function ClassroomsPage() {
           : "",
       timing: r.timing,
       monthlyAllowance: r.monthlyAllowance,
+      sponsoredBy: r.sponsoredBy || "",
       status: r.status,
       dateCreated: r.dateCreated
         ? new Date(r.dateCreated).toLocaleDateString("en-GB")
@@ -367,6 +371,7 @@ export default function ClassroomsPage() {
           ? "MORNING"
           : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
+        sponsoredBy: payload.sponsored_by?.trim() || "",
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
         streetAddress: payload.street_address.trim(),
         city: payload.city.trim(),
@@ -429,6 +434,7 @@ export default function ClassroomsPage() {
           ? "MORNING"
           : "EVENING",
         monthlyAllowance: Number(payload.monthly_allowance) || 0,
+        sponsoredBy: payload.sponsored_by?.trim() || "",
         status: payload.status === "Active" ? "ACTIVE" : "INACTIVE",
         streetAddress: payload.street_address.trim(),
         city: payload.city.trim(),
@@ -552,6 +558,7 @@ export default function ClassroomsPage() {
               { key: "currentTutor", label: "Current Tutor" },
               { key: "timing", label: "Timing" },
               { key: "monthlyAllowance", label: "Monthly Allowance" },
+              { key: "sponsoredBy", label: "Sponsored By" },
               { key: "status", label: "Status" },
               { key: "dateCreated", label: "Date Created" },
               { key: "dateClosed", label: "Date Closed" },
@@ -628,13 +635,19 @@ export default function ClassroomsPage() {
                 classroom_id: editRow.id,
                 centre_id: editRow.centreId,
                 centre_name: editRow.centre?.name || "",
-                section_code: editRow.section === "JR" ? "Junior" : "Senior",
+                section_code:
+                  editRow.section === "JR"
+                    ? "Junior"
+                    : editRow.section === "SR"
+                      ? "Senior"
+                      : "Both",
                 street_address: editRow.streetAddress,
                 city: editRow.city,
                 district: editRow.district,
                 state: editRow.state,
                 pincode: editRow.pincode,
                 monthly_allowance: editRow.monthlyAllowance,
+                sponsored_by: editRow.sponsoredBy || "",
                 timing: editRow.timing === "MORNING" ? "Morning" : "Evening",
                 status: editRow.status === "ACTIVE" ? "Active" : "Inactive",
                 date_created: editRow.dateCreated

@@ -35,6 +35,7 @@ type FormState = {
   state: string; // stores full state name (e.g., "Karnataka")
   pincode: string;
   monthly_allowance: number | ""; // controlled-safe for number input
+  sponsored_by: string;
   timing: string; // "Morning" | "Evening"
   status: Status;
   date_created: string; // YYYY-MM-DD
@@ -68,6 +69,7 @@ const EMPTY_FORM: FormState = {
   state: "",
   pincode: "",
   monthly_allowance: "",
+  sponsored_by: "",
   timing: "",
   status: "Active",
   date_created: "",
@@ -126,6 +128,7 @@ export default function ClassroomCreateModal({
         state: normStr(initialValues.state), // full state name preserved
         pincode: normStr(initialValues.pincode),
         monthly_allowance: normNumOrEmpty(initialValues.monthly_allowance),
+        sponsored_by: normStr(initialValues.sponsored_by),
         timing: normStr(initialValues.timing),
         status: (initialValues.status as Status) || "Active",
         date_created: normStr(initialValues.date_created),
@@ -400,6 +403,16 @@ export default function ClassroomCreateModal({
                 }
               }}
               placeholder="Enter Amount"
+            />
+          </div>
+
+          {/* Sponsored By */}
+          <div>
+            <Label className="mb-1 block">Sponsored By</Label>
+            <TextInput
+              value={form.sponsored_by}
+              onChange={(e) => handleChange("sponsored_by", e.target.value)}
+              placeholder="Enter sponsor name"
             />
           </div>
 

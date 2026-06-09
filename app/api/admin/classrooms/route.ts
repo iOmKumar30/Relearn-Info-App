@@ -127,6 +127,7 @@ export async function GET(req: Request) {
                 } as Prisma.ClassroomWhereInput)
               : undefined,
             { streetAddress: { contains: q, mode: "insensitive" } },
+            { sponsoredBy: { contains: q, mode: "insensitive" } },
             { city: { contains: q, mode: "insensitive" } },
             { district: { contains: q, mode: "insensitive" } },
             { pincode: { contains: q, mode: "insensitive" } },
@@ -176,6 +177,7 @@ export async function GET(req: Request) {
         pincode: true,
         timing: true,
         monthlyAllowance: true,
+        sponsoredBy: true,
         status: true,
         dateCreated: true,
         dateClosed: true,
@@ -220,6 +222,7 @@ export async function POST(req: Request) {
   const pincode = String(body?.pincode ?? "").trim();
   const timing = body?.timing as ClassTiming;
   const monthlyAllowance = Number(body?.monthlyAllowance ?? 0);
+  const sponsoredBy = String(body?.sponsoredBy ?? "").trim();
   const status = (body?.status as ClassroomStatus) ?? ClassroomStatus.ACTIVE;
   const dateCreated = body?.dateCreated
     ? new Date(body.dateCreated)
@@ -246,6 +249,7 @@ export async function POST(req: Request) {
           pincode,
           timing,
           monthlyAllowance,
+          sponsoredBy,
           status,
           dateCreated,
           dateClosed,
@@ -262,6 +266,7 @@ export async function POST(req: Request) {
           pincode: true,
           timing: true,
           monthlyAllowance: true,
+          sponsoredBy: true,
           status: true,
           dateCreated: true,
           dateClosed: true,
