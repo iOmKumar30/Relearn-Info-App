@@ -5,13 +5,21 @@ import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import EditAssignmentModal from "@/components/CrudControls/EditAssignmentModal";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { getUserProfileSource } from "@/libs/breadcrumbs";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { HiPencil, HiTrash } from "react-icons/hi";
 
-export default function UserProfileClient({ userId }: { userId: string }) {
+export default function UserProfileClient({
+  userId,
+  source,
+}: {
+  userId: string;
+  source?: string;
+}) {
   const router = useRouter();
 
   const [initialLoading, setInitialLoading] = useState(true);
@@ -570,6 +578,9 @@ export default function UserProfileClient({ userId }: { userId: string }) {
     }));
   }
 
+  const breadcrumbSource = getUserProfileSource(source);
+  const userDisplayName = user?.name || user?.email || userId;
+
   if (initialLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-20">
@@ -583,7 +594,14 @@ export default function UserProfileClient({ userId }: { userId: string }) {
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold mb-3">User Profile</h2>
+      <h2 className="text-xl font-semibold mb-1">User Profile</h2>
+      <Breadcrumbs
+        className="mb-3"
+        items={[
+          breadcrumbSource,
+          { label: userDisplayName },
+        ]}
+      />
       {error && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-red-700">
           {error}

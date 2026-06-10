@@ -1,6 +1,7 @@
 "use client";
 
 import EditFacilitatorModal from "@/components/CreateModals/EditFacilitatorModal";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import UserSelect from "@/components/CrudControls/UserSelect";
@@ -388,7 +389,14 @@ export default function CentreClient({ centreId }: { centreId: string }) {
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold mb-3">Centre Profile</h2>
+      <h2 className="text-xl font-semibold mb-1">Centre Profile</h2>
+      <Breadcrumbs
+        className="mb-3"
+        items={[
+          { label: "Centres", href: "/centres" },
+          { label: centre?.name || centre?.code || centreId },
+        ]}
+      />
 
       {error && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-red-700">

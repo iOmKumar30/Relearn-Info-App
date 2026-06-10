@@ -5,6 +5,7 @@ import DataTable from "@/components/CrudControls/Datatable";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton"; // NEW
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
+import { userProfileHref } from "@/libs/breadcrumbs";
 import { Badge, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -207,7 +208,7 @@ export default function TutorsPage() {
         <DataTable
           columns={columns}
           rows={rows}
-          onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+          onRowClick={(row: any) => router.push(userProfileHref(row.id, "tutors"))}
           page={page}
           pageSize={pageSize}
         />

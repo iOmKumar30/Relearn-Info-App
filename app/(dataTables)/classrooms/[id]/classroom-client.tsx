@@ -1,6 +1,7 @@
 "use client";
 
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import DataTable from "@/components/CrudControls/Datatable";
 import EditTutorAssModal from "@/components/CrudControls/EditTutorAssModal";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
@@ -279,7 +280,14 @@ export default function ClassroomProfileClient({
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold mb-3">Classroom Profile</h2>
+      <h2 className="text-xl font-semibold mb-1">Classroom Profile</h2>
+      <Breadcrumbs
+        className="mb-3"
+        items={[
+          { label: "Classrooms", href: "/classrooms" },
+          { label: classroom?.code || classroomId },
+        ]}
+      />
 
       {error && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-red-700">

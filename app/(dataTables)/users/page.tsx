@@ -9,6 +9,7 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import FilterDropdown from "@/components/CrudControls/FilterDropdown";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
+import { userProfileHref } from "@/libs/breadcrumbs";
 import { AppRole, mapBackendRolesToUi } from "@/libs/roles";
 import { FilterOption } from "@/types/filterOptions";
 import { Badge, Button, Pagination } from "flowbite-react";
@@ -551,7 +552,7 @@ export default function UsersPage() {
           columns={columns}
           rows={rows}
           actions={renderActions}
-          onRowClick={(row: any) => router.push(`/users/${row.id}`)}
+          onRowClick={(row: any) => router.push(userProfileHref(row.id, "users"))}
           page={page}
           pageSize={pageSize}
         />

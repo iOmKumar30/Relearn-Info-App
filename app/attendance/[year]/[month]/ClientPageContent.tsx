@@ -2,6 +2,7 @@
 
 import CentreAccordion from "@/components/attendance/CentreAccordion";
 import ToggleSwitch from "@/components/attendance/ToggleSwitch";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
@@ -448,6 +449,14 @@ export default function ClientPageContent({
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
             {monthName} {year} Overview
           </h1>
+          <Breadcrumbs
+            className="mt-1"
+            items={[
+              { label: "Attendance", href: "/attendance" },
+              { label: String(year), href: `/attendance/${year}` },
+              { label: monthName },
+            ]}
+          />
           <p className="text-gray-500 mt-1 text-sm md:text-base">
             Review and manage all centre submissions for this month.
           </p>

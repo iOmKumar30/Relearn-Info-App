@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 
 import { useDebounce } from "@/app/hooks/useDebounce";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import AddClassModal from "./AddClassModal";
@@ -113,6 +114,14 @@ export default function MonthlyAttendanceClient({
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
               {monthName} {year}
             </h1>
+            <Breadcrumbs
+              className="mt-1"
+              items={[
+                { label: "Tutor Attendance", href: "/tutor-attendance" },
+                { label: String(year), href: `/tutor-attendance/${year}` },
+                { label: monthName },
+              ]}
+            />
             <p className="text-sm text-gray-500 mt-1">
               Manage monthly tutor training records
             </p>

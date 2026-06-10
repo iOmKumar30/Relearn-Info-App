@@ -2,6 +2,7 @@ import {
   getFinancialYearDetails,
   getYearlyAnalytics,
 } from "@/app/actions/finance";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { AnalyticsDashboard } from "@/components/finance/analytics-dashboard";
 import { YearStatusToggle } from "@/components/finance/year-status-toggle";
 import { YearlyExportButton } from "@/components/finance/yearly-export-button"; // <-- NEW IMPORT
@@ -106,6 +107,12 @@ export default async function FinancialYearDetail({
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             {year.name}
           </h1>
+          <Breadcrumbs
+            items={[
+              { label: "Finance", href: "/admin/finance" },
+              { label: year.name },
+            ]}
+          />
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Calendar className="w-4 h-4" />
             <span>

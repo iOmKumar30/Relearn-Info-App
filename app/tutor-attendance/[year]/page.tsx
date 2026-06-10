@@ -4,6 +4,7 @@ import {
   ChartBarIcon,
   ChevronLeftIcon,
 } from "@heroicons/react/24/outline";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 
 const MONTHS = [
@@ -48,6 +49,13 @@ export default async function TutorTrainingMonthsPage({
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
                 Training Months {year}
               </h1>
+              <Breadcrumbs
+                className="mt-1"
+                items={[
+                  { label: "Tutor Attendance", href: "/tutor-attendance" },
+                  { label: year },
+                ]}
+              />
               <p className="text-gray-500 mt-1 text-sm md:text-base">
                 Select a month to manage classes, attendance, and calculate
                 payouts.

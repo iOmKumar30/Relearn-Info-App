@@ -1,4 +1,5 @@
 import { getMonthDetails } from "@/app/actions/finance";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { ClearDataButton } from "@/components/finance/clear-button";
 import { EditableBalances } from "@/components/finance/editable-balance";
 import { TransactionManager } from "@/components/finance/transaction-manager";
@@ -68,6 +69,16 @@ export default async function MonthDetailPage({
           <h1 className="text-3xl font-bold text-gray-900">
             {monthName} {statement.year}
           </h1>
+          <Breadcrumbs
+            items={[
+              { label: "Finance", href: "/admin/finance" },
+              {
+                label: statement.financialYear.name,
+                href: `/admin/finance/${yearId}`,
+              },
+              { label: monthName },
+            ]}
+          />
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />

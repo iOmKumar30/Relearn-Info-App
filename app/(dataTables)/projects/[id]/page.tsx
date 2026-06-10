@@ -1,6 +1,7 @@
 "use client";
 
 import ProjectCreateModal from "@/components/CreateModals/ProjectCreateModal";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import RBACGate from "@/components/RBACGate";
 import { Button, Spinner } from "flowbite-react";
@@ -287,6 +288,12 @@ export default function ProjectDetailsPage({
             <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl lg:leading-none">
               {project.title}
             </h1>
+            <Breadcrumbs
+              items={[
+                { label: "Projects", href: "/projects" },
+                { label: project.title },
+              ]}
+            />
           </div>
         </div>
       </div>

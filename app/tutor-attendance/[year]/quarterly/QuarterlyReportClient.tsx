@@ -1,5 +1,6 @@
 "use client";
 
+import Breadcrumbs from "@/components/Breadcrumbs";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import { ChartBarIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
@@ -105,6 +106,14 @@ export default function QuarterlyReportClient({ year }: { year: number }) {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
               Periodic Reports <span className="text-blue-600">{year}</span>
             </h1>
+            <Breadcrumbs
+              className="mt-1"
+              items={[
+                { label: "Tutor Attendance", href: "/tutor-attendance" },
+                { label: String(year), href: `/tutor-attendance/${year}` },
+                { label: "Periodic Reports" },
+              ]}
+            />
             <p className="text-gray-500 mt-1 text-sm font-medium">
               Filter payouts across custom date ranges.
             </p>
