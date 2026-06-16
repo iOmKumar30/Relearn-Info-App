@@ -10,8 +10,9 @@ import { useEffect, useState } from "react";
 interface SidebarItemProps {
   entry: NavEntry;
   collapsed: boolean;
-  depth?: number; 
+  depth?: number;
   onClickSso?: (href: string) => void;
+  onItemClick?: () => void;
 }
 
 export default function SidebarItem({
@@ -19,6 +20,7 @@ export default function SidebarItem({
   collapsed,
   depth = 0,
   onClickSso,
+  onItemClick,
 }: SidebarItemProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -91,6 +93,7 @@ export default function SidebarItem({
                   collapsed={collapsed}
                   depth={depth + 1}
                   onClickSso={onClickSso}
+                  onItemClick={onItemClick}
                 />
               ))}
             </motion.ul>
@@ -125,7 +128,10 @@ export default function SidebarItem({
       <li>
         <button
           type="button"
-          onClick={() => onClickSso?.(entry.href)}
+          onClick={() => {
+            onClickSso?.(entry.href);
+            onItemClick?.();
+          }}
           className={className}
           style={indentStyle}
           title={entry.label}
@@ -143,6 +149,7 @@ export default function SidebarItem({
           href={entry.href}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={onItemClick}
           className={className}
           style={indentStyle}
           title={entry.label}
@@ -157,6 +164,7 @@ export default function SidebarItem({
     <li>
       <Link
         href={entry.href}
+        onClick={onItemClick}
         className={className}
         style={indentStyle}
         title={entry.label}

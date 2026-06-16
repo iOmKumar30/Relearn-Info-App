@@ -78,6 +78,12 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
     }
   };
 
+  // close sidebar on mobile when navigating to a new page
+  const handleItemClick = () => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  };
   return (
     <div className="flex min-h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}
@@ -128,6 +134,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
                 entry={entry}
                 collapsed={collapsed}
                 onClickSso={onClickSso}
+                onItemClick={handleItemClick}
               />
             ))}
           </ul>
