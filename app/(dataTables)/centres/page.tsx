@@ -481,7 +481,7 @@ export default function CentresPage() {
     <RBACGate roles={["ADMIN"]}>
       <h2 className="mb-4 text-2xl font-semibold">Centres</h2>
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchBar
           value={search}
           onChange={(v) => {
@@ -489,7 +489,7 @@ export default function CentresPage() {
           }}
           placeholder="Search centres..."
         />
-        <div className="flex-1 flex justify-end gap-4 z-50">
+        <div className="z-50 flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
           <ExportXlsxButton
             fileName="centres"
             sheetName="Centres"
@@ -537,7 +537,7 @@ export default function CentresPage() {
         />
       )}
 
-      <div className="mt-3 flex items-center justify-end gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2 sm:justify-end">
         <Button
           size="xs"
           color="light"

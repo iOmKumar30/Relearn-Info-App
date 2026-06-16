@@ -213,7 +213,7 @@ export default function ClassroomCreateModal({
       <ModalHeader>
         {isEdit ? "Edit Classroom" : "Create New Classroom"}
       </ModalHeader>
-      <ModalBody className="overflow-y-auto max-h-[80vh] p-6">
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Centre (autocomplete) */}
           <div className="relative">
@@ -453,7 +453,7 @@ export default function ClassroomCreateModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

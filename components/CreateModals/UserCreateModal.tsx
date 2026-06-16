@@ -198,7 +198,7 @@ export default function UserCreateModal({
       position="center"
     >
       <ModalHeader>{isEdit ? "Edit User" : "Create New User"}</ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
@@ -278,7 +278,7 @@ export default function UserCreateModal({
           {/* Roles */}
           <div>
             <Label className="mb-2 block">Assign Roles</Label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
               {/* 1. Render Standard Roles (Exclude MEMBER) */}
               {ALL_ROLES.filter((r) => r !== "MEMBER").map((role) => (
                 <div key={role} className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function UserCreateModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

@@ -378,7 +378,7 @@ export default function InternsPage() {
           Interns Directory
         </h2>
 
-        <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SearchBar
             value={search}
             onChange={(v) => {
@@ -387,7 +387,7 @@ export default function InternsPage() {
             }}
             placeholder="Search by name, email, institution..."
           />
-          <div className="flex-1 flex justify-end gap-3">
+          <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
             <div className="z-50">
               <ExportXlsxButton
                 fileName="Interns_List"

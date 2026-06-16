@@ -39,16 +39,16 @@ export default function FilterDropdown({
     };
   }, [wrapperRef]);
   return (
-    <div ref={wrapperRef} className="relative ml-2">
+    <div ref={wrapperRef} className="relative w-full sm:w-auto">
       <button
-        className="inline-flex items-center px-3 py-2 rounded-lg border bg-white text-sm font-medium shadow group"
+        className="inline-flex w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-medium shadow group sm:w-auto"
         onClick={() => setOpen(!open)}
       >
-        <FunnelIcon className="w-4 h-4 mr-2" />
+        <FunnelIcon className="mr-2 h-4 w-4 shrink-0" />
         Filter options
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-lg border bg-white shadow-lg p-4">
+        <div className="absolute left-0 right-0 mt-2 z-50 max-h-[70vh] overflow-y-auto rounded-lg border bg-white p-4 shadow-lg sm:left-auto sm:w-72">
           <div className="mb-2 font-semibold text-gray-700">Filters</div>
           {filters.map((f) => (
             <div key={f.key} className="mb-3">

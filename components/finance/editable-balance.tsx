@@ -63,8 +63,8 @@ export function EditableBalances({
 
   if (isEditing) {
     return (
-      <div className="col-span-1 md:col-span-2 bg-blue-50/50 p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col md:flex-row gap-6 items-end md:items-center justify-between">
-        <div className="flex flex-col md:flex-row gap-6 w-full">
+      <div className="col-span-1 flex flex-col gap-6 rounded-xl border border-blue-200 bg-blue-50/50 p-5 shadow-sm md:col-span-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex w-full flex-col gap-6 md:flex-row">
           <div className="flex-1 space-y-1">
             <label className="text-xs font-bold text-blue-600 uppercase flex items-center gap-1">
               <TrendingDown className="w-3 h-3" /> Opening Balance
@@ -99,11 +99,11 @@ export function EditableBalances({
           </div>
         </div>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex w-full shrink-0 gap-2 md:w-auto">
           <button
             onClick={handleSave}
             disabled={loading}
-            className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex flex-1 justify-center rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700 disabled:opacity-50 md:flex-none"
             title="Save"
           >
             {loading ? (
@@ -115,7 +115,7 @@ export function EditableBalances({
           <button
             onClick={handleCancel}
             disabled={loading}
-            className="bg-white text-gray-500 border border-gray-300 p-2 rounded-lg hover:bg-gray-50"
+            className="flex flex-1 justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-500 hover:bg-gray-50 md:flex-none"
             title="Cancel"
           >
             <X className="w-5 h-5" />

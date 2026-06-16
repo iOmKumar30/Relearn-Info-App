@@ -120,7 +120,7 @@ export default function CentreCreateModal({
       position="center"
     >
       <ModalHeader>{isEdit ? "Edit Centre" : "Create New Centre"}</ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
@@ -226,7 +226,7 @@ export default function CentreCreateModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

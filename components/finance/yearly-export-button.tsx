@@ -39,7 +39,12 @@ export function YearlyExportButton({
   };
 
   return (
-    <Button color="light" onClick={handleExport} disabled={loading}>
+    <Button
+      color="light"
+      onClick={handleExport}
+      disabled={loading}
+      className="w-full sm:w-auto"
+    >
       <Download className="mr-2 h-4 w-4" />
       {loading ? "Exporting Data..." : "Export FY Report"}
     </Button>

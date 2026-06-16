@@ -54,8 +54,8 @@ export default function FiscalYearSelectModal({
       position="center"
     >
       <ModalHeader>Select Fiscal Years</ModalHeader>
-      <ModalBody>
-        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
+        <div className="max-h-96 space-y-1 overflow-y-auto pr-2">
           {availableYears.map((year) => (
             <div
               key={year}
@@ -76,7 +76,7 @@ export default function FiscalYearSelectModal({
           ))}
         </div>
 
-        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:justify-end">
           <Button color="gray" onClick={onClose}>
             Cancel
           </Button>

@@ -388,7 +388,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
   }
 
   return (
-    <div className="p-6">
+    <div>
       <h2 className="text-xl font-semibold mb-1">Centre Profile</h2>
       <Breadcrumbs
         className="mb-3"
@@ -439,7 +439,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       )}
 
       <div className="mt-6">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-medium">Classrooms</h3>
           <div className="z-100">
             <ExportXlsxButton
@@ -477,14 +477,14 @@ export default function CentreClient({ centreId }: { centreId: string }) {
             Add Facilitator
           </Button>
           {showAddFac && (
-            <div className="my-4 border p-4 rounded bg-gray-50 max-w-sm">
+            <div className="my-4 max-w-sm rounded border bg-gray-50 p-4">
               <UserSelect
                 role="FACILITATOR"
                 value={selectedFac}
                 onChange={setSelectedFac}
                 placeholder="Search facilitators…"
               />
-              <div className="flex justify-end mt-2 gap-2">
+              <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button
                   color="light"
                   disabled={!selectedFac || assigning}
@@ -526,7 +526,7 @@ export default function CentreClient({ centreId }: { centreId: string }) {
       )}
 
       <div className="mt-3">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-medium">Facilitator History</h3>
           <div className="z-100">
             <ExportXlsxButton

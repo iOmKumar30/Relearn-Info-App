@@ -118,7 +118,7 @@ export default function AddClassModal({
       ) : (
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 sm:w-auto"
         >
           <HiPlus className="w-4 h-4" />
           Add Class
@@ -137,8 +137,8 @@ export default function AddClassModal({
           },
         }}
       >
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-6">
+          <div className="mb-6 flex items-center justify-between gap-3">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
               {mode === "create" ? "Add Training Class" : "Edit Training Class"}
             </h3>

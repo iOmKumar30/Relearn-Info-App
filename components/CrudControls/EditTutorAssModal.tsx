@@ -66,7 +66,7 @@ export default function EditAssignmentModal({
   return (
     <Modal show={open} onClose={onClose} size="md">
       <ModalHeader>Edit Assignment</ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Assignment Type */}
           <div>
@@ -111,7 +111,7 @@ export default function EditAssignmentModal({
             />
           </div>
 
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

@@ -81,7 +81,7 @@ export default function CertificateFormModal({
       <ModalHeader>
         {mode === "create" ? "Create Certificate" : "Edit Certificate"}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* ROW 0: Certificate Type Selector */}
           <div>
@@ -226,7 +226,7 @@ export default function CertificateFormModal({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-6">
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose}>
               Cancel
             </Button>

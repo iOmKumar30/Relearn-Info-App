@@ -279,7 +279,7 @@ export default function ClassroomProfileClient({
   }
 
   return (
-    <div className="p-6">
+    <div>
       <h2 className="text-xl font-semibold mb-1">Classroom Profile</h2>
       <Breadcrumbs
         className="mb-3"
@@ -319,14 +319,14 @@ export default function ClassroomProfileClient({
 
       <div className="mb-6">
         <h3 className="font-medium mb-2">Add Tutor</h3>
-        <div className="flex gap-2">
-          <div className="w-96">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="w-full sm:w-96">
             <UserSelect role="TUTOR" value={pick} onChange={setPick} />
           </div>
           <Button
             onClick={handleAssign}
             disabled={!pick}
-            className="ml-4 inline-flex items-center"
+            className="inline-flex w-full items-center justify-center sm:w-auto"
             color="blue"
           >
             Add
@@ -334,7 +334,7 @@ export default function ClassroomProfileClient({
         </div>
       </div>
 
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="font-medium">Tutor Assignments</h3>
         <div className="z-100">
           <ExportXlsxButton

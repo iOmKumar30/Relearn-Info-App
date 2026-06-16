@@ -93,7 +93,7 @@ export default async function FinancialYearDetail({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6 md:p-8 space-y-8">
+    <div className="min-h-screen space-y-8 bg-gray-50/50">
       {analytics && <AnalyticsDashboard data={analytics} />}
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -131,7 +131,7 @@ export default async function FinancialYearDetail({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <YearlyExportButton
             yearId={year.id}
             fileName={`RELF_FY_${year.name}_Transactions`}
@@ -139,7 +139,7 @@ export default async function FinancialYearDetail({
             preface={prefaceData}
           />
 
-          <div className="bg-white px-6 py-3 rounded-xl border border-gray-200 shadow-sm">
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm sm:px-6">
             <YearStatusToggle yearId={year.id} initialStatus={year.isActive} />
           </div>
         </div>

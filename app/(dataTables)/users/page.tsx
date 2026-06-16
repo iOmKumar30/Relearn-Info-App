@@ -499,7 +499,7 @@ export default function UsersPage() {
       <h2 className="text-2xl font-semibold mb-4">Users</h2>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchBar
           value={search}
           onChange={(v) => {
@@ -515,7 +515,7 @@ export default function UsersPage() {
             setPage(1); // Reset to page 1 when filters change
           }}
         />
-        <div className="flex-1 flex justify-end gap-3 z-100">
+        <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
           <ExportXlsxButton
             fileName="users"
             sheetName="Users"
@@ -559,7 +559,7 @@ export default function UsersPage() {
       )}
 
       {/* Pager */}
-      <div className="mt-3 flex overflow-x-auto sm:justify-end">
+      <div className="mt-3 flex overflow-x-auto pb-1 sm:justify-end">
         <Pagination
           currentPage={page}
           onPageChange={(p: number) => setPage(p)}

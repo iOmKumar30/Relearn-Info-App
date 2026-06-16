@@ -175,13 +175,13 @@ export default function FounderMembersPage() {
           Founder Members
         </h2>
 
-        <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SearchBar
             value={search}
             onChange={setSearch}
             placeholder="Search founders..."
           />
-          <div className="flex-1 flex justify-end gap-3">
+          <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
             <AddButton
               label="Add Founder"
               onClick={() => setCreateOpen(true)}

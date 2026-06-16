@@ -105,7 +105,7 @@ export default function FounderMemberCreateModal({
       <ModalHeader>
         {isEdit ? "Edit Founder Member" : "Add Founder Member"}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* User Details */}
@@ -173,7 +173,7 @@ export default function FounderMemberCreateModal({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-6">
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button color="gray" onClick={onClose} disabled={loading}>
               Cancel
             </Button>

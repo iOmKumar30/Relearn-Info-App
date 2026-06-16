@@ -9,11 +9,11 @@ type AddButtonProps = {
 export default function AddButton({ label, onClick }: AddButtonProps) {
   return (
     <button
-      className="ml-4 inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium shadow hover:bg-blue-700 transition"
+      className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-blue-700 sm:w-auto"
       onClick={onClick}
     >
-      <PlusIcon className="w-5 h-5 mr-2" />
-      {label}
+      <PlusIcon className="mr-2 h-5 w-5 shrink-0" />
+      <span className="truncate">{label}</span>
     </button>
   );
 }

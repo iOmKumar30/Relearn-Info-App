@@ -6,7 +6,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { HiOutlineAcademicCap, HiPlus } from "react-icons/hi";
 import { HiXMark } from "react-icons/hi2";
-import { createTutorTrainingYear } from "./actions"; 
+import { createTutorTrainingYear } from "./actions";
 
 export default function CreateYearButton({
   existingYears,
@@ -60,7 +60,7 @@ export default function CreateYearButton({
     <>
       <button
         onClick={() => setModalOpen(true)}
-        className="group relative flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-medium rounded-2xl shadow-sm hover:shadow-md hover:bg-gray-800 transition-all duration-200 active:scale-95"
+        className="group relative flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-6 py-3 font-medium text-white shadow-sm transition-all duration-200 hover:bg-gray-800 hover:shadow-md active:scale-95 sm:w-auto"
       >
         <HiPlus className="h-5 w-5 text-gray-300 group-hover:text-white transition-colors" />
         <span>Create New Year</span>
@@ -100,7 +100,7 @@ export default function CreateYearButton({
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="max-h-[70vh] overflow-y-auto p-4 sm:p-6">
             <div className="space-y-4">
               <div>
                 <label
@@ -140,7 +140,7 @@ export default function CreateYearButton({
             </div>
           </div>
 
-          <div className="p-5 pt-0 mt-2 flex gap-3">
+          <div className="mt-2 flex flex-col-reverse gap-3 p-5 pt-0 sm:flex-row">
             <button
               onClick={() => setModalOpen(false)}
               disabled={isSubmitting}

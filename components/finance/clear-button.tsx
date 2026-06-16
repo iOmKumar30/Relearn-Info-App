@@ -41,7 +41,7 @@ export function ClearDataButton({
     <button
       onClick={handleClear}
       disabled={loading}
-      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium"
+      className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 sm:w-auto"
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin" />

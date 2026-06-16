@@ -364,7 +364,7 @@ export default function AnnualMembersPage() {
           Annual Members
         </h2>
 
-        <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SearchBar
             value={search}
             onChange={(v) => {
@@ -373,7 +373,7 @@ export default function AnnualMembersPage() {
             }}
             placeholder="Search name, email, PAN..."
           />
-          <div className="flex-1 flex justify-end gap-3">
+          <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
             <Button color="light" size="sm" onClick={handleSelectColumns}>
               <Filter className="w-4 h-4 mr-2" />
               Select Columns

@@ -9,7 +9,7 @@ type SearchBarProps = {
 
 export default function SearchBar({ value, onChange, placeholder }: SearchBarProps) {
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full sm:max-w-md">
       <input
         type="text"
         className="w-full rounded-lg border-gray-200 bg-gray-50 pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-200"

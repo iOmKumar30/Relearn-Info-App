@@ -86,10 +86,10 @@ export default function AttendanceModal({
         </div>
       </ModalHeader>
 
-      <ModalBody className="overflow-y-auto">
+      <ModalBody className="max-h-[70vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* We no longer need the ClassroomSelect component here! */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label
                 htmlFor="totalStudents"
@@ -209,7 +209,7 @@ export default function AttendanceModal({
         </form>
       </ModalBody>
 
-      <ModalFooter className="border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg">
+      <ModalFooter className="flex flex-col-reverse gap-2 rounded-b-lg border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:justify-end">
         <Button
           color="gray"
           onClick={onClose}

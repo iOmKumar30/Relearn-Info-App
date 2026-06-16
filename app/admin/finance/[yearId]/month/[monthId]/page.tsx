@@ -56,7 +56,7 @@ export default async function MonthDetailPage({
   });
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6 md:p-8 space-y-8">
+    <div className="min-h-screen space-y-8 bg-gray-50/50">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link
@@ -66,7 +66,7 @@ export default async function MonthDetailPage({
             <ArrowLeft className="w-4 h-4 mr-1" /> Back to{" "}
             {statement.financialYear.name}
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
             {monthName} {statement.year}
           </h1>
           <Breadcrumbs
@@ -79,7 +79,7 @@ export default async function MonthDetailPage({
               { label: monthName },
             ]}
           />
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 sm:gap-4">
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               {statement.startDate
@@ -93,7 +93,7 @@ export default async function MonthDetailPage({
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <ClearDataButton
             monthId={statement.id}
             hasData={serializedTransactions.length > 0}

@@ -164,7 +164,7 @@ export default function FacilitatorsPage() {
     <RBACGate roles={["ADMIN", "RELF_EMPLOYEE"]}>
       <h2 className="text-2xl font-semibold mb-4">Facilitators</h2>
 
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchBar
           value={search}
           onChange={(v) => {
@@ -173,7 +173,7 @@ export default function FacilitatorsPage() {
           }}
           placeholder="Search facilitators..."
         />
-        <div className="flex-1 flex justify-end z-100">
+        <div className="z-100 flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
           <ExportXlsxButton
             fileName="facilitators"
             sheetName="Facilitators"
@@ -212,7 +212,7 @@ export default function FacilitatorsPage() {
         />
       )}
 
-      <div className="mt-3 flex overflow-x-auto sm:justify-end">
+      <div className="mt-3 flex overflow-x-auto pb-1 sm:justify-end">
         <Pagination
           currentPage={page}
           onPageChange={(p: number) => setPage(p)}

@@ -644,7 +644,7 @@ export default function ClientPageContent({
         <ModalHeader className="border-b border-gray-100">
           Upload Data
         </ModalHeader>
-        <ModalBody>
+        <ModalBody className="max-h-[70vh] overflow-y-auto p-4 sm:p-6">
           <div className="space-y-4">
             <p className="text-sm leading-relaxed text-white">
               Upload the completed Smart Template (.xlsx). Make sure the
@@ -661,7 +661,7 @@ export default function ClientPageContent({
             </div>
           </div>
         </ModalBody>
-        <ModalFooter className="border-t border-gray-100 flex justify-end gap-2">
+        <ModalFooter className="flex flex-col-reverse gap-2 border-t border-gray-100 sm:flex-row sm:justify-end">
           <button
             onClick={() => setUploadModalOpen(false)}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"

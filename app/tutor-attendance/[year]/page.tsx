@@ -30,7 +30,7 @@ export default async function TutorTrainingMonthsPage({
   const { year } = await params;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-100px)] bg-gray-50/30">
+    <div className="mx-auto min-h-[calc(100vh-100px)] max-w-7xl bg-gray-50/30">
       <div className="mb-10">
         <Link
           href="/tutor-attendance"
@@ -40,12 +40,12 @@ export default async function TutorTrainingMonthsPage({
           Back to Years
         </Link>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <CalendarIcon className="w-8 h-8 text-blue-600" />
+        <div className="flex flex-col justify-between gap-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center">
+          <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+            <div className="shrink-0 rounded-xl bg-blue-50 p-3">
+              <CalendarIcon className="h-7 w-7 text-blue-600 sm:h-8 sm:w-8" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
                 Training Months {year}
               </h1>
@@ -63,10 +63,10 @@ export default async function TutorTrainingMonthsPage({
             </div>
           </div>
 
-          <div className="shrink-0">
+          <div className="w-full shrink-0 sm:w-auto">
             <Link
               href={`/tutor-attendance/${year}/quarterly`}
-              className="group relative flex items-center gap-2 px-6 py-3 bg-indigo-50 text-indigo-700 font-medium rounded-2xl shadow-sm hover:shadow-md hover:bg-indigo-100 border border-indigo-100 transition-all duration-200 active:scale-95"
+              className="group relative flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-6 py-3 font-medium text-indigo-700 shadow-sm transition-all duration-200 hover:bg-indigo-100 hover:shadow-md active:scale-95 sm:w-auto"
             >
               <ChartBarIcon className="h-5 w-5" />
               <span>View Quarterly Reports</span>

@@ -535,7 +535,7 @@ export default function ClassroomsPage() {
     <RBACGate roles={["ADMIN"]}>
       <h2 className="text-2xl font-semibold mb-4">Classrooms</h2>
 
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchBar
           value={search}
           onChange={(v) => {
@@ -544,7 +544,7 @@ export default function ClassroomsPage() {
           }}
           placeholder="Search classrooms..."
         />
-        <div className="flex-1 flex justify-end gap-4 z-100">
+        <div className="z-100 flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
           <ExportXlsxButton
             fileName="classrooms"
             sheetName="Classrooms"
@@ -597,7 +597,7 @@ export default function ClassroomsPage() {
         />
       )}
 
-      <div className="mt-3 flex items-center justify-end gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2 sm:justify-end">
         <Button
           size="xs"
           color="light"

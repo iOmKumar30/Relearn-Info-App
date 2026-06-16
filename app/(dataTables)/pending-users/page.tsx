@@ -72,14 +72,14 @@ export default function PendingUsersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold">Pending Users</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name/email/phone..."
-            className="rounded border border-gray-300 px-3 py-2"
+            className="w-full rounded border border-gray-300 px-3 py-2 sm:w-72"
           />
           <Button color="light" onClick={() => refetch()}>
             Refresh
@@ -98,11 +98,17 @@ export default function PendingUsersPage() {
           <ClipLoader size={40} />
         </div>
       ) : (
-        <DataTable columns={columns} rows={rows} actions={actions} />
+        <DataTable
+          columns={columns}
+          rows={rows}
+          actions={actions}
+          page={page}
+          pageSize={pageSize}
+        />
       )}
 
       {/* Simple pager */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
         <Button
           size="xs"
           color="light"

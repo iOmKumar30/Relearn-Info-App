@@ -40,7 +40,7 @@ model Classroom {
   centreId          String                       @map("centre_id")
   section           SectionCode?                 @map("section_code")
   timing            ClassTiming?
-  monthlyAllowance  Int?                         @map("monthly_allowance")
+  monthlyAllowance  Int?                           @map("monthly_allowance")
   sponsoredBy       String?
   status            ClassroomStatus              @default(ACTIVE)
   dateCreated       DateTime?                    @map("date_created")

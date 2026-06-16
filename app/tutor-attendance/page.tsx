@@ -10,14 +10,14 @@ export default async function TutorAttendancePage() {
   const currentRates = await getPayoutRates();
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-100px)]">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6 bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100/80">
-        <div className="flex items-center gap-5">
-          <div className="p-4 bg-linear-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-100/50">
-            <PresentationChartLineIcon className="w-8 h-8 text-blue-600 stroke-2" />
+    <div className="mx-auto min-h-[calc(100vh-100px)] max-w-7xl">
+      <div className="mb-8 flex flex-col justify-between gap-6 rounded-3xl border border-gray-100/80 bg-white/60 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl sm:p-6 md:flex-row md:items-center lg:p-8">
+        <div className="flex min-w-0 items-start gap-4 sm:items-center sm:gap-5">
+          <div className="shrink-0 rounded-2xl border border-blue-100/50 bg-linear-to-br from-blue-50 to-indigo-50 p-3 shadow-sm sm:p-4">
+            <PresentationChartLineIcon className="h-7 w-7 stroke-2 text-blue-600 sm:h-8 sm:w-8" />
           </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 md:text-4xl">
               Tutor Training Attendance
             </h1>
             <p className="text-gray-500 mt-2 text-sm md:text-base font-medium">
@@ -27,7 +27,7 @@ export default async function TutorAttendancePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:shrink-0">
           <PayoutRateModal currentRates={currentRates} />
           <CreateYearButton existingYears={years} />
         </div>

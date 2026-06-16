@@ -128,7 +128,7 @@ export default function RoleAssignModal({
       position="center"
     >
       <ModalHeader>Assign Roles</ModalHeader>
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
           <div className="text-sm text-gray-700 dark:text-gray-300">
             <div>
@@ -151,7 +151,7 @@ export default function RoleAssignModal({
             </div>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {ALL_ROLES.map((r) => (
               <div key={r} className="flex items-center gap-2">
                 <Checkbox
@@ -175,7 +175,7 @@ export default function RoleAssignModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button color="light" onClick={handleClose} disabled={submitting}>
               Cancel
             </Button>

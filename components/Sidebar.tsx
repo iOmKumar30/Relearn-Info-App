@@ -53,6 +53,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
   }, []);
 
   const width = collapsed ? 80 : 250;
+  const drawerWidth = 280;
   const showBackdrop = !collapsed && isMobile;
 
   // SSO Handler
@@ -78,25 +79,32 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width }}
+        animate={
+          isMobile
+            ? { width: drawerWidth, x: collapsed ? "-100%" : 0 }
+            : { width, x: 0 }
+        }
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed inset-y-0 left-0 z-40 flex flex-col bg-gray-900 text-white border-r border-gray-800 lg:static"
-        style={{ width, minWidth: width }}
+        className="fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-900 text-white border-r border-gray-800 lg:sticky lg:top-0"
+        style={{
+          width: isMobile ? drawerWidth : width,
+          minWidth: isMobile ? drawerWidth : width,
+        }}
       >
         {/* Header / Logo Area */}
         <div className="flex items-center justify-between h-16 px-4 bg-gray-900 border-b border-gray-800 shrink-0">
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <div className="flex items-center gap-2 overflow-hidden">
               <Image
                 src="/certificates/assets/logo.png"
                 alt="Logo"
                 width={40}
                 height={40}
-                className="rounded-full" // Optional: makes logo round if square
+                className="rounded-full" 
               />
               <span className="font-semibold tracking-tight whitespace-nowrap text-sm">
                 Relearn Foundation
@@ -144,7 +152,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
                 <UserIcon size={18} />
               </div>
 
-              {!collapsed && (
+              {(!collapsed || isMobile) && (
                 <div className="overflow-hidden">
                   {/* We will put name here */}
                   <p className="text-sm font-medium text-gray-200 group-hover:text-white truncate transition-colors">
@@ -159,7 +167,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
             </Link>
 
             {/* Logout Button (Only visible when expanded for clean UI) */}
-            {!collapsed && (
+            {(!collapsed || isMobile) && (
               <button
                 onClick={handleLogout}
                 className="p-2 ml-2 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-md transition-colors shrink-0"
@@ -181,20 +189,24 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-hidden relative z-0">
         {/* Mobile Header Trigger */}
-        <header className="flex items-center gap-4 shrink-0 absolute top-4 left-4 lg:static lg:hidden z-10">
-          {collapsed && isMobile && (
-            <button
-              onClick={() => setCollapsed(false)}
-              className="p-2 bg-white rounded-md shadow-sm border border-gray-200"
-            >
-              <Menu className="h-6 w-6 text-gray-600" />
-            </button>
-          )}
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 bg-white/95 px-4 shadow-sm backdrop-blur lg:hidden">
+          <button
+            onClick={() => setCollapsed(false)}
+            className="rounded-md border border-gray-200 bg-white p-2 shadow-sm"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-5 w-5 text-gray-700" />
+          </button>
+          <span className="truncate text-sm font-semibold text-gray-800">
+            Relearn Foundation
+          </span>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 relative">{children}</main>
+        <main className="relative flex-1 overflow-auto p-4 sm:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

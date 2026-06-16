@@ -18,7 +18,6 @@ export default function PayoutRateModal({ currentRates }: Props) {
   const [isPending, setIsPending] = useState(false);
   const [rates, setRates] = useState(currentRates);
   const [mounted, setMounted] = useState(false);
-
   // Ensure portal only renders on the client side to prevent hydration errors
   useEffect(() => {
     setMounted(true);
@@ -40,8 +39,14 @@ export default function PayoutRateModal({ currentRates }: Props) {
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+    <div
+      onClick={() => setIsOpen(false)}
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:p-6"
+      >
         <h2 className="text-xl font-bold mb-4 text-gray-900">
           Configure Payout Rates
         </h2>
@@ -100,7 +105,7 @@ export default function PayoutRateModal({ currentRates }: Props) {
             />
           </div>
 
-          <div className="flex justify-end gap-3 mt-8">
+          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
@@ -126,7 +131,7 @@ export default function PayoutRateModal({ currentRates }: Props) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 sm:w-auto"
       >
         Set Payout Rates
       </button>

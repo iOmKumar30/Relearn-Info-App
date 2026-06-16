@@ -46,7 +46,12 @@ export default function ExportXlsxButton({
 
   if (!fetchAll) {
     return (
-      <Button color="light" onClick={onExportVisible} disabled={busy !== null}>
+      <Button
+        color="light"
+        onClick={onExportVisible}
+        disabled={busy !== null}
+        className="w-full sm:w-auto"
+      >
         <Download className="mr-2 h-4 w-4" />
         {busy === "visible" ? "Exporting…" : "Export XLSX"}
       </Button>
@@ -56,8 +61,8 @@ export default function ExportXlsxButton({
   return (
     <Dropdown
       label={
-        <span className="inline-flex items-center">
-          <Download className="mr-2 h-4 w-4" />
+        <span className="inline-flex w-full items-center justify-center sm:w-auto">
+          <Download className="mr-2 h-4 w-4 shrink-0" />
           {busy ? "Exporting…" : "Export XLSX"}
         </span>
       }

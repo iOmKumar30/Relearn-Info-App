@@ -108,9 +108,9 @@ export default function ProjectsPage() {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div>
+    <div>
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-black">
             Organization Projects
           </h2>
@@ -118,7 +118,7 @@ export default function ProjectsPage() {
             Manage and track all ongoing and completed initiatives.
           </p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto justify-end">
+        <div className="flex w-full gap-2 md:w-auto md:justify-end">
           <AddButton
             label="Create Project"
             onClick={() => setCreateOpen(true)}

@@ -54,7 +54,7 @@ export default function EditAssignmentModal({
     <Modal show={open} onClose={onClose} size="md">
       <ModalHeader>Edit Assignment Dates</ModalHeader>
 
-      <ModalBody>
+      <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         {assignment && (
           <form
             key={assignment.id || "edit-form"}
@@ -90,7 +90,7 @@ export default function EditAssignmentModal({
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
               <Button color="gray" onClick={onClose} type="button">
                 Cancel
               </Button>

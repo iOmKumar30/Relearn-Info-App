@@ -9,6 +9,7 @@ import { Badge, Button } from "flowbite-react";
 import { Eye, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { ClipLoader } from "react-spinners"; // Added to match loading state styling
 
 // Reusing same Row type
 type Row = {
@@ -94,7 +95,7 @@ export default function InternshipCertificatesPage() {
       setDeletingId(pendingDelete.id);
       const res = await fetch(
         `/api/admin/part-cert/${encodeURIComponent(pendingDelete.id)}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!res.ok) throw new Error(await res.text());
       toast.success("Deleted successfully");
@@ -109,13 +110,13 @@ export default function InternshipCertificatesPage() {
 
   return (
     <RBACGate roles={["ADMIN"]}>
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="p-4 sm:p-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-semibold text-red-700">
             Internship Certificates
           </h1>
-          <div className="flex items-center gap-2">
-            <div className="w-64">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
               <SearchBar
                 value={q}
                 onChange={(val) => {
@@ -125,9 +126,9 @@ export default function InternshipCertificatesPage() {
                 placeholder="Search intern name..."
               />
             </div>
-            <Button color="failure" onClick={() => setFormOpen(true)}>
+            <Button color="blue" onClick={() => setFormOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Internship Cert
+              Create
             </Button>
           </div>
         </div>
@@ -136,66 +137,200 @@ export default function InternshipCertificatesPage() {
           <div className="mb-3 rounded bg-red-50 p-2 text-red-700">{err}</div>
         )}
 
-        <div className="overflow-x-auto rounded border">
-          <table className="min-w-full bg-white text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-left">
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Institute</th>
-                <th className="px-3 py-2">Duration</th>
-                <th className="px-3 py-2">Date Issued</th>
-                <th className="px-3 py-2">Certificate No</th>
-                <th className="px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium">{r.name}</td>
-                  <td className="px-3 py-2 text-gray-600">{r.institute}</td>
-                  <td className="px-3 py-2">{r.duration}</td>
-                  <td className="px-3 py-2">
-                    {new Date(r.issueDate).toLocaleDateString("en-GB")}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    <Badge color="failure">{r.certificateNo}</Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-2">
-                      <Button
-                        size="xs"
-                        color="light"
-                        onClick={() => {
-                          setPreviewRow(r);
-                          setPreviewOpen(true);
-                        }}
-                      >
-                        <Eye className="mr-1 h-4 w-4" /> View
-                      </Button>
-                      <Button
-                        size="xs"
-                        color="failure"
-                        onClick={() => setPendingDelete(r)}
-                        disabled={deletingId === r.id}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" /> Delete
-                      </Button>
+        <div className="rounded-xl border border-gray-200 shadow-sm md:overflow-hidden">
+          {/* Mobile View - Stacked Cards */}
+          <div className="space-y-3 bg-transparent md:hidden p-2">
+            {rows.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-500 rounded-lg bg-white">
+                <div className="flex flex-col items-center gap-2">
+                  <svg
+                    className="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 13h6m-6 4h6M5 7h14M5 17h14M5 21h14"
+                    />
+                  </svg>
+                  {loading ? (
+                    <ClipLoader size={40} />
+                  ) : (
+                    <span>No internship certificates found.</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              rows.map((r) => (
+                <article
+                  key={r.id}
+                  className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                >
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Certificate No
+                    </p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      <Badge color="failure">{r.certificateNo}</Badge>
+                    </p>
+                  </div>
+
+                  <dl className="grid grid-cols-1 gap-3 mb-4">
+                    <div className="min-w-0 border-t border-gray-200 pt-3">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Name
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-800 font-medium">
+                        {r.name}
+                      </dd>
                     </div>
-                  </td>
+                    <div className="min-w-0 border-t border-gray-200 pt-3">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Institute
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-600">
+                        {r.institute}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 border-t border-gray-200 pt-3 flex gap-4">
+                      <div className="flex-1">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Duration
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-800">
+                          {r.duration}
+                        </dd>
+                      </div>
+                      <div className="flex-1">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Date Issued
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-800">
+                          {new Date(r.issueDate).toLocaleDateString("en-GB")}
+                        </dd>
+                      </div>
+                    </div>
+                  </dl>
+
+                  <div className="border-t border-gray-200 pt-3 flex items-center gap-2">
+                    <Button
+                      size="xs"
+                      color="light"
+                      className="cursor-pointer flex-1"
+                      onClick={() => {
+                        setPreviewRow(r);
+                        setPreviewOpen(true);
+                      }}
+                    >
+                      <Eye className="mr-1 h-4 w-4" /> View
+                    </Button>
+                    <Button
+                      size="xs"
+                      color="failure"
+                      className="cursor-pointer flex-1"
+                      onClick={() => setPendingDelete(r)}
+                      disabled={deletingId === r.id}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" /> Delete
+                    </Button>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          {/* Desktop View - Traditional Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full bg-white text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left">
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Institute</th>
+                  <th className="px-3 py-2">Duration</th>
+                  <th className="px-3 py-2">Date Issued</th>
+                  <th className="px-3 py-2">Certificate No</th>
+                  <th className="px-3 py-2">Actions</th>
                 </tr>
-              ))}
-              {rows.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-500">
-                    No internship certificates found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-t hover:bg-gray-50">
+                    <td className="px-3 py-2 font-medium">{r.name}</td>
+                    <td className="px-3 py-2 text-gray-600">{r.institute}</td>
+                    <td className="px-3 py-2">{r.duration}</td>
+                    <td className="px-3 py-2">
+                      {new Date(r.issueDate).toLocaleDateString("en-GB")}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      <Badge color="failure">{r.certificateNo}</Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex gap-2">
+                        <Button
+                          size="xs"
+                          color="light"
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setPreviewRow(r);
+                            setPreviewOpen(true);
+                          }}
+                        >
+                          <Eye className="mr-1 h-4 w-4" /> View
+                        </Button>
+                        <Button
+                          size="xs"
+                          color="failure"
+                          className="cursor-pointer"
+                          onClick={() => setPendingDelete(r)}
+                          disabled={deletingId === r.id}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-6 text-gray-500">
+                      {loading ? (
+                        <ClipLoader size={40} />
+                      ) : (
+                        "No internship certificates found."
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Pagination controls (same as before) */}
+        {/* Pagination controls */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm sm:justify-end">
+          <span>
+            Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+          </span>
+          <Button
+            size="xs"
+            color="light"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Prev
+          </Button>
+          <Button
+            size="xs"
+            color="light"
+            disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
 
         <CertificateFormModal
           open={formOpen}

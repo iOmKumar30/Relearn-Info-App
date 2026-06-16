@@ -54,7 +54,7 @@ export function UploadStatementButton({
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={isLocked || loading}
-        className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />

@@ -258,7 +258,7 @@ export function TransactionManager({
               className="group transition-colors hover:bg-gray-50"
             >
               {editingId !== txn.id ? (
-                <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div className="flex flex-col items-start gap-4 p-4 md:flex-row md:items-center">
                   <div className="flex-1 min-w-0 space-y-1.5">
                     {/* Tags Row */}
                     <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -331,7 +331,7 @@ export function TransactionManager({
                   </div>
 
                   {/* Amounts */}
-                  <div className="text-right w-32 shrink-0">
+                  <div className="w-full shrink-0 text-left sm:w-32 sm:text-right">
                     <p
                       className={`text-sm font-bold ${
                         txn.type === "CREDIT"
@@ -348,7 +348,7 @@ export function TransactionManager({
                   </div>
 
                   {/* ACTION BUTTONS (HOVER) */}
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity self-center items-center">
+                  <div className="flex w-full items-center gap-2 opacity-100 transition-opacity sm:w-auto md:self-center md:opacity-0 md:group-hover:opacity-100">
                     {/* DOCUMENT GENERATORS */}
                     {txn.type === "DEBIT" ? (
                       <button
@@ -387,7 +387,7 @@ export function TransactionManager({
                 </div>
               ) : (
                 // EDIT FORM IN-PLACE
-                <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400">
+                <div className="border-l-4 border-yellow-400 bg-yellow-50/50 p-4 sm:p-6">
                   <h4 className="text-sm font-bold text-yellow-800 mb-4">
                     Editing Transaction
                   </h4>
@@ -451,10 +451,10 @@ export function TransactionManager({
   // --- 8. MAIN RENDER ---
   return (
     <div>
-      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+      <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="font-semibold text-gray-700">Transactions Log</h3>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <ExportXlsxButton
             fileName={getExportFileName()}
             visibleRows={processedData}
@@ -469,7 +469,7 @@ export function TransactionManager({
               setEditingId(null);
               setFormData(initialFormState);
             }}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
+            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" /> Add Manually
           </button>
@@ -477,7 +477,7 @@ export function TransactionManager({
       </div>
 
       {isCreating && (
-        <div className="p-6 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
+        <div className="animate-in slide-in-from-top-2 border-b border-blue-100 bg-blue-50 p-4 sm:p-6">
           <h4 className="text-sm font-bold text-blue-800 mb-4">
             New Transaction
           </h4>
@@ -587,7 +587,7 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
         </label>
         <input
           type="number"
-          className="w-full md:w-1/4 p-2 border border-gray-300 rounded bg-white text-sm font-mono"
+        className="w-full rounded border border-gray-300 bg-white p-2 font-mono text-sm md:w-1/2 lg:w-1/4"
           value={data.runningBalance}
           onChange={(e) => handleChange("runningBalance", e.target.value)}
         />
@@ -712,7 +712,7 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 mt-4">
+      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           onClick={onCancel}
           className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -721,7 +721,7 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
         </button>
         <button
           onClick={onSave}
-          className="px-6 py-2 text-sm bg-gray-900 text-white hover:bg-black rounded-lg flex items-center gap-2"
+          className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-2 text-sm text-white hover:bg-black"
         >
           <Save className="w-4 h-4" /> Save Changes
         </button>
