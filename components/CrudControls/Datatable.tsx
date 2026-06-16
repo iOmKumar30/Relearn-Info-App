@@ -86,10 +86,11 @@ export default function DataTable({
   }, [rows, columns]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-      <div className="divide-y divide-gray-200 bg-gray-50 md:hidden">
+    <div className="rounded-xl border border-gray-200 shadow-sm md:overflow-hidden">
+      {/* Mobile View - Stacked Tiles */}
+      <div className="space-y-3 bg-transparent md:hidden p-2">
         {rows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">
+          <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="flex flex-col items-center gap-2">
               <svg
                 className="h-6 w-6 text-gray-400"
@@ -113,7 +114,7 @@ export default function DataTable({
             return (
               <article
                 key={row.id || index}
-                className={`bg-white p-4 ${
+                className={`bg-white p-4 rounded-lg border border-gray-200 shadow-sm ${
                   onRowClick ? "cursor-pointer active:bg-gray-50" : ""
                 }`}
                 onClick={() => onRowClick?.(row)}
@@ -160,118 +161,118 @@ export default function DataTable({
       </div>
 
       <div className="hidden md:block">
-      {/* Top horizontal scrollbar */}
-      <div
-        ref={topScrollRef}
-        className="overflow-x-auto overflow-y-hidden h-4 bg-gray-50 border-b border-gray-200"
-        style={{ overflowX: "auto", overflowY: "hidden" }}
-      >
-        {/* Invisible spacer div that mimics the table width */}
-        <div style={{ height: "1px" }} />
-      </div>
+        {/* Top horizontal scrollbar */}
+        <div
+          ref={topScrollRef}
+          className="overflow-x-auto overflow-y-hidden h-4 bg-gray-50 border-b border-gray-200"
+          style={{ overflowX: "auto", overflowY: "hidden" }}
+        >
+          {/* Invisible spacer div that mimics the table width */}
+          <div style={{ height: "1px" }} />
+        </div>
 
-      {/* Main table container with vertical + horizontal scroll */}
-      <div
-        ref={bottomScrollRef}
-        className="max-h-[600px] overflow-y-auto overflow-x-auto"
-      >
-        <Table className="min-w-max">
-          <TableHead
-            clearTheme
-            className="sticky top-0 z-10 bg-gray-100 shadow-sm"
-          >
-            <TableRow>
-              {/* S. No. column header */}
-              <TableHeadCell className="w-20 px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6">
-                S. No.
-              </TableHeadCell>
-
-              {/* Remaining headers */}
-              {columns.map((col) => (
-                <TableHeadCell
-                  key={col.key}
-                  className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6"
-                >
-                  {col.label}
-                </TableHeadCell>
-              ))}
-              {actions && (
-                <TableHeadCell className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6">
-                  Actions
-                </TableHeadCell>
-              )}
-            </TableRow>
-          </TableHead>
-
-          <TableBody className="divide-y">
-            {rows.length === 0 ? (
+        {/* Main table container with vertical + horizontal scroll */}
+        <div
+          ref={bottomScrollRef}
+          className="max-h-[600px] overflow-y-auto overflow-x-auto"
+        >
+          <Table className="min-w-max">
+            <TableHead
+              clearTheme
+              className="sticky top-0 z-10 bg-gray-100 shadow-sm"
+            >
               <TableRow>
-                <TableCell
-                  colSpan={totalHeadCols}
-                  className="py-8 text-center text-gray-500"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <svg
-                      className="w-6 h-6 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9 13h6m-6 4h6M5 7h14M5 17h14M5 21h14"
-                      />
-                    </svg>
-                    <span>No data available</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row, index) => {
-                const serial = serialNumber(page, pageSize, index);
-                return (
-                  <TableRow
-                    key={row.id || index}
-                    className={`bg-white text-gray-800 ${
-                      onRowClick ? "hover:bg-gray-100 cursor-pointer" : ""
-                    } transition-colors duration-200`}
-                    onClick={() => onRowClick?.(row)}
+                {/* S. No. column header */}
+                <TableHeadCell className="w-20 px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6">
+                  S. No.
+                </TableHeadCell>
+
+                {/* Remaining headers */}
+                {columns.map((col) => (
+                  <TableHeadCell
+                    key={col.key}
+                    className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6"
                   >
-                    {/* S. No. cell */}
-                    <TableCell className="whitespace-nowrap px-4 py-4 text-gray-700 lg:px-6">
-                      {serial}
-                    </TableCell>
+                    {col.label}
+                  </TableHeadCell>
+                ))}
+                {actions && (
+                  <TableHeadCell className="px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-700 lg:px-6">
+                    Actions
+                  </TableHeadCell>
+                )}
+              </TableRow>
+            </TableHead>
 
-                    {/* Data cells */}
-                    {columns.map((col) => (
-                      <TableCell
-                        key={col.key}
-                        className="max-w-[18rem] whitespace-normal wrap-break-word px-4 py-4 lg:px-6"
+            <TableBody className="divide-y">
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={totalHeadCols}
+                    className="py-8 text-center text-gray-500"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <svg
+                        className="w-6 h-6 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
                       >
-                        {row[col.key]}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 13h6m-6 4h6M5 7h14M5 17h14M5 21h14"
+                        />
+                      </svg>
+                      <span>No data available</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((row, index) => {
+                  const serial = serialNumber(page, pageSize, index);
+                  return (
+                    <TableRow
+                      key={row.id || index}
+                      className={`bg-white text-gray-800 ${
+                        onRowClick ? "hover:bg-gray-100 cursor-pointer" : ""
+                      } transition-colors duration-200`}
+                      onClick={() => onRowClick?.(row)}
+                    >
+                      {/* S. No. cell */}
+                      <TableCell className="whitespace-nowrap px-4 py-4 text-gray-700 lg:px-6">
+                        {serial}
                       </TableCell>
-                    ))}
 
-                    {/* Actions cell */}
-                    {actions && (
-                      <TableCell
-                        className="whitespace-nowrap px-4 py-4 lg:px-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        {actions(row)}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                      {/* Data cells */}
+                      {columns.map((col) => (
+                        <TableCell
+                          key={col.key}
+                          className="max-w-[18rem] whitespace-normal wrap-break-word px-4 py-4 lg:px-6"
+                        >
+                          {row[col.key]}
+                        </TableCell>
+                      ))}
+
+                      {/* Actions cell */}
+                      {actions && (
+                        <TableCell
+                          className="whitespace-nowrap px-4 py-4 lg:px-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                        >
+                          {actions(row)}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
