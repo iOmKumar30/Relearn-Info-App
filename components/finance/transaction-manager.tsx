@@ -251,15 +251,15 @@ export function TransactionManager({
         >
           {title} ({list.length})
         </h4>
-        <div className="divide-y divide-gray-100">
+        <div className="flex flex-col gap-3 p-3 md:p-0 md:block md:divide-y md:divide-gray-100 bg-gray-50 md:bg-transparent">
           {list.map((txn: any) => (
             <div
               key={txn.id}
-              className="group transition-colors hover:bg-gray-50"
+              className="group transition-colors md:hover:bg-gray-50 bg-white border border-gray-200 shadow-sm rounded-xl md:border-none md:shadow-none md:rounded-none md:bg-transparent"
             >
               {editingId !== txn.id ? (
-                <div className="flex flex-col items-start gap-4 p-4 md:flex-row md:items-center">
-                  <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                  <div className="flex-1 min-w-0 space-y-1.5 w-full">
                     {/* Tags Row */}
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span
@@ -331,24 +331,30 @@ export function TransactionManager({
                   </div>
 
                   {/* Amounts */}
-                  <div className="w-full shrink-0 text-left sm:w-32 sm:text-right">
-                    <p
-                      className={`text-sm font-bold ${
-                        txn.type === "CREDIT"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {txn.type === "CREDIT" ? "+" : "-"}{" "}
-                      {Number(txn.amount).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Bal: {Number(txn.runningBalance).toLocaleString("en-IN")}
-                    </p>
+                  <div className="w-full flex justify-between items-center border-t border-gray-100 pt-3 mt-2 md:mt-0 md:pt-0 md:border-none md:block md:text-right md:w-32 shrink-0">
+                    <span className="md:hidden text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </span>
+                    <div className="text-right">
+                      <p
+                        className={`text-sm font-bold ${
+                          txn.type === "CREDIT"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {txn.type === "CREDIT" ? "+" : "-"}{" "}
+                        {Number(txn.amount).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Bal:{" "}
+                        {Number(txn.runningBalance).toLocaleString("en-IN")}
+                      </p>
+                    </div>
                   </div>
 
                   {/* ACTION BUTTONS (HOVER) */}
-                  <div className="flex w-full items-center gap-2 opacity-100 transition-opacity sm:w-auto md:self-center md:opacity-0 md:group-hover:opacity-100">
+                  <div className="flex gap-2 w-full justify-end border-t border-gray-100 pt-3 md:pt-0 md:border-none md:w-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity self-center items-center">
                     {/* DOCUMENT GENERATORS */}
                     {txn.type === "DEBIT" ? (
                       <button
@@ -360,7 +366,6 @@ export function TransactionManager({
                       </button>
                     ) : (
                       // CREDIT: Dropdown for Invoice/Donation
-
                       <ActionDropdown
                         onGenerateGST={() => handleGenerateGST(txn)}
                         onGenerateDonation={() => handleGenerateDonation(txn)}
@@ -368,7 +373,7 @@ export function TransactionManager({
                     )}
 
                     {/* SEPARATOR */}
-                    <div className="w-px h-4 bg-gray-300 mx-1"></div>
+                    <div className="hidden md:block w-px h-4 bg-gray-300 mx-1"></div>
 
                     {/* EDIT / DELETE */}
                     <button
@@ -387,7 +392,7 @@ export function TransactionManager({
                 </div>
               ) : (
                 // EDIT FORM IN-PLACE
-                <div className="border-l-4 border-yellow-400 bg-yellow-50/50 p-4 sm:p-6">
+                <div className="p-6 bg-yellow-50/50 border-l-4 border-yellow-400 rounded-xl md:rounded-none">
                   <h4 className="text-sm font-bold text-yellow-800 mb-4">
                     Editing Transaction
                   </h4>
@@ -451,17 +456,19 @@ export function TransactionManager({
   // --- 8. MAIN RENDER ---
   return (
     <div>
-      <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center bg-gray-50 gap-4">
         <h3 className="font-semibold text-gray-700">Transactions Log</h3>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <ExportXlsxButton
-            fileName={getExportFileName()}
-            visibleRows={processedData}
-            fetchAll={getExportData}
-            columns={exportColumns}
-            preface={exportPreface}
-          />
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex-1 sm:flex-none">
+            <ExportXlsxButton
+              fileName={getExportFileName()}
+              visibleRows={processedData}
+              fetchAll={getExportData}
+              columns={exportColumns}
+              preface={exportPreface}
+            />
+          </div>
 
           <button
             onClick={() => {
@@ -469,7 +476,7 @@ export function TransactionManager({
               setEditingId(null);
               setFormData(initialFormState);
             }}
-            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            className="flex-1 sm:flex-none justify-center bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" /> Add Manually
           </button>
@@ -477,7 +484,7 @@ export function TransactionManager({
       </div>
 
       {isCreating && (
-        <div className="animate-in slide-in-from-top-2 border-b border-blue-100 bg-blue-50 p-4 sm:p-6">
+        <div className="p-6 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
           <h4 className="text-sm font-bold text-blue-800 mb-4">
             New Transaction
           </h4>
@@ -587,15 +594,18 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
         </label>
         <input
           type="number"
-        className="w-full rounded border border-gray-300 bg-white p-2 font-mono text-sm md:w-1/2 lg:w-1/4"
+          className="w-full md:w-1/4 p-2 border border-gray-300 rounded bg-white text-sm font-mono"
           value={data.runningBalance}
           onChange={(e) => handleChange("runningBalance", e.target.value)}
         />
         <p className="text-[10px] text-gray-400 mt-1">
-           (You have to manually enter this based on your bank statement. It is not auto-calculated. This is because sometimes transactions are entered after the fact and the balance at that time may differ from the current balance.)
+          (You have to manually enter this based on your bank statement. It is
+          not auto-calculated. This is because sometimes transactions are
+          entered after the fact and the balance at that time may differ from
+          the current balance.)
         </p>
       </div>
-    
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <label className="block text-xs font-semibold text-gray-500 mb-1">
@@ -712,16 +722,16 @@ function TransactionForm({ data, onChange, onSave, onCancel }: any) {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+          className="w-full sm:w-auto px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg text-center"
         >
           Cancel
         </button>
         <button
           onClick={onSave}
-          className="flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-2 text-sm text-white hover:bg-black"
+          className="w-full sm:w-auto justify-center px-6 py-2 text-sm bg-gray-900 text-white hover:bg-black rounded-lg flex items-center gap-2"
         >
           <Save className="w-4 h-4" /> Save Changes
         </button>
