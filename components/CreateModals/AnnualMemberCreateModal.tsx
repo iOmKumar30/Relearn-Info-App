@@ -76,7 +76,7 @@ export default function AnnualMemberCreateModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   // Track original type to detect changes on submit
   const [originalType, setOriginalType] = useState<MemberType>(
-    MemberType.ANNUAL
+    MemberType.ANNUAL,
   );
 
   const fiscalYears = useMemo(() => getDynamicFiscalYears(2020), []);
@@ -140,7 +140,7 @@ export default function AnnualMemberCreateModal({
   const handleFeeChange = (
     fiscalLabel: string,
     field: "date" | "amount",
-    value: string
+    value: string,
   ) => {
     setForm((prev) => {
       const currentEntry = prev.fees[fiscalLabel] || {
@@ -178,7 +178,7 @@ export default function AnnualMemberCreateModal({
   const updateHistoryRow = (
     index: number,
     field: keyof HistoryEntry,
-    value: string
+    value: string,
   ) => {
     setForm((prev) => {
       const newHistory = [...prev.history];
@@ -397,7 +397,80 @@ export default function AnnualMemberCreateModal({
             </Button>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          {/* Mobile View - Stacked Tiles */}
+          <div className="md:hidden space-y-4">
+            {form.history.length === 0 ? (
+              <div className="text-center text-gray-500 py-6 border rounded-lg bg-gray-50">
+                No history records found.
+              </div>
+            ) : (
+              form.history.map((row, index) => (
+                <div
+                  key={index}
+                  className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 relative"
+                >
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">
+                      Record {index + 1}
+                    </span>
+                    <Button
+                      color="failure"
+                      size="xs"
+                      onClick={() => removeHistoryRow(index)}
+                      className="px-2"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Member Type</Label>
+                    <Select
+                      value={row.memberType}
+                      onChange={(e) =>
+                        updateHistoryRow(index, "memberType", e.target.value)
+                      }
+                      sizing="sm"
+                    >
+                      <option value={MemberType.ANNUAL}>Annual</option>
+                      <option value={MemberType.LIFE}>Life</option>
+                      <option value={MemberType.HONORARY}>Honorary</option>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-500">
+                        Start Date
+                      </Label>
+                      <TextInput
+                        type="date"
+                        sizing="sm"
+                        value={row.startDate}
+                        onChange={(e) =>
+                          updateHistoryRow(index, "startDate", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-500">End Date</Label>
+                      <TextInput
+                        type="date"
+                        sizing="sm"
+                        value={row.endDate}
+                        onChange={(e) =>
+                          updateHistoryRow(index, "endDate", e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop View - Traditional Table */}
+          <div className="hidden md:block border rounded-lg overflow-hidden">
             <Table>
               <TableHead>
                 <TableRow>
@@ -427,7 +500,7 @@ export default function AnnualMemberCreateModal({
                             updateHistoryRow(
                               index,
                               "memberType",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           sizing="sm"
@@ -481,8 +554,8 @@ export default function AnnualMemberCreateModal({
               {loading
                 ? "Processing..."
                 : isEdit
-                ? "Save Changes"
-                : "Create Member"}
+                  ? "Save Changes"
+                  : "Create Member"}
             </Button>
           </div>
         </form>
