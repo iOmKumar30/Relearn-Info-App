@@ -9,6 +9,7 @@ import {
   UserCircleIcon,
   UserPlusIcon,
   UsersIcon,
+  AcademicCapIcon
 } from "@heroicons/react/24/outline";
 import React from "react";
 import { FaDonate } from "react-icons/fa";
@@ -107,8 +108,19 @@ export const roleMenus: Record<Role, NavEntry[]> = {
             { type: "item", label: "Life Members", href: "/members/life" },
             { type: "item", label: "Annual Members", href: "/members/annual" },
             { type: "item", label: "GB Members", href: "/members/gb" },
-            { type: "item", label: "Intern Members", href: "/members/interns" },
+            {
+              type: "item",
+              icon: AcademicCapIcon,
+              label: "Intern Members",
+              href: "/members/interns",
+            },
           ],
+        },
+        {
+          type: "item",
+          icon: AcademicCapIcon,
+          label: "Students",
+          href: "/students",
         },
       ],
     },
@@ -131,7 +143,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
         },
       ],
     },
-    attendanceGroup, 
+    attendanceGroup,
     {
       type: "group",
       label: "Certificates",
@@ -210,7 +222,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
         { type: "item", label: "Annual Members", href: "/members/annual" },
       ],
     },
-    attendanceGroup, 
+    attendanceGroup,
     projects,
     donate,
   ],
@@ -223,7 +235,7 @@ export const roleMenus: Record<Role, NavEntry[]> = {
       href: "/classrooms",
       icon: BuildingStorefrontIcon,
     },
-    attendanceGroup, 
+    attendanceGroup,
     projects,
     donate,
   ],
