@@ -21,7 +21,9 @@ export default function FilterDropdown({
     setSelected(updated);
     onFilterChange(updated);
   }
+
   const wrapperRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -38,8 +40,18 @@ export default function FilterDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [wrapperRef]);
+
   return (
-    <div ref={wrapperRef} className="relative w-full sm:w-auto">
+    <div
+      ref={wrapperRef}
+      className="relative inline-block text-left w-full sm:w-auto"
+    >
+      <style>{`
+        @media (min-width: 640px) {
+          .custom-filter-width { width: 300px !important; }
+        }
+      `}</style>
+
       <button
         className="inline-flex w-full items-center justify-center rounded-lg border bg-white px-3 py-2 text-sm font-medium shadow group sm:w-auto"
         onClick={() => setOpen(!open)}
@@ -47,8 +59,9 @@ export default function FilterDropdown({
         <FunnelIcon className="mr-2 h-4 w-4 shrink-0" />
         Filter options
       </button>
+
       {open && (
-        <div className="absolute left-0 right-0 mt-2 z-50 max-h-[70vh] overflow-y-auto rounded-lg border bg-white p-4 shadow-lg sm:left-auto sm:w-72">
+        <div className="absolute right-0 top-full mt-2 z-50 w-full custom-filter-width origin-top-right max-h-[70vh] overflow-y-auto rounded-lg border bg-white p-4 shadow-lg">
           <div className="mb-2 font-semibold text-gray-700">Filters</div>
           {filters.map((f) => (
             <div key={f.key} className="mb-3">
@@ -68,7 +81,7 @@ export default function FilterDropdown({
               ) : f.type === "select" ? (
                 <select
                   id={`filter-select-${f.key}`}
-                  className="w-full border rounded p-1"
+                  className="w-full border rounded p-1 text-sm"
                   value={selected[f.key] || ""}
                   onChange={(e) => handleChange(f.key, e.target.value)}
                   aria-label={f.label}
@@ -83,7 +96,7 @@ export default function FilterDropdown({
               ) : (
                 (f.type === "number" || f.type === "text") && (
                   <input
-                    className="w-full border rounded px-2 py-1"
+                    className="w-full border rounded px-2 py-1 text-sm"
                     type={f.type}
                     value={selected[f.key] || ""}
                     placeholder={f.label}
