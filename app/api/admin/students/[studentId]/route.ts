@@ -4,8 +4,6 @@ import prisma from "@/libs/prismadb";
 import { AssignmentStatus } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-
-// GET /api/admin/students/[studentId]
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ studentId: string }> },
@@ -22,30 +20,57 @@ export async function GET(
 
   const student = await prisma.student.findUnique({
     where: { id: studentId },
-    include: {
-      assignments: {
-        orderBy: { joinDate: "desc" },
-        include: {
-          classroom: {
-            select: {
-              id: true,
-              code: true,
-              centre: { select: { code: true, name: true } },
+    select: {
+        id: true,
+        name: true,
+        rollNo: true,
+        aadhaarNo: true,
+        gender: true,
+        dob: true,
+        category: true,
+        schoolName: true,
+        schoolType: true,
+        standard: true,
+        historicalTutorId: true,
+        historicalTutor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        fatherName: true,
+        motherName: true,
+        parentPhone: true,
+        streetAddress: true,
+        city: true,
+        district: true,
+        state: true,
+        pincode: true,
+        admissionDate: true,
+        createdAt: true,
+        assignments: {
+          orderBy: { joinDate: "desc" },
+          include: {
+            classroom: {
+              select: {
+                id: true,
+                code: true,
+                centre: { select: { code: true, name: true } },
+              },
             },
           },
         },
-      },
-      boardResult: {
-        select: {
-          id: true,
-          passingYear: true,
-          totalMarks: true,
-          marksObtained: true,
-          grade: true,
-          spTutorId: true,
-          spTutor: { select: { id: true, name: true } },
+        boardResult: {
+          select: {
+            id: true,
+            passingYear: true,
+            totalMarks: true,
+            marksObtained: true,
+            grade: true,
+            spTutorId: true,
+            spTutor: { select: { id: true, name: true } },
+          },
         },
-      },
     },
   });
 
@@ -54,7 +79,6 @@ export async function GET(
   return NextResponse.json(student);
 }
 
-// PUT /api/admin/students/[studentId]
 export async function PUT(
   req: Request,
   ctx: { params: Promise<{ studentId: string }> },
@@ -90,6 +114,8 @@ export async function PUT(
       : null;
   if (body.schoolType !== undefined)
     studentData.schoolType = body.schoolType || null;
+  if (body.standard !== undefined)
+    studentData.standard = body.standard ? String(body.standard).trim() : null;
   if (body.fatherName !== undefined)
     studentData.fatherName = body.fatherName
       ? String(body.fatherName).trim()
@@ -129,12 +155,6 @@ export async function PUT(
         });
         if (!existing) throw new Error("Student not found");
 
-        // Update core student profile
-        const updated = await tx.student.update({
-          where: { id: studentId },
-          data: studentData,
-        });
-
         // Handle classroom assignment change if classroomId is provided
         if (body.classroomId !== undefined) {
           const newClassroomId = body.classroomId
@@ -149,16 +169,26 @@ export async function PUT(
             });
 
           if (newClassroomId) {
-            // Validate the classroom exists
+            // Validate the classroom exists and fetch active tutor for snapshot
             const classroom = await tx.classroom.findUnique({
               where: { id: newClassroomId },
-              select: { id: true },
+              select: {
+                id: true,
+                tutorAssignments: {
+                  where: { endDate: null },
+                  select: { userId: true },
+                },
+              },
             });
             if (!classroom) throw new Error("Classroom not found");
 
             const joinDate = body.joinDate
               ? new Date(body.joinDate)
               : new Date();
+
+            // Snapshot the active tutor currently assigned to the classroom
+            studentData.historicalTutorId =
+              classroom.tutorAssignments[0]?.userId || null;
 
             if (currentAssignment) {
               if (currentAssignment.classroomId !== newClassroomId) {
@@ -179,7 +209,7 @@ export async function PUT(
                   },
                 });
               }
-              // If same classroom, no change needed
+              // If same classroom, no change needed for assignment table
             } else {
               // No active assignment — create one
               await tx.studentClassroomAssignment.create({
@@ -193,6 +223,9 @@ export async function PUT(
             }
           } else {
             // classroomId is null/empty — close the current active assignment if any
+            // and clear the historical tutor snapshot
+            studentData.historicalTutorId = null;
+
             if (currentAssignment) {
               await tx.studentClassroomAssignment.update({
                 where: { id: currentAssignment.id },
@@ -204,6 +237,12 @@ export async function PUT(
             }
           }
         }
+
+        // Update core student profile (and possibly historicalTutorId)
+        const updated = await tx.student.update({
+          where: { id: studentId },
+          data: studentData,
+        });
 
         return updated;
       },

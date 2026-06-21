@@ -13,11 +13,12 @@ import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { FilterOption } from "@/types/filterOptions";
 import { Badge, Button, Pagination } from "flowbite-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
+
 type AssignmentRow = {
-  ClassroomSelect;
   id: string;
   classroomId: string;
   joinDate: string;
@@ -39,6 +40,7 @@ type StudentRow = {
   category: string | null;
   schoolName: string | null;
   schoolType: string | null;
+  standard: string | null; // <-- ADDED
   fatherName: string | null;
   motherName: string | null;
   parentPhone: string | null;
@@ -50,6 +52,8 @@ type StudentRow = {
   aadhaarNo: string | null;
   admissionDate: string | null;
   createdAt: string;
+  historicalTutorId: string | null; // <-- ADDED
+  historicalTutor: { name: string | null } | null; // <-- ADDED
   activeAssignment: AssignmentRow | null;
 };
 
@@ -57,6 +61,7 @@ const columns = [
   { key: "rollNo", label: "Roll No" },
   { key: "name", label: "Name" },
   { key: "gender", label: "Gender" },
+  { key: "standard", label: "Standard" }, // <-- ADDED
   { key: "classroom", label: "Classroom" },
   { key: "school", label: "School" },
   { key: "category", label: "Category" },
@@ -85,6 +90,7 @@ const schoolTypeLabels: Record<string, string> = {
 };
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -229,6 +235,7 @@ export default function StudentsPage() {
             gender: genderLabels[s.gender ?? ""] || "",
             dob: s.dob ? new Date(s.dob).toLocaleDateString("en-GB") : "",
             category: s.category || "",
+            standard: s.standard || "", // <-- ADDED
             schoolName: s.schoolName || "",
             schoolType: s.schoolType
               ? schoolTypeLabels[s.schoolType] || s.schoolType
@@ -248,6 +255,7 @@ export default function StudentsPage() {
             centre: s.activeAssignment?.classroom?.centre
               ? `${s.activeAssignment.classroom.centre.code} — ${s.activeAssignment.classroom.centre.name ?? ""}`
               : "",
+            historicalTutor: s.historicalTutor?.name || "", // <-- ADDED
             assignmentStatus: s.activeAssignment?.status || "N/A",
             joinDate: s.activeAssignment?.joinDate
               ? new Date(s.activeAssignment.joinDate).toLocaleDateString(
@@ -274,8 +282,10 @@ export default function StudentsPage() {
       name: s.name,
       gender: genderLabels[s.gender ?? ""] || "",
       category: s.category || "",
+      standard: s.standard || "", // <-- ADDED
       schoolName: s.schoolName || "",
       classroom: s.activeAssignment?.classroom?.code || "",
+      historicalTutor: s.historicalTutor?.name || "", // <-- ADDED
       assignmentStatus: s.activeAssignment?.status || "N/A",
       parentPhone: s.parentPhone || "",
     }));
@@ -323,12 +333,20 @@ export default function StudentsPage() {
       ...s,
       gender: getGenderBadge(s.gender),
       category: getCategoryBadge(s.category),
+      standard: s.standard || <span className="text-gray-400">—</span>, // <-- ADDED
       classroom: s.activeAssignment?.classroom ? (
-        <span className="font-mono text-xs">
-          {s.activeAssignment.classroom.code ?? "—"}
-          {s.activeAssignment.classroom.centre && (
-            <span className="ml-1 text-gray-500 font-normal">
-              ({s.activeAssignment.classroom.centre.code})
+        <span className="font-mono text-xs flex flex-col">
+          <span>
+            {s.activeAssignment.classroom.code ?? "—"}
+            {s.activeAssignment.classroom.centre && (
+              <span className="ml-1 text-gray-500 font-normal">
+                ({s.activeAssignment.classroom.centre.code})
+              </span>
+            )}
+          </span>
+          {s.historicalTutor?.name && (
+            <span className="text-[10px] text-gray-500 font-sans mt-0.5">
+              Tutor: {s.historicalTutor.name}
             </span>
           )}
         </span>
@@ -458,9 +476,7 @@ export default function StudentsPage() {
   return (
     <RBACGate roles={["ADMIN"]}>
       <div className="p-4 md:p-6 space-y-4">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Students
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-800">Students</h1>
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-2">
@@ -509,6 +525,7 @@ export default function StudentsPage() {
             actions={renderActions}
             page={page}
             pageSize={pageSize}
+            onRowClick={(row) => router.push(`/students/${row.id}`)}
           />
         )}
 

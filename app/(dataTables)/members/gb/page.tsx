@@ -6,27 +6,43 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import MemberSelect from "@/components/CrudControls/MemberSelect";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
-import { Badge, Button } from "flowbite-react";
+import {
+  Badge,
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  TextInput,
+} from "flowbite-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { HiPlus, HiTrash } from "react-icons/hi";
+import { HiPencil, HiPlus, HiTrash } from "react-icons/hi";
 
 export default function GoverningBodyPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const pageSize = 20;
 
+  // Add/Remove Modals
   const [selectedMember, setSelectedMember] = useState<{
     id: string;
     label: string;
   } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit Modal State
+  const [editOpen, setEditOpen] = useState(false);
+  const [editMember, setEditMember] = useState<any | null>(null);
+  const [editTenure, setEditTenure] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   const fetchGbMembers = useCallback(async () => {
     try {
@@ -56,9 +72,7 @@ export default function GoverningBodyPage() {
 
   const handleAddMember = async () => {
     if (!selectedMember) return;
-
     const toastId = toast.loading("Adding member...");
-
     try {
       setIsAdding(true);
       const res = await fetch("/api/admin/members/gb", {
@@ -66,11 +80,8 @@ export default function GoverningBodyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: selectedMember.id, action: "add" }),
       });
-
       if (!res.ok) throw new Error(await res.text());
-
       toast.success("Member added to Governing Body", { id: toastId });
-
       setSelectedMember(null);
       fetchGbMembers();
     } catch (e: any) {
@@ -80,29 +91,19 @@ export default function GoverningBodyPage() {
     }
   };
 
-  const confirmRemoveMember = (id: string) => {
-    setDeleteId(id);
-    setDeleteOpen(true);
-  };
-
   const handleRemoveMember = async () => {
     if (!deleteId) return;
-
     const toastId = toast.loading("Removing member...");
     setIsDeleting(true);
-
     try {
       const res = await fetch("/api/admin/members/gb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId: deleteId, action: "remove" }),
       });
-
       if (!res.ok) throw new Error(await res.text());
-
       toast.success("Member removed from Governing Body", { id: toastId });
       fetchGbMembers();
-
       setDeleteOpen(false);
       setDeleteId(null);
     } catch (e: any) {
@@ -110,6 +111,38 @@ export default function GoverningBodyPage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editMember) return;
+
+    const toastId = toast.loading("Updating tenure...");
+    setIsEditing(true);
+
+    try {
+      const res = await fetch("/api/admin/members/gb", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editMember.id, tenure: editTenure }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success("Tenure updated successfully", { id: toastId });
+      fetchGbMembers();
+      setEditOpen(false);
+      setEditMember(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update tenure", { id: toastId });
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const openEditModal = (row: any) => {
+    setEditMember(row);
+    setEditTenure(row.tenure || "");
+    setEditOpen(true);
   };
 
   async function fetchAllForExport(): Promise<Record<string, any>[]> {
@@ -128,6 +161,7 @@ export default function GoverningBodyPage() {
       name: d.name,
       email: d.email,
       memberType: d.memberType,
+      tenure: d.tenure || "N/A",
       joiningDate: d.joiningDate
         ? new Date(d.joiningDate).toLocaleDateString("en-GB")
         : "",
@@ -139,6 +173,7 @@ export default function GoverningBodyPage() {
     name: d.name,
     email: d.email,
     memberType: d.memberType,
+    tenure: d.tenure || "N/A",
   }));
 
   const columns = [
@@ -146,23 +181,41 @@ export default function GoverningBodyPage() {
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
     { key: "memberType", label: "Type" },
+    { key: "tenure", label: "Tenure" },
   ];
 
   const rows = data.map((d) => ({
     ...d,
     memberType: <Badge color="info">{d.memberType}</Badge>,
+    tenure: d.tenure || <span className="text-gray-400 italic">Not set</span>,
     joiningDate: new Date(d.joiningDate).toLocaleDateString("en-GB"),
   }));
 
   const renderActions = (row: any) => (
-    <Button
-      size="xs"
-      color="failure"
-      onClick={() => confirmRemoveMember(row.id)}
-      title="Remove from Governing Body"
-    >
-      <HiTrash className="w-4 h-4" />
-    </Button>
+    <div className="flex gap-2">
+      <Button
+        size="xs"
+        color="light"
+        onClick={() => {
+          const raw = data.find((x) => x.id === row.id);
+          if (raw) openEditModal(raw);
+        }}
+        title="Edit Tenure"
+      >
+        <HiPencil className="w-4 h-4" />
+      </Button>
+      <Button
+        size="xs"
+        color="failure"
+        onClick={() => {
+          setDeleteId(row.id);
+          setDeleteOpen(true);
+        }}
+        title="Remove from Governing Body"
+      >
+        <HiTrash className="w-4 h-4" />
+      </Button>
+    </div>
   );
 
   return (
@@ -192,6 +245,7 @@ export default function GoverningBodyPage() {
                   { key: "name", label: "Name" },
                   { key: "email", label: "Email" },
                   { key: "memberType", label: "Type" },
+                  { key: "tenure", label: "Tenure" },
                   { key: "joiningDate", label: "Joining Date" },
                 ]}
               />
@@ -246,6 +300,7 @@ export default function GoverningBodyPage() {
             Next
           </Button>
         </div>
+
         <ConfirmDeleteModal
           open={deleteOpen}
           title="Remove from Governing Body"
@@ -258,6 +313,50 @@ export default function GoverningBodyPage() {
           }}
           onConfirm={handleRemoveMember}
         />
+
+        <Modal show={editOpen} size="md" onClose={() => setEditOpen(false)}>
+          <ModalHeader>Edit Tenure</ModalHeader>
+          <ModalBody>
+            <form
+              id="edit-tenure-form"
+              onSubmit={handleEditSubmit}
+              className="space-y-4"
+            >
+              <div>7
+                <div className="mb-2 block">
+                  <Label htmlFor="tenure">
+                    Tenure details (e.g. 2024-2026)
+                  </Label>
+                </div>
+                <TextInput
+                  id="tenure"
+                  type="text"
+                  placeholder="Enter tenure..."
+                  value={editTenure}
+                  onChange={(e) => setEditTenure(e.target.value)}
+                  disabled={isEditing}
+                />
+              </div>
+            </form>
+          </ModalBody>
+          <ModalFooter className="flex justify-end gap-2">
+            <Button
+              color="gray"
+              onClick={() => setEditOpen(false)}
+              disabled={isEditing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-tenure-form"
+              color="blue"
+              disabled={isEditing}
+            >
+              Save Changes
+            </Button>
+          </ModalFooter>
+        </Modal>
       </div>
     </RBACGate>
   );

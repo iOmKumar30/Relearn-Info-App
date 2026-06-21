@@ -40,7 +40,7 @@ model Classroom {
   centreId          String                       @map("centre_id")
   section           SectionCode?                 @map("section_code")
   timing            ClassTiming?
-  monthlyAllowance  Int?                           @map("monthly_allowance")
+  monthlyAllowance  Int?                         @map("monthly_allowance")
   sponsoredBy       String?
   status            ClassroomStatus              @default(ACTIVE)
   dateCreated       DateTime?                    @map("date_created")
@@ -56,6 +56,7 @@ model Classroom {
   tutorAssignments  TutorAssignment[]
   studentHistory    StudentClassroomAssignment[]
   monthlyAttendance MonthlyClassroomAttendance[]
+  boardResults      BoardExamResult[]
 
   @@index([centreId])
   @@index([status, section, timing])
@@ -95,6 +96,7 @@ model User {
   trainingAttendances      TutorTrainingAttendance[]    @relation("UserToAttendance")
   boardExamResults         BoardExamResult[]            @relation("TutorToBoardResult")
   intern                   Intern?
+  students                 Student[]                    @relation("StudentHistoricalTutor")
 
   @@index([status])
   @@index([email])
@@ -243,6 +245,7 @@ model Member {
   pan             String?             @db.VarChar(10)
   memberId        String?             @unique
   isGoverningBody Boolean             @default(false)
+  tenure          String?
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   fees            MemberFee[]
   typeHistory     MemberTypeHistory[]
@@ -309,30 +312,34 @@ model Intern {
 }
 
 model Student {
-  id            String                       @id @default(uuid())
-  name          String
-  aadhaarNo     String?                      @unique(map: "student_aadhaar_unique")
-  rollNo        String                       @unique
-  gender        Gender?
-  dob           DateTime?
-  streetAddress String?                      @map("street_address")
-  city          String?
-  district      String?
-  state         String?
-  pincode       String?                      @db.VarChar(10)
-  fatherName    String?
-  motherName    String?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
-  admissionDate DateTime?
-  category      Category?
-  parentPhone   String?
-  schoolName    String?
-  schoolType    SchoolType?
-  assignments   StudentClassroomAssignment[]
-  boardResult   BoardExamResult?
+  id                String                       @id @default(uuid())
+  name              String
+  aadhaarNo         String?                      @unique(map: "student_aadhaar_unique")
+  rollNo            String                       @unique
+  gender            Gender?
+  dob               DateTime?
+  streetAddress     String?                      @map("street_address")
+  city              String?
+  district          String?
+  state             String?
+  pincode           String?                      @db.VarChar(10)
+  fatherName        String?
+  motherName        String?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  admissionDate     DateTime?
+  category          Category?
+  parentPhone       String?
+  schoolName        String?
+  schoolType        SchoolType?
+  standard          String?
+  historicalTutorId String?
+  assignments       StudentClassroomAssignment[]
+  boardResult       BoardExamResult?
+  historicalTutor   User?                        @relation("StudentHistoricalTutor", fields: [historicalTutorId], references: [id], onDelete: SetNull)
 
   @@index([city, state])
+  @@index([historicalTutorId])
 }
 
 model StudentClassroomAssignment {
@@ -350,21 +357,31 @@ model StudentClassroomAssignment {
   @@index([classroomId, joinDate, leaveDate])
 }
 
+model BoardExamYear {
+  year      Int               @id
+  createdAt DateTime          @default(now())
+  results   BoardExamResult[]
+}
+
 model BoardExamResult {
-  id            String   @id @default(uuid())
-  studentId     String   @unique
+  id            String        @id @default(uuid())
+  studentId     String        @unique
   passingYear   Int
   totalMarks    Float
   marksObtained Float
   grade         String
+  classroomId   String?
   spTutorId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  spTutor       User?    @relation("TutorToBoardResult", fields: [spTutorId], references: [id], onDelete: SetNull)
-  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  spTutor       User?         @relation("TutorToBoardResult", fields: [spTutorId], references: [id], onDelete: SetNull)
+  classroom     Classroom?    @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examYear      BoardExamYear @relation(fields: [passingYear], references: [year], onDelete: Cascade)
 
   @@index([passingYear])
   @@index([spTutorId])
+  @@index([classroomId])
 }
 
 model MonthlyClassroomAttendance {

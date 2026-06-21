@@ -42,6 +42,7 @@ export async function GET(req: Request) {
       { fatherName: { contains: q, mode: "insensitive" } },
       { motherName: { contains: q, mode: "insensitive" } },
       { schoolName: { contains: q, mode: "insensitive" } },
+      { standard: { contains: q, mode: "insensitive" } },
     ];
   }
 
@@ -84,6 +85,13 @@ export async function GET(req: Request) {
         category: true,
         schoolName: true,
         schoolType: true,
+        standard: true,
+        historicalTutorId: true,
+        historicalTutor: {
+          select: {
+            name: true,
+          },
+        },
         fatherName: true,
         motherName: true,
         parentPhone: true,
@@ -142,23 +150,36 @@ export async function POST(req: Request) {
 
   const name = String(body?.name ?? "").trim();
   const rollNo = String(body?.rollNo ?? "").trim();
+  const standard = body?.standard ? String(body.standard).trim() : null;
 
   if (!name) return new NextResponse("Name is required", { status: 400 });
   if (!rollNo) return new NextResponse("Roll No is required", { status: 400 });
 
-  // Validate optional classroomId + joinDate
   const classroomId = body?.classroomId
     ? String(body.classroomId).trim()
     : null;
   const joinDate = body?.joinDate ? new Date(body.joinDate) : new Date();
 
+  let historicalTutorId = null;
+
   if (classroomId) {
     const classroom = await prisma.classroom.findUnique({
       where: { id: classroomId },
-      select: { id: true },
+      select: {
+        id: true,
+        tutorAssignments: {
+          where: {
+            endDate: null,
+          },
+          select: { userId: true },
+        },
+      },
     });
     if (!classroom)
       return new NextResponse("Classroom not found", { status: 404 });
+
+    // Snapshot the active tutor at the time of joining
+    historicalTutorId = classroom.tutorAssignments[0]?.userId || null;
   }
 
   try {
@@ -174,6 +195,8 @@ export async function POST(req: Request) {
             category: body?.category ?? null,
             schoolName: body?.schoolName ?? null,
             schoolType: body?.schoolType ?? null,
+            standard,
+            historicalTutorId,
             fatherName: body?.fatherName ?? null,
             motherName: body?.motherName ?? null,
             parentPhone: body?.parentPhone ?? null,

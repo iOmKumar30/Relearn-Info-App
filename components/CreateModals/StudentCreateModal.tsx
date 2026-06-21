@@ -22,6 +22,7 @@ type FormState = {
   category: string;
   schoolName: string;
   schoolType: string;
+  standard: string; // <-- ADDED
   fatherName: string;
   motherName: string;
   parentPhone: string;
@@ -46,6 +47,7 @@ const EMPTY_FORM: FormState = {
   category: "",
   schoolName: "",
   schoolType: "",
+  standard: "", // <-- ADDED
   fatherName: "",
   motherName: "",
   parentPhone: "",
@@ -95,6 +97,7 @@ export default function StudentCreateModal({
         category: initialValues.category ?? "",
         schoolName: initialValues.schoolName ?? "",
         schoolType: initialValues.schoolType ?? "",
+        standard: initialValues.standard ?? "", // <-- ADDED
         fatherName: initialValues.fatherName ?? "",
         motherName: initialValues.motherName ?? "",
         parentPhone: initialValues.parentPhone ?? "",
@@ -132,6 +135,7 @@ export default function StudentCreateModal({
       category: form.category || null,
       schoolName: form.schoolName.trim() || null,
       schoolType: form.schoolType || null,
+      standard: form.standard.trim() || null, // <-- ADDED
       fatherName: form.fatherName.trim() || null,
       motherName: form.motherName.trim() || null,
       parentPhone: form.parentPhone.trim() || null,
@@ -356,6 +360,18 @@ export default function StudentCreateModal({
                   <option value="PRIVATE">PRIVATE</option>
                   <option value="GOVT_AIDED">GOVT AIDED</option>
                 </Select>
+              </div>
+              {/* NEW FIELD: Standard */}
+              <div>
+                <Label htmlFor="standard" className="mb-1 block">
+                  Standard / Class
+                </Label>
+                <TextInput
+                  id="standard"
+                  value={form.standard}
+                  onChange={(e) => set("standard", e.target.value)}
+                  placeholder="e.g. Class 10, XII, etc."
+                />
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import {
+  AcademicCapIcon,
   BuildingStorefrontIcon,
   CalendarDaysIcon,
   ClipboardIcon,
@@ -9,7 +10,6 @@ import {
   UserCircleIcon,
   UserPlusIcon,
   UsersIcon,
-  AcademicCapIcon
 } from "@heroicons/react/24/outline";
 import React from "react";
 import { FaDonate } from "react-icons/fa";
@@ -144,6 +144,12 @@ export const roleMenus: Record<Role, NavEntry[]> = {
       ],
     },
     attendanceGroup,
+    {
+      type: "item",
+      label: "Board Results",
+      icon: AcademicCapIcon,
+      href: "/board-results",
+    },
     {
       type: "group",
       label: "Certificates",

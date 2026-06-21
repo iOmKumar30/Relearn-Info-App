@@ -34,14 +34,14 @@ export async function GET(req: Request) {
     prisma.member.count({ where }),
     prisma.member.findMany({
       where,
-      include: { user: true }, 
+      include: { user: true },
       skip: (page - 1) * pageSize,
       take: pageSize,
       orderBy: { user: { name: "asc" } },
     }),
   ]);
 
-  const mapped = rows.map((m:any) => ({
+  const mapped = rows.map((m: any) => ({
     id: m.id,
     memberId: m.memberId,
     name: m.user.name,
@@ -49,6 +49,7 @@ export async function GET(req: Request) {
     phone: m.user.phone,
     memberType: m.memberType,
     joiningDate: m.joiningDate,
+    tenure: m.tenure, // <-- ADDED: ensure tenure is sent to frontend
   }));
 
   return NextResponse.json({ rows: mapped, total, page, pageSize });
@@ -67,20 +68,63 @@ export async function POST(req: Request) {
     if (!memberId)
       return new NextResponse("Member ID required", { status: 400 });
 
+    const isAdding = action === "add";
+
     const updated = await prisma.member.update({
       where: { id: memberId },
       data: {
-        isGoverningBody: action === "add",
+        isGoverningBody: isAdding,
+        // Automatically clear tenure if they are being removed from the GB
+        ...(!isAdding ? { tenure: null } : {}),
       },
       include: { user: true },
     });
 
     return NextResponse.json({
       success: true,
-      message: `${updated.user.name || "Member"} ${action === "add" ? "added to" : "removed from"} Governing Body`,
+      message: `${updated.user.name || "Member"} ${
+        isAdding ? "added to" : "removed from"
+      } Governing Body`,
     });
   } catch (error: any) {
     return new NextResponse(error.message || "Error updating GB status", {
+      status: 500,
+    });
+  }
+}
+
+export async function PUT(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id)
+    return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
+
+  try {
+    const body = await req.json();
+    const { id, tenure } = body;
+
+    if (!id) return new NextResponse("Member ID is required", { status: 400 });
+
+    const member = await prisma.member.findUnique({ where: { id } });
+
+    if (!member) return new NextResponse("Member not found", { status: 404 });
+    if (!member.isGoverningBody)
+      return new NextResponse("Member is not in the Governing Body", {
+        status: 400,
+      });
+
+    const updated = await prisma.member.update({
+      where: { id },
+      data: {
+        tenure: tenure ? String(tenure).trim() : null,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (e: any) {
+    console.error("ADMIN_UPDATE_GB_MEMBER_ERROR", e);
+    return new NextResponse(e?.message || "Failed to update member", {
       status: 500,
     });
   }
