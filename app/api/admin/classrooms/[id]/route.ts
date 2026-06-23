@@ -45,7 +45,6 @@ export async function GET(
   return NextResponse.json(row);
 }
 
-
 export async function PUT(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -81,7 +80,9 @@ export async function PUT(
       : new Date();
   if (body.dateClosed !== undefined)
     data.dateClosed = body.dateClosed ? new Date(body.dateClosed) : null;
-
+  if (data.status === ClassroomStatus.INACTIVE && body.dateClosed === null) {
+    data.dateClosed = new Date();
+  }
   try {
     const updated = await prisma.$transaction(async (tx) => {
       // Fetch existing classroom for centreId and current section
@@ -97,9 +98,7 @@ export async function PUT(
       const newCentreId = data.centreId ?? current.centreId;
       const newSection = data.section ?? current.section;
 
-      if (
-        (data.centreId !== undefined && data.centreId !== current.centreId)
-      ) {
+      if (data.centreId !== undefined && data.centreId !== current.centreId) {
         const newCode = await generateClassroomCode(tx, newCentreId);
         codeUpdate = { code: newCode };
       }

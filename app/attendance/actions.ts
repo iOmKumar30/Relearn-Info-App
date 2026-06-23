@@ -18,13 +18,20 @@ export async function createAcademicYear(year: number) {
 }
 export async function getAttendanceData(year: number, month: number) {
   // 1. Fetch all Active Centres
+  const firstDayOfMonth = new Date(year, month - 1, 1);
   const centres = await prisma.centre.findMany({
     where: { status: "ACTIVE" },
     orderBy: { name: "asc" },
     include: {
       // 2. Include Active Classrooms for each centre
       classrooms: {
-        where: { status: "ACTIVE" },
+        where: { 
+          OR : [
+            {dateClosed: null},
+            {dateClosed: {gte: firstDayOfMonth}}
+            , 
+          ]
+         },
         include: {
           // 3. Include the specific attendance record for this month/year
           monthlyAttendance: {
