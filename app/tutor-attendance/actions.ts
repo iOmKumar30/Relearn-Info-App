@@ -58,18 +58,25 @@ export async function getMonthlyTrainingData(year: number, month: number) {
   // Max payout is calculated dynamically based on current P&R rate
   const maxPossiblePayout = totalClasses * currentRates.presentResponded;
 
+  const firstDayOfMonth = new Date(year, month - 1, 1);
+
   // Fetch Active Tutors by their Role
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
     where: {
-      endDate: null,
       role: {
         name: "TUTOR",
       },
+      OR: [
+        { endDate: null },
+        { endDate: { gte: firstDayOfMonth } },
+      ],
       user: {
-        status: "ACTIVE",
         tutorAssignments: {
           some: {
-            endDate: null,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: firstDayOfMonth } },
+            ],
           },
         },
       },
@@ -80,7 +87,12 @@ export async function getMonthlyTrainingData(year: number, month: number) {
           id: true,
           name: true,
           tutorAssignments: {
-            where: { endDate: null },
+            where: {
+              OR: [
+                { endDate: null },
+                { endDate: { gte: firstDayOfMonth } },
+              ],
+            },
             select: {
               classroom: { select: { centreId: true } },
             },
@@ -305,9 +317,13 @@ export async function getQuarterlyReportData(
   startMonth: number,
   endMonth: number,
 ) {
+  const firstDayOfStartMonth = new Date(year, startMonth - 1, 1);
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
     where: {
-      endDate: null,
+      OR: [
+        { endDate: null },
+        { endDate: { gte: firstDayOfStartMonth } },
+      ],
       role: {
         name: "TUTOR",
       },
@@ -318,7 +334,12 @@ export async function getQuarterlyReportData(
           id: true,
           name: true,
           tutorAssignments: {
-            where: { endDate: null },
+            where: {
+              OR: [
+                { endDate: null },
+                { endDate: { gte: firstDayOfStartMonth } },
+              ],
+            },
             select: {
               classroom: { select: { centreId: true } },
             },
