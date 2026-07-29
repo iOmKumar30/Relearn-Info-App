@@ -25,9 +25,10 @@ export default function DonationPreviewModal({ open, data, onClose }: Props) {
     setIsDownloading(true);
 
     try {
-      // 1. Capture the element with html2canvas-pro
+      // Capture at print-quality resolution. 2x keeps text sharp without the
+      // multi-megabyte PNG produced by the previous 4x capture.
       const canvas = await html2canvas(element, {
-        scale: 4, // Higher scale for better quality
+        scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
         scrollY: -window.scrollY, // Fix for scrolling offset issues
@@ -35,25 +36,43 @@ export default function DonationPreviewModal({ open, data, onClose }: Props) {
         windowHeight: element.scrollHeight,
       });
 
-      // 2. Convert canvas to image data
-      const imgData = canvas.toDataURL("image/png");
+      // JPEG compression makes this a compact, single-page receipt. PNG stores
+      // the entire high-resolution canvas losslessly and was causing 50+ MB PDFs.
+      const imgData = canvas.toDataURL("image/jpeg", 0.8);
 
-      // 3. Define PDF dimensions (A4 in points: 595.28 x 841.89)
-      const pdfWidth = 595.28;
-      // Calculate height maintaining aspect ratio
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      // 4. Create jsPDF instance
+      // Use jsPDF's named A4 format instead of deriving the page height from the
+      // canvas, which could create a non-A4 PDF when the card was rendered taller.
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "pt",
-        format: [pdfWidth, pdfHeight],
+        unit: "mm",
+        format: "a4",
+        compress: true,
       });
 
-      // 5. Add image to PDF
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      // Keep every part of a receipt visible. If its content is slightly taller
+      // than A4, scale it down proportionally and centre it on the A4 page.
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const imageRatio = canvas.width / canvas.height;
+      const pageRatio = pageWidth / pageHeight;
+      const imageWidth =
+        imageRatio > pageRatio ? pageWidth : pageHeight * imageRatio;
+      const imageHeight =
+        imageRatio > pageRatio ? pageWidth / imageRatio : pageHeight;
+      const x = (pageWidth - imageWidth) / 2;
+      const y = (pageHeight - imageHeight) / 2;
 
-      // 6. Save the PDF
+      pdf.addImage(
+        imgData,
+        "JPEG",
+        x,
+        y,
+        imageWidth,
+        imageHeight,
+        undefined,
+        "FAST"
+      );
+
       pdf.save(`Donation_${data.receiptNumber || "Receipt"}.pdf`);
     } catch (error) {
       console.error("Failed to generate PDF:", error);

@@ -61,20 +61,21 @@ export default function DonationReceiptCard({
   return (
     <div
       id="donation-receipt-root"
-      className="bg-white text-gray-800 font-sans leading-relaxed mx-auto border border-gray-300 shadow-sm flex flex-col justify-between relative"
+      className="bg-white text-gray-800 font-sans leading-relaxed mx-auto flex flex-col justify-between relative"
       style={{
-        width: "210mm", // Exact A4 Width
-        minHeight: "297mm", // Exact A4 Height
+        width: "210mm", // Exact A4 width
+        minHeight: "297mm", // At least A4, but never clip receipt content
         padding: "0",
+        boxSizing: "border-box",
       }}
     >
       {/* 1. Header (Full Width) */}
-      <div className="relative w-full h-[185px] mb-4 shrink-0">
+      <div className="relative w-full mb-4 shrink-0">
         {/* Using standard <img> tag is often safer for PDF generation tools than Next/Image */}
         <img
           src={headerSrc}
           alt="Relearn Foundation Header"
-          className="w-full h-full object-cover"
+          className="block w-full h-auto"
         />
       </div>
 
@@ -104,8 +105,7 @@ export default function DonationReceiptCard({
         </div>
 
         <hr className="my-3 border-t-2 border-black" />
-        <hr className="my-3 border-t-2 border-black" />
-
+        
         <div className="flex justify-between items-center text-sm font-bold text-gray-900 mb-6 mt-2">
           <p>Receipt No: {data.receiptNumber}</p>
           <p>Date: {formattedDate}</p>
@@ -197,10 +197,27 @@ export default function DonationReceiptCard({
 
         {/* Signatory Section - Pushed to bottom of Content area */}
         <div className="mt-auto mb-2">
-          <div className="mb-6">
-            <p className="font-bold">Authorized Signatory</p>
-            <div className="h-10"></div> <p>Name: Dr Mita Tarafder</p>
-            <p>Mobile No: 9852193175</p>
+          <div className="mb-6 flex items-end gap-10">
+            <div>
+              <p className="font-bold">Authorized Signatory</p>
+              <img
+                src="/certificates/assets/sign_left.png"
+                alt="Signature of Dr Mita Tarafder"
+                className="mt-1 h-12 w-40 object-contain object-left"
+              />
+              <p>Name: Dr Mita Tarafder</p>
+              <p>Mobile No: 9852193175</p>
+            </div>
+            <div className="flex h-28 w-36 items-center justify-center">
+              <img
+                src="/certificates/assets/stamp.jpeg"
+                alt="Relearn Foundation stamp"
+                className="max-h-full max-w-full object-contain"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            </div>
           </div>
           <hr className="border-t border-gray-400 mb-2" />
           <p className="text-xs italic text-gray-500 text-center">
