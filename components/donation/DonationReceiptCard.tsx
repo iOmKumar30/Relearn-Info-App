@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { ToWords } from "to-words";
+import { ToWords } from 'to-words';
 
 type DonationData = {
   receiptNumber: string;
@@ -23,7 +23,7 @@ type Props = {
 };
 
 const toWords = new ToWords({
-  localeCode: "en-IN",
+  localeCode: 'en-IN',
   converterOptions: {
     currency: true,
     ignoreDecimal: false,
@@ -32,7 +32,7 @@ const toWords = new ToWords({
   },
 });
 
-const defaultHeader = "/assets/relearn_header.png";
+const defaultHeader = '/assets/relearn_header.png';
 
 export default function DonationReceiptCard({
   data,
@@ -42,19 +42,19 @@ export default function DonationReceiptCard({
 
   const isoDate = new Date(data.date);
 
-  const formattedDate = isoDate.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+  const formattedDate = isoDate.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
 
-  const formattedDateTime = isoDate.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+  const formattedDateTime = isoDate.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: false,
   });
 
@@ -89,11 +89,11 @@ export default function DonationReceiptCard({
           </p>
           <p>
             <span className="font-semibold">80G Registration Number:</span>{' '}
-            AACTR5805Q 25 PT 02
+            AACTR5805Q25PT02
           </p>
           <p>
             <span className="font-semibold">12A Registration Number:</span>{' '}
-            AACTR5805Q 25 PT 01
+            AACTR5805Q25PT01
           </p>
           <p>
             <span className="font-semibold">GST No:</span> 20AACTR5805Q2Z9
