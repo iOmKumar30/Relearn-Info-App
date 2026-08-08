@@ -384,7 +384,34 @@ model BoardExamResult {
   @@index([classroomId])
 }
 
+
+model LegacyBoardResult {
+  id                  String   @id @default(uuid())
+  identityKey         String   @map("identity_key")
+  passingYear         Int      @map("passing_year")
+  studentName         String   @map("student_name")
+  schoolName          String   @map("school_name")
+  board               String?
+  totalMarks          Float?   @map("total_marks")
+  marksObtained       Float?   @map("marks_obtained")
+  grade               String?
+  reportCardUrl       String?  @map("report_card_url")
+  studentPhotoUrl     String?  @map("student_photo_url")
+  parentContactNumber String?  @map("parent_contact_number")
+  classroomTutor      String?  @map("classroom_tutor")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Re-importing updates the same normalized student / school identity.
+  @@unique([passingYear, identityKey])
+  @@index([passingYear])
+  @@index([studentName])
+  @@index([schoolName])
+  @@map("legacy_board_results")
+}
+
 model MonthlyClassroomAttendance {
+
   id                    String    @id @default(uuid())
   classroomId           String
   year                  Int
