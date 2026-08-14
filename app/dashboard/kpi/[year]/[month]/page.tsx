@@ -14,6 +14,11 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+const MONTHLY_FINANCE_KPI_KEYS = new Set([
+  "finance.revenue.monthly.lakhs",
+  "finance.expenditure.monthly.lakhs",
+]);
+
 export default function KpiMonthPage() {
   const { year, month } = useParams<{ year: string; month: string }>();
   const [kpis, setKpis] = useState<KpiDto[]>([]);
@@ -49,6 +54,7 @@ export default function KpiMonthPage() {
     const g = new Map<string, KpiDto[]>();
     for (const k of kpis) {
       const group = k.category || "General";
+      if (group === "Finance" && !MONTHLY_FINANCE_KPI_KEYS.has(k.key)) continue;
       if (!g.has(group)) g.set(group, []);
       g.get(group)!.push(k);
     }
@@ -68,7 +74,7 @@ export default function KpiMonthPage() {
         >
           <div className="flex items-center gap-4">
             <Link
-              href="/kpi"
+              href={`/dashboard/kpi/${year}`}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />

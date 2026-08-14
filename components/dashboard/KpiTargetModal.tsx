@@ -53,8 +53,8 @@ export function KpiTargetModal({
         body: JSON.stringify({
           kpiKey,
           fiscalLabel,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate).toISOString(),
+          startDate,
+          endDate,
           targetValue: Number(targetValue),
         }),
       });
@@ -106,14 +106,14 @@ export function KpiTargetModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Fiscal Label (e.g. FY 25-26)
+              Fiscal Label (e.g. FY2025-26)
             </label>
             <input
               type="text"
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               value={fiscalLabel}
               onChange={(e) => setFiscalLabel(e.target.value)}
-              placeholder="FY 25-26"
+              placeholder="FY2025-26"
               required
             />
           </div>

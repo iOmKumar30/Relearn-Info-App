@@ -1,9 +1,10 @@
-import prisma from "@/libs/prismadb";
+import prisma from '@/libs/prismadb';
+import { NextResponse } from 'next/server';
 
 export async function GET() {
   const classes = await prisma.tutorTrainingClass.findMany({
     where: { yearId: 2026, month: 1 },
-    orderBy: { date: "asc" },
+    orderBy: { date: 'asc' },
   });
 
   const activeAssignments = await prisma.tutorAssignment.findMany({
@@ -13,5 +14,5 @@ export async function GET() {
     },
   });
 
-  return { classes, activeAssignments };
+  return NextResponse.json({ classes, activeAssignments });
 }

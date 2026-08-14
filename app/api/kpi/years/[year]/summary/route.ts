@@ -1,5 +1,9 @@
 import { authOptions } from '@/libs/authOptions';
-import { firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
+import { canViewKpis } from '@/libs/kpi/auth';
+import { historicalKpiSkipReason } from '@/libs/kpi/backfill';
+import { currentMonthYYYYMM } from '@/libs/kpi/month';
+import { parseKpiYear } from '@/libs/kpi/validation';
+import { getYearSummaryWindow, resolveEffectiveMonthlyValues } from '@/libs/kpi/yearSummary';
 import prisma from '@/libs/prismadb';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -14,13 +18,10 @@ const FINANCE_KPI_KEYS = [
   'finance.expenditure.past.lakhs',
 ];
 
-function getFiscalRange(calendarYear: number) {
-  // Fiscal year starts April 1 of calendarYear, ends March 31 of calendarYear+1
-  return {
-    from: new Date(calendarYear, 3, 1), // Apr 1
-    to: new Date(calendarYear + 1, 2, 31), // Mar 31 next year
-  };
-}
+const MONTHLY_FINANCE_KPI_KEYS = new Set([
+  'finance.revenue.monthly.lakhs',
+  'finance.expenditure.monthly.lakhs',
+]);
 
 export async function GET(
   req: Request,
@@ -29,30 +30,32 @@ export async function GET(
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return new NextResponse('Unauthorized', { status: 401 });
+  if (!(await canViewKpis(session.user.id))) return new NextResponse('Forbidden', { status: 403 });
 
   const { year } = await ctx.params;
-  const yearNum = Number(year);
+  const yearNum = parseKpiYear(year);
+  if (yearNum === null) return new NextResponse('Invalid year', { status: 400 });
+  if (!(await prisma.kPIYear.findUnique({ where: { year: yearNum }, select: { id: true } }))) {
+    return new NextResponse('KPI year not found', { status: 404 });
+  }
 
-  const calFrom = new Date(yearNum, 0, 1);
-  const calToExclusive = new Date(yearNum + 1, 0, 1);
-
-  const fiscal = {
-    from: new Date(yearNum, 3, 1),
-    toExclusive: new Date(yearNum + 1, 3, 1),
-  };
+  const currentBusinessMonth = currentMonthYYYYMM();
+  const window = getYearSummaryWindow(yearNum, currentBusinessMonth);
   const fiscalLabel = `FY${yearNum}-${String(yearNum + 1).slice(-2)}`;
 
-  const kpis = await prisma.kPI.findMany({
+  const kpis = (await prisma.kPI.findMany({
     where: { active: true },
     orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
-  });
+  })).filter((kpi) => !MONTHLY_FINANCE_KPI_KEYS.has(kpi.key));
+  const activeKpiIds = kpis.map((kpi) => kpi.id);
 
   // Fetch all monthly values for calendar year (for non-finance KPIs)
   const calValues = await prisma.kPIMonthlyValue.findMany({
     where: {
+      kpiId: { in: activeKpiIds },
       month: {
-        gte: calFrom,
-        lt: new Date(yearNum + 1, 0, 1),
+        gte: window.calendarFrom,
+        lt: window.calendarToExclusive,
       },
     },
     orderBy: {
@@ -63,9 +66,10 @@ export async function GET(
   // Fetch all monthly values for fiscal year (for finance KPIs)
   const fiscalValues = await prisma.kPIMonthlyValue.findMany({
     where: {
+      kpiId: { in: activeKpiIds },
       month: {
-        gte: fiscal.from,
-        lt: new Date(yearNum + 1, 3, 1),
+        gte: window.fiscalFrom,
+        lt: window.fiscalToExclusive,
       },
     },
     orderBy: {
@@ -77,8 +81,9 @@ export async function GET(
   const monthsWithData = new Set(
     calValues.map((v) => v.month.toISOString().slice(0, 7)),
   ).size;
-  const isFullYear =
-    yearNum < new Date().getFullYear() && monthsWithData === 12;
+  const currentKpiYear = Number(currentBusinessMonth.slice(0, 4));
+  const isFullYear = yearNum < currentKpiYear && monthsWithData === 12;
+  const isHistoricalYear = yearNum <= currentKpiYear;
 
   const summaryKpis = kpis.map((k) => {
     const isFinance = FINANCE_KPI_KEYS.includes(k.key);
@@ -86,27 +91,8 @@ export async function GET(
 
     const relevant = pool.filter((v) => v.kpiId === k.id);
 
-    // Deduplicate: MANUAL overrides AUTO per month
-    const byMonth = new Map<string, number>();
-    // First pass: AUTO
-    for (const v of relevant) {
-      if (v.source === 'AUTO') {
-        byMonth.set(v.month.toISOString().slice(0, 7), v.value);
-      }
-    }
-    // Second pass: MANUAL overrides
-    for (const v of relevant) {
-      if (v.source === 'MANUAL') {
-        byMonth.set(v.month.toISOString().slice(0, 7), v.value);
-      }
-    }
-
-    const monthlyValues = Array.from(byMonth.entries())
-      .map(([monthKey, value]) => ({
-        monthKey,
-        value,
-      }))
-      .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+    // MANUAL overrides AUTO per month after the completed-month cutoff.
+    const monthlyValues = resolveEffectiveMonthlyValues(relevant);
 
     const values = monthlyValues.map((entry) => entry.value);
     const hasData = monthlyValues.length > 0;
@@ -140,7 +126,13 @@ export async function GET(
       sortOrder: k.sortOrder,
       aggregatedValue,
       monthsCovered: values.length,
+      latestAvailableMonth: monthlyValues.at(-1)?.monthKey ?? null,
       fiscalLabel: isFinance ? fiscalLabel : null,
+      historicalAvailability: aggregatedValue === null && isHistoricalYear && historicalKpiSkipReason(k.key)
+        ? k.key === 'entrepreneurs.created'
+          ? 'MANUAL_ENTRY_REQUIRED'
+          : 'HISTORICAL_DATA_UNAVAILABLE'
+        : null,
     };
   });
 
@@ -149,6 +141,8 @@ export async function GET(
     monthsWithData,
     isFullYear,
     fiscalLabel,
+    isCurrentYear: window.isCurrentYear,
+    latestCompletedMonth: window.latestCompletedMonth?.toISOString() ?? null,
     kpis: summaryKpis,
   });
 }

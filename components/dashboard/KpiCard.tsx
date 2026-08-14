@@ -29,24 +29,30 @@ export type KpiDto = {
     startDate: string;
     endDate: string;
   } | null;
+  snapshotState?: "SNAPSHOT" | "NO_SNAPSHOT";
+  historicalAvailability?: "MANUAL_ENTRY_REQUIRED" | "HISTORICAL_DATA_UNAVAILABLE" | null;
 };
 
 export function KpiCard({ kpi, index }: { kpi: KpiDto; index: number }) {
-  const value =
-    kpi.unit === "PERCENT"
-      ? (kpi.currentValue || 0) * 100
-      : kpi.currentValue || 0;
+  const value = kpi.currentValue;
+  const displayValue = kpi.unit === "PERCENT" && value !== null ? value * 100 : value;
   const isManual = kpi.currentSource === "MANUAL";
+  const historicalAvailabilityText = kpi.historicalAvailability === "MANUAL_ENTRY_REQUIRED"
+    ? "Manual entry required"
+    : kpi.historicalAvailability === "HISTORICAL_DATA_UNAVAILABLE"
+      ? "Historical data unavailable"
+      : null;
 
   const hasTarget = !!kpi.target && kpi.target.targetValue > 0;
   const targetValue = hasTarget ? kpi.target!.targetValue : null;
-  const pctToTarget =
-    hasTarget && targetValue ? Math.min(100, (value / targetValue) * 100) : 0;
+  const pctToTarget = hasTarget && targetValue && value !== null
+    ? Math.min(100, (value / targetValue) * 100)
+    : 0;
 
   const chartData = useMemo(() => {
     return kpi.trend.map((t) => ({
       name: t.month,
-      value: t.value || 0,
+      value: t.value,
     }));
   }, [kpi.trend]);
 
@@ -77,15 +83,21 @@ export function KpiCard({ kpi, index }: { kpi: KpiDto; index: number }) {
                 : "bg-emerald-50 text-emerald-600 ring-emerald-500/20",
             )}
           >
-            {isManual ? "Manual" : "Auto"}
+            {kpi.currentValue === null
+              ? historicalAvailabilityText
+                ? historicalAvailabilityText
+                : "No snapshot"
+              : isManual
+                ? "Manual"
+                : "Auto"}
           </span>
         </div>
 
         <div className="mt-3 flex items-baseline gap-1">
           <span className="text-4xl font-bold tracking-tight text-gray-900">
-            {kpi.currentValue !== null ? (
+            {displayValue !== null ? (
               <CountUp
-                end={value}
+                end={displayValue}
                 decimals={
                   kpi.unit === "LAKHS" ? 2 : kpi.unit === "PERCENT" ? 1 : 0
                 }
@@ -94,7 +106,7 @@ export function KpiCard({ kpi, index }: { kpi: KpiDto; index: number }) {
                 prefix={kpi.unit === "LAKHS" ? "₹ " : ""}
               />
             ) : (
-              "0"
+              "—"
             )}
           </span>
           {kpi.unit === "LAKHS" && (
@@ -104,6 +116,11 @@ export function KpiCard({ kpi, index }: { kpi: KpiDto; index: number }) {
             <span className="text-lg font-medium text-gray-500">%</span>
           )}
         </div>
+        {historicalAvailabilityText && (
+          <p className="mt-2 text-xs text-amber-700" role="note">
+            {historicalAvailabilityText}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 space-y-4">

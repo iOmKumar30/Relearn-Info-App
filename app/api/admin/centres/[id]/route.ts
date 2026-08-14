@@ -99,20 +99,23 @@ export async function PUT(
 }
 
 // DELETE /api/admin/centres/:id
-export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const params = await ctx.params;
+  const id = params.id;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
-    return new NextResponse("Unauthorized", { status: 401 });
+    return new NextResponse('Unauthorized', { status: 401 });
   if (!(await isAdmin(session.user.id)))
-    return new NextResponse("Forbidden", { status: 403 });
-
-  const { id } = ctx.params;
+    return new NextResponse('Forbidden', { status: 403 });
 
   // prevent deletion if classrooms exist; enforce referential policy
   const classrooms = await prisma.classroom.count({ where: { centreId: id } });
   if (classrooms > 0) {
     return new NextResponse(
-      "Cannot delete Centre with existing Classrooms. Close or reassign them first.",
+      'Cannot delete Centre with existing Classrooms. Close or reassign them first.',
       { status: 409 },
     );
   }
@@ -121,6 +124,6 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
     await prisma.centre.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    return new NextResponse("Not Found", { status: 404 });
+    return new NextResponse('Not Found', { status: 404 });
   }
 }

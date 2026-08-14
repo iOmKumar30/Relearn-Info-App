@@ -92,7 +92,7 @@ export default function KpiEntryCard() {
         </Link>
 
         <Link
-          href="dashboard/kpi/historical"
+          href="/dashboard/kpi/historical"
           className="group relative flex min-h-56 flex-col justify-between overflow-hidden rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-900/10 focus-visible:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:p-6"
         >
           <div

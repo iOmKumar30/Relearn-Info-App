@@ -2,7 +2,8 @@
 
 import { Button } from "flowbite-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crosshair, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Crosshair, Plus, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -12,6 +13,12 @@ import { KpiManualModal } from "@/components/dashboard/KpiManualModal";
 import { KpiSkeleton } from "@/components/dashboard/KpiSkeleton";
 import { KpiTargetModal } from "@/components/dashboard/KpiTargetModal";
 import { cn } from "@/libs/kpi/utils";
+import { currentMonthYYYYMM } from "@/libs/kpi/month";
+
+const MONTHLY_FINANCE_KPI_KEYS = new Set([
+  "finance.revenue.monthly.lakhs",
+  "finance.expenditure.monthly.lakhs",
+]);
 
 function DashboardSkeleton() {
   return (
@@ -34,6 +41,7 @@ function DashboardSkeleton() {
 }
 
 export default function KpiDashboardPage() {
+  const router = useRouter();
   const [kpis, setKpis] = useState<KpiDto[]>([]);
   // Start with a true 'initial mount' loading state
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -66,14 +74,10 @@ export default function KpiDashboardPage() {
     const toastId = toast.loading("Syncing live data...");
 
     try {
-      const month = new Date();
-      const y = month.getUTCFullYear();
-      const m = String(month.getUTCMonth() + 1).padStart(2, "0");
-
       const res = await fetch("/api/kpi/auto-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: `${y}-${m}` }),
+        body: JSON.stringify({ month: currentMonthYYYYMM() }),
       });
 
       if (!res.ok) throw new Error(await res.text());
@@ -94,6 +98,9 @@ export default function KpiDashboardPage() {
   const groups = useMemo(() => {
     const g = new Map<string, KpiDto[]>();
     for (const k of kpis) {
+      // The live dashboard retains its existing fiscal-summary finance cards.
+      // Monthly finance values are intentionally shown only on month snapshots.
+      if (MONTHLY_FINANCE_KPI_KEYS.has(k.key)) continue;
       const group = k.category || "General";
       if (!g.has(group)) g.set(group, []);
       g.get(group)!.push(k);
@@ -121,13 +128,19 @@ export default function KpiDashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-              Performance Overview
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Live metrics and targets across all operations.
-            </p>
+          <div className="space-y-3">
+            <Button color="light" size="sm" onClick={() => router.push("/dashboard")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+                Performance Overview
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Live metrics and targets across all operations.
+              </p>
+            </div>
           </div>
 
           <RBACGate roles={["ADMIN"]}>

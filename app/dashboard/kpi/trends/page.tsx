@@ -31,7 +31,7 @@ type KpiSeries = {
 
 function formatValue(value: number | null, unit: string) {
   if (value === null) return "—";
-  if (unit === "PERCENT") return `${value.toFixed(1)}%`;
+  if (unit === "PERCENT") return `${(value * 100).toFixed(1)}%`;
   if (unit === "LAKHS") return `₹${value.toFixed(2)}L`;
   return value.toLocaleString("en-IN");
 }

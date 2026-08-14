@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/libs/prismadb";
 
 const SEED_KPIS = [
   {
@@ -133,6 +131,24 @@ const SEED_KPIS = [
     category: "Finance",
     sortOrder: 140,
     description: "Total debit transactions for the previous Financial Year.",
+    active: true,
+  },
+  {
+    key: "finance.revenue.monthly.lakhs",
+    label: "Monthly Revenue",
+    unit: "LAKHS",
+    category: "Finance",
+    sortOrder: 150,
+    description: "Credit transactions recorded in the selected monthly statement.",
+    active: true,
+  },
+  {
+    key: "finance.expenditure.monthly.lakhs",
+    label: "Monthly Expenditure",
+    unit: "LAKHS",
+    category: "Finance",
+    sortOrder: 160,
+    description: "Debit transactions recorded in the selected monthly statement.",
     active: true,
   },
 ];

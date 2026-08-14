@@ -280,6 +280,7 @@ model MemberTypeHistory {
   member     Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId])
+  @@index([memberType, startDate, endDate])
 }
 
 model Intern {
@@ -496,6 +497,7 @@ model KPIMonthlyValue {
   kpi       KPI            @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 
   @@unique([kpiId, month, source])
+  @@index([month, kpiId])
 }
 
 model KPIFiscalTarget {
@@ -510,6 +512,7 @@ model KPIFiscalTarget {
   kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 
   @@unique([kpiId, fiscalLabel])
+  @@index([kpiId, startDate, endDate])
 }
 
 model KPIYear {
@@ -734,7 +737,7 @@ model TrainingPayoutRate {
 
 model KpiJobQueue {
   id          String    @id @default(uuid())
-  targetMonth String    @db.VarChar(7)
+  targetMonth String    @unique @db.VarChar(7)
   status      JobStatus @default(PENDING)
   attempts    Int       @default(0)
   lastError   String?

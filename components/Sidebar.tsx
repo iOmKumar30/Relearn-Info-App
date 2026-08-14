@@ -85,7 +85,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
     }
   };
   return (
-    <div className="flex min-h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-gray-50">
       {/* Sidebar */}
       <motion.aside
         initial={false}
@@ -95,7 +95,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
             : { width, x: 0 }
         }
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-900 text-white border-r border-gray-800 lg:sticky lg:top-0"
+        className="fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-900 text-white border-r border-gray-800 lg:sticky lg:top-0 lg:h-dvh"
         style={{
           width: isMobile ? drawerWidth : width,
           minWidth: isMobile ? drawerWidth : width,
@@ -196,7 +196,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-hidden relative z-0">
+      <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile Header Trigger */}
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-gray-200 bg-white/95 px-4 shadow-sm backdrop-blur lg:hidden">
           <button
@@ -211,7 +211,7 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
           </span>
         </header>
 
-        <main className="relative flex-1 overflow-auto p-4 sm:p-6">
+        <main className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           {children}
         </main>
       </div>

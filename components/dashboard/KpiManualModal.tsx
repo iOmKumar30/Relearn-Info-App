@@ -166,7 +166,7 @@ export function KpiManualModal({
                     disabled={isLoading}
                   />
                   <p className="mt-2 text-xs text-gray-500">
-                    This will flag the record as "MANUAL".
+                    This will flag the record as "MANUAL". Percentage KPIs use a fraction (for example, 0.5 for 50%).
                   </p>
                 </div>
               </div>

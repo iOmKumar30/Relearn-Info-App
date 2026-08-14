@@ -11,7 +11,7 @@ import {
   ModalHeader,
   TextInput,
 } from "flowbite-react";
-import { Calendar, Database } from "lucide-react";
+import { ArrowLeft, Calendar, Database } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -95,11 +95,15 @@ export default function KpiHistoricalPage() {
   };
 
   return (
-    <RBACGate roles={["ADMIN"]}>
+    <RBACGate roles={["ADMIN", "FACILITATOR", "TUTOR", "RELF_EMPLOYEE"]}>
       <div className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Historical KPI Data</h1>
+            <Button color="light" size="sm" onClick={() => router.push("/dashboard")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <h1 className="mt-3 text-2xl font-semibold">Historical KPI Data</h1>
             <p className="text-sm text-gray-600">
               Browse KPI snapshots by year and month. Deleting a year removes
               it from this list but does not delete underlying KPI data.
@@ -123,12 +127,14 @@ export default function KpiHistoricalPage() {
             {rows.map((row) => (
               <div
                 key={row.year}
-                role="button"
+                role="link"
                 tabIndex={0}
-                onClick={() => router.push(`/kpi/${row.year}`)}
+                onClick={() => router.push(`/dashboard/kpi/${row.year}`)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    router.push(`/kpi/${row.year}`);
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/dashboard/kpi/${row.year}`);
+                  }
                 }}
                 className="cursor-pointer rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-teal-500"
               >

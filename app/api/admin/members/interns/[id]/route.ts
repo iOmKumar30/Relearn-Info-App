@@ -1,10 +1,10 @@
-import { authOptions } from "@/libs/authOptions";
-import { isAdmin } from "@/libs/isAdmin";
-import prisma from "@/libs/prismadb";
-import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { authOptions } from '@/libs/authOptions';
+import { isAdmin } from '@/libs/isAdmin';
+import prisma from '@/libs/prismadb';
+import { getServerSession } from 'next-auth';
+import { NextResponse } from 'next/server';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 // PUT: Update Intern
 export async function PUT(
@@ -15,20 +15,20 @@ export async function PUT(
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return new NextResponse('Unauthorized', { status: 401 });
   }
 
   if (!(await isAdmin(session.user.id))) {
-    return new NextResponse("Forbidden", { status: 403 });
+    return new NextResponse('Forbidden', { status: 403 });
   }
   try {
     const body = await req.json();
 
     const { createdAt, updatedAt, id: _ignore, ...updateData } = body;
 
-    if (updateData.gender === "") updateData.gender = null;
-    if (updateData.workingMode === "") updateData.workingMode = null;
-    if (updateData.institution === "") updateData.institution = null;
+    if (updateData.gender === '') updateData.gender = null;
+    if (updateData.workingMode === '') updateData.workingMode = null;
+    if (updateData.institution === '') updateData.institution = null;
 
     const intern = await prisma.intern.update({
       where: { id },
@@ -37,13 +37,13 @@ export async function PUT(
 
     return NextResponse.json(intern);
   } catch (error: any) {
-    console.error("UPDATE_INTERN_ERROR", error);
+    console.error('UPDATE_INTERN_ERROR', error);
     return new NextResponse(
       JSON.stringify({
-        message: "Internal Server Error",
+        message: 'Internal Server Error',
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
 }
@@ -51,31 +51,33 @@ export async function PUT(
 // DELETE: Remove Intern
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return new NextResponse('Unauthorized', { status: 401 });
   }
   if (!(await isAdmin(session.user.id))) {
-    return new NextResponse("Forbidden", { status: 403 });
+    return new NextResponse('Forbidden', { status: 403 });
   }
 
   try {
     await prisma.intern.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
-    console.error("DELETE_INTERN_ERROR", error);
+    console.error('DELETE_INTERN_ERROR', error);
     return new NextResponse(
       JSON.stringify({
-        message: "Internal Server Error",
+        message: 'Internal Server Error',
         error: error.message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
 }

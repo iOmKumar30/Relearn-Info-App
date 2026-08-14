@@ -2,6 +2,7 @@ import {
   computeCentresTotal,
   computeClassroomsTotal,
   computeFinances,
+  computeMonthlyFinances,
   computeMembersTotal,
   computePersonsTrained,
   computeProjectsOngoing,
@@ -12,8 +13,10 @@ import {
   computeTutorsTotal,
   upsertAuto,
 } from '@/libs/kpi/compute';
-import { firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
+import { currentMonthYYYYMM, firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
 import prisma from '@/libs/prismadb';
+
+const STALE_PROCESSING_MS = 15 * 60 * 1000;
 
 export async function executeWorkerJob() {
   const requestId = `${Date.now()}-${Math.random()
@@ -25,6 +28,17 @@ export async function executeWorkerJob() {
   let activeJobId: string | null = null;
 
   try {
+    // A crashed process cannot update its queue row. Requeue only jobs older than
+    // the Trigger task's maximum duration, then claim them with the usual lock.
+    const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
+    const recovered = await prisma.kpiJobQueue.updateMany({
+      where: { status: 'PROCESSING', updatedAt: { lt: staleBefore } },
+      data: { status: 'PENDING', lastError: 'Recovered stale KPI job lease' },
+    });
+    if (recovered.count > 0) {
+      console.warn('[WARN] Requeued stale KPI jobs', { requestId, count: recovered.count });
+    }
+
     const pendingJob = await prisma.kpiJobQueue.findFirst({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' },
@@ -35,21 +49,11 @@ export async function executeWorkerJob() {
       return { success: true, message: 'Queue empty' };
     }
 
-    let activeJob;
-
-    try {
-      activeJob = await prisma.kpiJobQueue.update({
-        where: {
-          id: pendingJob.id,
-          status: 'PENDING',
-        },
-        data: {
-          status: 'PROCESSING',
-          attempts: { increment: 1 },
-          lastError: null,
-        },
-      });
-    } catch {
+    const claim = await prisma.kpiJobQueue.updateMany({
+      where: { id: pendingJob.id, status: 'PENDING' },
+      data: { status: 'PROCESSING', attempts: { increment: 1 }, lastError: null },
+    });
+    if (claim.count !== 1) {
       console.log('[INFO] KPI job was claimed by another worker', {
         requestId,
         jobId: pendingJob.id,
@@ -58,18 +62,28 @@ export async function executeWorkerJob() {
       return { success: true, message: 'Job locked' };
     }
 
+    const activeJob = await prisma.kpiJobQueue.findUniqueOrThrow({ where: { id: pendingJob.id } });
+
     activeJobId = activeJob.id;
 
     const monthDate = firstDayOfMonthFromYYYYMM(activeJob.targetMonth);
+    const isHistoricalMonth = activeJob.targetMonth < currentMonthYYYYMM();
 
     const defs = await prisma.kPI.findMany({
       where: { active: true },
     });
 
     const finances = await computeFinances(monthDate);
+    const monthlyFinances = defs.some((definition) => [
+      'finance.revenue.monthly.lakhs',
+      'finance.expenditure.monthly.lakhs',
+    ].includes(definition.key))
+      ? await computeMonthlyFinances(monthDate)
+      : null;
 
     let updatedKPIs = 0;
     const failedKPIs: string[] = [];
+    const skippedKPIs: string[] = [];
 
     for (const k of defs) {
       try {
@@ -131,6 +145,11 @@ export async function executeWorkerJob() {
             break;
 
           case 'projects.ongoing':
+            if (isHistoricalMonth) {
+              skippedKPIs.push(k.key);
+              console.warn('[WARN] Skipped approximate historical project KPI recomputation', { requestId, month: activeJob.targetMonth, key: k.key });
+              continue;
+            }
             await upsertAuto(
               k.id,
               monthDate,
@@ -139,6 +158,11 @@ export async function executeWorkerJob() {
             break;
 
           case 'projects.past':
+            if (isHistoricalMonth) {
+              skippedKPIs.push(k.key);
+              console.warn('[WARN] Skipped approximate historical project KPI recomputation', { requestId, month: activeJob.targetMonth, key: k.key });
+              continue;
+            }
             await upsertAuto(
               k.id,
               monthDate,
@@ -170,6 +194,14 @@ export async function executeWorkerJob() {
             await upsertAuto(k.id, monthDate, finances.pastExpenditure);
             break;
 
+          case 'finance.revenue.monthly.lakhs':
+            await upsertAuto(k.id, monthDate, monthlyFinances!.revenue);
+            break;
+
+          case 'finance.expenditure.monthly.lakhs':
+            await upsertAuto(k.id, monthDate, monthlyFinances!.expenditure);
+            break;
+
           default:
             console.warn('[WARN] No compute handler for KPI', {
               requestId,
@@ -196,7 +228,7 @@ export async function executeWorkerJob() {
     await prisma.kpiJobQueue.update({
       where: { id: activeJob.id },
       data: {
-        status: 'COMPLETED',
+        status: completedWithFailures ? 'FAILED' : 'COMPLETED',
         lastError: completedWithFailures
           ? `Failed KPIs: ${failedKPIs.join(', ')}`
           : null,
@@ -209,12 +241,14 @@ export async function executeWorkerJob() {
       month: activeJob.targetMonth,
       updatedKPIs,
       failedKPIs,
+      skippedKPIs,
     });
 
     return {
       success: !completedWithFailures,
       updatedKPIs,
       failedKPIs,
+      skippedKPIs,
       month: activeJob.targetMonth,
     };
   } catch (error) {
