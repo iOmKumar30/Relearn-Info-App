@@ -134,7 +134,6 @@ export async function GET(req: Request) {
             {
               tutorAssignments: {
                 some: {
-                  endDate: null,
                   user: {
                     OR: [
                       { name: { contains: q, mode: "insensitive" } },
@@ -184,9 +183,19 @@ export async function GET(req: Request) {
         createdAt: true,
         updatedAt: true,
         tutorAssignments: {
-          where: { endDate: null },
+          // Prefer a currently active tutor. If none remains, retain the most
+          // recently ended assignment so the classroom does not lose its tutor.
+          where: {
+            OR: [
+              { endDate: null, user: { status: "ACTIVE" } },
+              { endDate: { not: null } },
+            ],
+          },
           take: 1,
-          orderBy: { startDate: "desc" },
+          orderBy: [
+            { endDate: { sort: "desc", nulls: "first" } },
+            { startDate: "desc" },
+          ],
           select: {
             id: true,
             isSubstitute: true,
