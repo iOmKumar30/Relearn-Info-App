@@ -101,7 +101,22 @@ export async function computeStudentsTotal(
 export async function computeTutorsTotal(monthDate: Date): Promise<number> {
   const { start, endExclusive } = monthWindow(monthDate);
   return withTimeout(prisma.user.count({
-    where: { roleHistory: { some: { role: { name: 'TUTOR' }, startDate: { lt: endExclusive }, OR: [{ endDate: null }, { endDate: { gte: start } }] } } },
+    where: {
+      status: "ACTIVE",
+      roleHistory: {
+        some: {
+          role: { name: "TUTOR" },
+          startDate: { lt: endExclusive },
+          OR: [{ endDate: null }, { endDate: { gte: start } }],
+        },
+      },
+      tutorAssignments: {
+        some: {
+          startDate: { lt: endExclusive },
+          OR: [{ endDate: null }, { endDate: { gte: start } }],
+        },
+      },
+    },
   }), KPI_COMPUTATION_TIMEOUT);
 }
 
