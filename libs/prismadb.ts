@@ -1,5 +1,13 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
+import { neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Trigger.dev workers run in Node and do not provide a global WebSocket.
+// PrismaNeon requires one for its session-based database transport.
+if (typeof globalThis.WebSocket === "undefined") {
+  neonConfig.webSocketConstructor = ws;
+}
 
 const prismaClientSingleton = () => {
   const connectionString = process.env.DATABASE_URL;
