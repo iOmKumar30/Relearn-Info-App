@@ -9,15 +9,16 @@
     "lint": "next lint",
     "postinstall": "prisma generate"
   },
-  "prisma": {},
+  "prisma": {
+    "seed": "tsx --env-file=.env prisma/seed-kpis.js"
+  },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.8.0",
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.8.0",
-    "@trigger.dev/nextjs": "4.5.11",
-    "@trigger.dev/react": "4.5.11",
+    "@trigger.dev/react-hooks": "4.5.11",
     "@trigger.dev/sdk": "4.5.11",
     "@uploadthing/react": "^7.3.3",
     "@upstash/ratelimit": "^2.0.8",
@@ -64,7 +65,18 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "@trigger.dev/build": "4.5.11",
     "tsx": "^4.22.3",
     "typescript": "^5.8.3"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "core-js@3.50.0": true,
+    "esbuild@0.28.2": true,
+    "msgpackr-extract@3.0.4": true,
+    "prisma@7.9.1": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true,
+    "@prisma/engines@7.9.1": true
   }
 }
