@@ -16,7 +16,7 @@ const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
-  { key: "roles", label: "Current Roles" },
+  { key: "roles", label: "Roles" },
   { key: "status", label: "Status" },
 ];
 
@@ -183,7 +183,7 @@ export default function TutorsPage() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
-              { key: "roles", label: "Current Roles" },
+              { key: "roles", label: "Roles" },
               { key: "status", label: "Status" },
               { key: "createdAt", label: "Created" },
               { key: "address", label: "Address" },

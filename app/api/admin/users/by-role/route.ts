@@ -27,18 +27,30 @@ export async function GET(req: Request) {
   }
 
   const where: Prisma.UserWhereInput = {
-    roleHistory: {
-      some: {
-        endDate: null,
-        role: { name: roleParam },
+    OR: [
+      {
+        status: "ACTIVE",
+        roleHistory: {
+          some: { endDate: null, role: { name: roleParam } },
+        },
       },
-    },
+      {
+        status: "INACTIVE",
+        roleHistory: {
+          some: { role: { name: roleParam } },
+        },
+      },
+    ],
     ...(q
       ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
+          AND: [
+            {
+              OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { email: { contains: q, mode: "insensitive" } },
+                { phone: { contains: q, mode: "insensitive" } },
+              ],
+            },
           ],
         }
       : {}),
@@ -61,24 +73,34 @@ export async function GET(req: Request) {
         status: true,
         createdAt: true,
         roleHistory: {
-          where: { endDate: null },
-          select: { role: { select: { name: true } } },
+          select: {
+            endDate: true,
+            role: { select: { name: true } },
+          },
         },
       },
       // cacheStrategy: { ttl: 60, swr: 60 },
     }),
   ]);
 
-  const rows = users.map((u: any) => ({
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    phone: u.phone,
-    address: u.address,
-    status: u.status,
-    createdAt: u.createdAt,
-    currentRoles: u.roleHistory.map((h: any) => h.role.name),
-  }));
+  const rows = users.map((u: any) => {
+    const roleNames = u.status === "INACTIVE"
+      ? [...new Set(u.roleHistory.map((history: any) => history.role.name))]
+      : u.roleHistory
+          .filter((history: any) => history.endDate === null)
+          .map((history: any) => history.role.name);
+
+    return {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      phone: u.phone,
+      address: u.address,
+      status: u.status,
+      createdAt: u.createdAt,
+      currentRoles: roleNames,
+    };
+  });
 
   return NextResponse.json({ page, pageSize, total, rows });
 }

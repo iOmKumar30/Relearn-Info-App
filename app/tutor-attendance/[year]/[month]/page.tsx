@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getMonthlyTrainingData, getPayoutRates } from "../../actions";
 import MonthlyAttendanceClient from "./MonthlyAttendanceClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function MonthPage({
   params,
 }: {

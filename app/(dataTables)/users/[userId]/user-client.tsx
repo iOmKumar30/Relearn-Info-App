@@ -4,6 +4,7 @@ import CentreSelect from "@/components/CrudControls/CentreSelect";
 import ConfirmDeleteModal from "@/components/CrudControls/ConfirmDeleteModal";
 import DataTable from "@/components/CrudControls/Datatable";
 import EditAssignmentModal from "@/components/CrudControls/EditAssignmentModal";
+import EditRoleHistoryModal from "@/components/CrudControls/EditRoleHistoryModal";
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { getUserProfileSource } from "@/libs/breadcrumbs";
@@ -28,6 +29,7 @@ export default function UserProfileClient({
 
   const [user, setUser] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [roleHistory, setRoleHistory] = useState<any[]>([]);
   const [facCentreLinks, setFacCentreLinks] = useState<any[]>([]);
   const [facClassrooms, setFacClassrooms] = useState<any[]>([]);
   const [employeeForFacilitator, setEmployeeForFacilitator] = useState<
@@ -53,6 +55,13 @@ export default function UserProfileClient({
     null,
   );
 
+  const [editRoleHistoryOpen, setEditRoleHistoryOpen] = useState(false);
+  const [editingRoleHistory, setEditingRoleHistory] = useState<any>(null);
+  const [deleteRoleHistoryOpen, setDeleteRoleHistoryOpen] = useState(false);
+  const [roleHistoryToDelete, setRoleHistoryToDelete] = useState<string | null>(
+    null,
+  );
+
   async function fetchUser() {
     const res = await fetch(`/api/admin/users/${userId}`, {
       cache: "no-store",
@@ -66,6 +75,15 @@ export default function UserProfileClient({
   async function fetchAssignments() {
     const res = await fetch(
       `/api/admin/assignments/tutor?userId=${encodeURIComponent(userId)}&page=1&pageSize=50`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async function fetchRoleHistory() {
+    const res = await fetch(
+      `/api/admin/users/${userId}/role-history`,
       { cache: "no-store" },
     );
     if (!res.ok) throw new Error(await res.text());
@@ -119,9 +137,10 @@ export default function UserProfileClient({
     try {
       if (!silent) setInitialLoading(true);
       setError(null);
-      const [u, a, fc, facSide, empSide] = await Promise.all([
+      const [u, a, roles, fc, facSide, empSide] = await Promise.all([
         fetchUser(),
         fetchAssignments(),
+        fetchRoleHistory(),
         fetchFacilitatorCentreLinks(),
         fetchEmployeeForFacilitator(),
         fetchFacilitatorsForEmployee(),
@@ -129,6 +148,7 @@ export default function UserProfileClient({
 
       setUser(u);
       setAssignments(a.rows || []);
+      setRoleHistory(roles.rows || []);
       setFacCentreLinks(fc.rows || []);
 
       // Get classrooms for facilitator based on assigned centres
@@ -292,6 +312,58 @@ export default function UserProfileClient({
     setDeleteModalOpen(true);
   };
 
+  async function handleUpdateRoleHistory(
+    startDate: Date | null,
+    endDate: Date | null,
+  ) {
+    if (!editingRoleHistory || !startDate) return;
+    const toastId = toast.loading("Updating role history...");
+    try {
+      setProcessing(true);
+      const res = await fetch(
+        `/api/admin/users/${userId}/role-history/${editingRoleHistory.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startDate: startDate.toISOString(),
+            endDate: endDate ? endDate.toISOString() : null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setEditRoleHistoryOpen(false);
+      setEditingRoleHistory(null);
+      toast.success("Role history updated", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update role history", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function performDeleteRoleHistory() {
+    if (!roleHistoryToDelete) return;
+    const toastId = toast.loading("Deleting role history...");
+    try {
+      setProcessing(true);
+      const res = await fetch(
+        `/api/admin/users/${userId}/role-history/${roleHistoryToDelete}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await load(true);
+      setDeleteRoleHistoryOpen(false);
+      setRoleHistoryToDelete(null);
+      toast.success("Role history deleted", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete role history", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
   // Assign Centre to Facilitator
   async function assignCentre() {
     if (!pickCentre?.id) return;
@@ -359,6 +431,62 @@ export default function UserProfileClient({
       __raw: x,
     }));
   }, [assignments]);
+
+  const roleHistoryRows = useMemo(() => {
+    return roleHistory.map((entry) => ({
+      id: entry.id,
+      role: (
+        <Badge color="info" className="uppercase inline-block">
+          {entry.role?.name ?? "—"}
+        </Badge>
+      ),
+      start: entry.startDate
+        ? new Date(entry.startDate).toLocaleDateString("en-GB")
+        : "",
+      end: entry.endDate
+        ? new Date(entry.endDate).toLocaleDateString("en-GB")
+        : "",
+      status: entry.endDate ? (
+        <Badge color="gray" className="uppercase inline-block">
+          Ended
+        </Badge>
+      ) : (
+        <Badge color="success" className="uppercase inline-block">
+          Active
+        </Badge>
+      ),
+      __raw: entry,
+    }));
+  }, [roleHistory]);
+
+  const roleHistoryActions = (row: any) => (
+    <div className="flex gap-2">
+      <Button
+        size="xs"
+        color="gray"
+        onClick={() => {
+          setEditingRoleHistory(row);
+          setEditRoleHistoryOpen(true);
+        }}
+        title="Edit role history dates"
+        disabled={processing}
+      >
+        <HiPencil className="h-4 w-4" />
+      </Button>
+      <Button
+        size="xs"
+        color="failure"
+        onClick={() => {
+          setRoleHistoryToDelete(row.id);
+          setDeleteRoleHistoryOpen(true);
+        }}
+        title="Delete role history"
+        disabled={processing}
+      >
+        <HiTrash className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 
   const tutorActions = (row: any) => (
     <div className="flex gap-2">
@@ -627,6 +755,22 @@ export default function UserProfileClient({
         </div>
       )}
 
+      <div className="mb-8">
+        <h3 className="mb-2 font-medium">Role History</h3>
+        <DataTable
+          columns={[
+            { key: "role", label: "Role" },
+            { key: "start", label: "Start" },
+            { key: "end", label: "End" },
+            { key: "status", label: "Status" },
+          ]}
+          rows={roleHistoryRows}
+          actions={roleHistoryActions}
+          page={1}
+          pageSize={roleHistoryRows.length}
+        />
+      </div>
+
       {/* --- TUTOR SECTION --- */}
       {(user?.currentRoles || []).includes("TUTOR") && (
         <>
@@ -832,6 +976,16 @@ export default function UserProfileClient({
         onSave={handleUpdateDates}
       />
 
+      <EditRoleHistoryModal
+        open={editRoleHistoryOpen}
+        roleHistory={editingRoleHistory}
+        onClose={() => {
+          setEditRoleHistoryOpen(false);
+          setEditingRoleHistory(null);
+        }}
+        onSave={handleUpdateRoleHistory}
+      />
+
       <ConfirmDeleteModal
         open={deleteModalOpen}
         title="Delete Assignment History"
@@ -843,6 +997,19 @@ export default function UserProfileClient({
           setAssignmentToDelete(null);
         }}
         onConfirm={performDeleteAssignment}
+      />
+
+      <ConfirmDeleteModal
+        open={deleteRoleHistoryOpen}
+        title="Delete Role History"
+        message="Are you sure you want to delete this role history record? This cannot be undone."
+        confirmLabel="Delete"
+        processing={processing}
+        onCancel={() => {
+          setDeleteRoleHistoryOpen(false);
+          setRoleHistoryToDelete(null);
+        }}
+        onConfirm={performDeleteRoleHistory}
       />
     </div>
   );

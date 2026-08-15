@@ -20,12 +20,14 @@ export default function AddClassModal({
   month,
   mode = "create",
   initialClass,
+  existingClasses = [],
   trigger,
 }: {
   year: number;
   month: number;
   mode?: Mode;
   initialClass?: InitialClass;
+  existingClasses?: InitialClass[];
   trigger?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -49,6 +51,18 @@ export default function AddClassModal({
     const selectedMonth = selected.getMonth() + 1;
 
     return selectedYear === year && selectedMonth === month;
+  };
+  const getDateError = (value: string) => {
+    if (!value) return "Please choose a date.";
+    if (!isDateInCurrentMonthYear(value)) {
+      return "Choose a date within the selected month and year.";
+    }
+    const hasDuplicate = existingClasses.some(
+      (trainingClass) =>
+        trainingClass.id !== initialClass?.id &&
+        formatDateForInput(trainingClass.date) === value,
+    );
+    return hasDuplicate ? "A training class already exists for this date." : null;
   };
   useEffect(() => {
     if (isOpen) {
@@ -162,18 +176,7 @@ export default function AddClassModal({
                   const value = e.target.value;
                   setDate(value);
 
-                  if (!value) {
-                    setDateError("Please choose a date.");
-                    return;
-                  }
-
-                  if (!isDateInCurrentMonthYear(value)) {
-                    setDateError(
-                      "Choose a date within the selected month and year.",
-                    );
-                  } else {
-                    setDateError(null);
-                  }
+                  setDateError(getDateError(value));
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />

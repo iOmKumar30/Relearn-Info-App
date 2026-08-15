@@ -126,7 +126,7 @@ export default function MonthlyAttendanceClient({
             </p>
           </div>
         </div>
-        <AddClassModal year={year} month={month} />
+        <AddClassModal year={year} month={month} existingClasses={classes} />
       </div>
 
       <div className="flex flex-col gap-3 rounded-t-2xl border border-b-0 border-gray-100 bg-white p-4 shadow-[0_2px_10px_rgb(0,0,0,0.02)] md:flex-row md:items-center md:justify-between">
@@ -280,6 +280,7 @@ export default function MonthlyAttendanceClient({
                             date: cls.date,
                             trainingBy: cls.trainingBy,
                           }}
+                          existingClasses={classes}
                           trigger={
                             <button
                               type="button"

@@ -54,6 +54,7 @@ export async function PUT(
     const address = String(body?.address ?? "").trim();
     const pan = String(body?.pan ?? "").trim();
     const reason = String(body?.reason ?? "").trim();
+    const remarks = String(body?.remarks ?? "No remarks").trim();
     const method = String(body?.method ?? "").trim();
     const transactionId = String(body?.transactionId ?? "").trim();
     const gstno = String(body?.gstno ?? "N/A").trim();
@@ -76,8 +77,9 @@ export async function PUT(
         contact,
         address,
         pan,
-        amount,
+        amount, 
         reason,
+        remarks,
         method,
         gstno,
         transactionId,

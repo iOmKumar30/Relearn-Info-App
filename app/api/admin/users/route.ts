@@ -80,8 +80,10 @@ export async function GET(req: Request) {
         onboardingStatus: true,
         createdAt: true,
         roleHistory: {
-          where: { endDate: null },
-          select: { role: { select: { name: true } } },
+          select: {
+            endDate: true,
+            role: { select: { name: true } },
+          },
         },
         member: {
           select: {
@@ -100,19 +102,27 @@ export async function GET(req: Request) {
     }),
   ]);
 
-  const mapped = rows.map((u: any) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    phone: u.phone,
-    address: u.address,
-    gender: u.gender,
-    status: u.status,
-    onboardingStatus: u.onboardingStatus,
-    roles: u.roleHistory.map((h: any) => h.role.name),
-    member: u.member,
-    createdAt: u.createdAt,
-  }));
+  const mapped = rows.map((u: any) => {
+    const roleNames = u.status === UserStatus.INACTIVE
+      ? [...new Set(u.roleHistory.map((history: any) => history.role.name))]
+      : u.roleHistory
+          .filter((history: any) => history.endDate === null)
+          .map((history: any) => history.role.name);
+
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      address: u.address,
+      gender: u.gender,
+      status: u.status,
+      onboardingStatus: u.onboardingStatus,
+      roles: roleNames,
+      member: u.member,
+      createdAt: u.createdAt,
+    };
+  });
 
   return NextResponse.json({ page, pageSize, total, rows: mapped });
 }

@@ -58,7 +58,8 @@ export async function getMonthlyTrainingData(year: number, month: number) {
   // Max payout is calculated dynamically based on current P&R rate
   const maxPossiblePayout = totalClasses * currentRates.presentResponded;
 
-  const firstDayOfMonth = new Date(year, month - 1, 1);
+  const firstDayOfMonth = new Date(Date.UTC(year, month - 1, 1));
+  const firstDayOfNextMonth = new Date(Date.UTC(year, month, 1));
 
   // Fetch Active Tutors by their Role
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
@@ -66,6 +67,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
       role: {
         name: "TUTOR",
       },
+      startDate: { lt: firstDayOfNextMonth },
       OR: [
         { endDate: null },
         { endDate: { gte: firstDayOfMonth } },
@@ -73,6 +75,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
       user: {
         tutorAssignments: {
           some: {
+            startDate: { lt: firstDayOfNextMonth },
             OR: [
               { endDate: null },
               { endDate: { gte: firstDayOfMonth } },
@@ -88,6 +91,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
           name: true,
           tutorAssignments: {
             where: {
+              startDate: { lt: firstDayOfNextMonth },
               OR: [
                 { endDate: null },
                 { endDate: { gte: firstDayOfMonth } },
@@ -230,11 +234,31 @@ export async function addTrainingClass(
   trainingBy: string,
 ) {
   try {
+    if (Number.isNaN(date.getTime())) {
+      return { success: false, error: "Choose a valid class date" };
+    }
+    const normalizedDate = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    if (
+      normalizedDate.getUTCFullYear() !== year ||
+      normalizedDate.getUTCMonth() + 1 !== month
+    ) {
+      return { success: false, error: "Choose a date within the selected month and year" };
+    }
+    const existingClass = await prisma.tutorTrainingClass.findFirst({
+      where: { yearId: year, date: normalizedDate },
+      select: { id: true },
+    });
+    if (existingClass) {
+      return { success: false, error: "A training class already exists for this date" };
+    }
+
     await prisma.tutorTrainingClass.create({
       data: {
         yearId: year,
         month,
-        date,
+        date: normalizedDate,
         trainingBy,
       },
     });
@@ -242,6 +266,9 @@ export async function addTrainingClass(
     revalidatePath(`/tutor-attendance/${year}/${month}`);
     return { success: true };
   } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      return { success: false, error: "A training class already exists for this date" };
+    }
     console.error("Failed to add class:", error);
     return { success: false, error: "Failed to create training class" };
   }
@@ -254,13 +281,36 @@ export async function updateTrainingClass(
   trainingBy: string,
 ) {
   try {
+    if (Number.isNaN(date.getTime())) {
+      return { success: false, error: "Choose a valid class date" };
+    }
+    const normalizedDate = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    if (
+      normalizedDate.getUTCFullYear() !== year ||
+      normalizedDate.getUTCMonth() + 1 !== month
+    ) {
+      return { success: false, error: "Choose a date within the selected month and year" };
+    }
+    const existingClass = await prisma.tutorTrainingClass.findFirst({
+      where: { yearId: year, date: normalizedDate, id: { not: classId } },
+      select: { id: true },
+    });
+    if (existingClass) {
+      return { success: false, error: "A training class already exists for this date" };
+    }
+
     await prisma.tutorTrainingClass.update({
       where: { id: classId },
-      data: { date, trainingBy },
+      data: { date: normalizedDate, trainingBy },
     });
     revalidatePath(`/tutor-attendance/${year}/${month}`);
     return { success: true };
   } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      return { success: false, error: "A training class already exists for this date" };
+    }
     console.error("Failed to update class:", error);
     return { success: false, error: "Failed to update training class" };
   }
@@ -317,9 +367,11 @@ export async function getQuarterlyReportData(
   startMonth: number,
   endMonth: number,
 ) {
-  const firstDayOfStartMonth = new Date(year, startMonth - 1, 1);
+  const firstDayOfStartMonth = new Date(Date.UTC(year, startMonth - 1, 1));
+  const firstDayAfterEndMonth = new Date(Date.UTC(year, endMonth, 1));
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
     where: {
+      startDate: { lt: firstDayAfterEndMonth },
       OR: [
         { endDate: null },
         { endDate: { gte: firstDayOfStartMonth } },
@@ -335,6 +387,7 @@ export async function getQuarterlyReportData(
           name: true,
           tutorAssignments: {
             where: {
+              startDate: { lt: firstDayAfterEndMonth },
               OR: [
                 { endDate: null },
                 { endDate: { gte: firstDayOfStartMonth } },

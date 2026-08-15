@@ -7,6 +7,7 @@ import {
   Modal,
   ModalBody,
   ModalHeader,
+  Select,
   TextInput,
   Textarea,
 } from "flowbite-react";
@@ -48,6 +49,7 @@ export default function DonationFormModal({
           address: "",
           pan: "",
           amount: "",
+          remarks: "No remarks",
           reason: "Voluntary Contribution",
           method: "UPI",
           gstno: "N/A",
@@ -82,10 +84,10 @@ export default function DonationFormModal({
     return isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
-  return ( 
-    <Modal show={open} onClose={onClose} size="4xl" >
+  return (
+    <Modal show={open} onClose={onClose} size="4xl">
       <ModalHeader>
-        {mode === "create" ? "Create Donation Receipt" : "Edit Donation"}
+        {mode === 'create' ? 'Create Donation Receipt' : 'Edit Donation'}
       </ModalHeader>
       <ModalBody className="max-h-[80vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -94,8 +96,8 @@ export default function DonationFormModal({
             <div>
               <Label>Receipt No (Auto if empty)</Label>
               <TextInput
-                value={form.receiptNumber || ""}
-                onChange={(e) => handleChange("receiptNumber", e.target.value)}
+                value={form.receiptNumber || ''}
+                onChange={(e) => handleChange('receiptNumber', e.target.value)}
                 placeholder="e.g. RELF/DON/001"
               />
             </div>
@@ -105,7 +107,7 @@ export default function DonationFormModal({
               </Label>
               <Datepicker
                 value={safeDate(form.date) || new Date()}
-                onChange={(date) => handleChange("date", date)}
+                onChange={(date) => handleChange('date', date)}
               />
             </div>
           </div>
@@ -118,8 +120,8 @@ export default function DonationFormModal({
               </Label>
               <TextInput
                 required
-                value={form.name || ""}
-                onChange={(e) => handleChange("name", e.target.value)}
+                value={form.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
               />
             </div>
             <div>
@@ -129,8 +131,8 @@ export default function DonationFormModal({
               <TextInput
                 required
                 type="email"
-                value={form.email || ""}
-                onChange={(e) => handleChange("email", e.target.value)}
+                value={form.email || ''}
+                onChange={(e) => handleChange('email', e.target.value)}
               />
             </div>
             <div>
@@ -139,22 +141,22 @@ export default function DonationFormModal({
               </Label>
               <TextInput
                 required
-                value={form.contact || ""}
-                onChange={(e) => handleChange("contact", e.target.value)}
+                value={form.contact || ''}
+                onChange={(e) => handleChange('contact', e.target.value)}
               />
             </div>
             <div>
               <Label>PAN No</Label>
               <TextInput
-                value={form.pan || ""}
-                onChange={(e) => handleChange("pan", e.target.value)}
+                value={form.pan || ''}
+                onChange={(e) => handleChange('pan', e.target.value)}
               />
             </div>
             <div>
               <Label>Donor's GST No</Label>
               <TextInput
-                value={form.gstno || "N/A"}
-                onChange={(e) => handleChange("gstno", e.target.value)}
+                value={form.gstno || 'N/A'}
+                onChange={(e) => handleChange('gstno', e.target.value)}
               />
             </div>
           </div>
@@ -167,8 +169,8 @@ export default function DonationFormModal({
             <Textarea
               required
               rows={2}
-              value={form.address || ""}
-              onChange={(e) => handleChange("address", e.target.value)}
+              value={form.address || ''}
+              onChange={(e) => handleChange('address', e.target.value)}
             />
           </div>
 
@@ -181,17 +183,26 @@ export default function DonationFormModal({
               <TextInput
                 required
                 type="number"
-                value={form.amount || ""}
-                onChange={(e) => handleChange("amount", e.target.value)}
+                value={form.amount || ''}
+                onChange={(e) => handleChange('amount', e.target.value)}
               />
             </div>
             <div>
               <Label>Payment Mode</Label>
-              <TextInput
+              <Select
                 required
-                value={form.method || ""}
-                onChange={(e) => handleChange("method", e.target.value)}
-              />
+                value={form.method || ''}
+                onChange={(e) => handleChange('method', e.target.value)}
+              >
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer (NEFT/RTGS/IMPS)">
+                  Bank Transfer (NEFT/RTGS/IMPS)
+                </option>
+                <option value="Cheque">Cheque</option>
+                <option value="Demand Draft">Demand Draft</option>
+                <option value="Credit/Debit Card">Credit/Debit Card</option>
+              </Select>
             </div>
             <div>
               <Label>
@@ -199,15 +210,22 @@ export default function DonationFormModal({
               </Label>
               <TextInput
                 required
-                value={form.transactionId || ""}
-                onChange={(e) => handleChange("transactionId", e.target.value)}
+                value={form.transactionId || ''}
+                onChange={(e) => handleChange('transactionId', e.target.value)}
               />
             </div>
             <div>
               <Label>Purpose/Reason</Label>
               <TextInput
-                value={form.reason || ""}
-                onChange={(e) => handleChange("reason", e.target.value)}
+                value={form.reason || ''}
+                onChange={(e) => handleChange('reason', e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Remarks</Label>
+              <Textarea
+                value={form.remarks || ''}
+                onChange={(e) => handleChange('remarks', e.target.value)}
               />
             </div>
           </div>
@@ -217,7 +235,7 @@ export default function DonationFormModal({
               Cancel
             </Button>
             <Button type="submit" disabled={loading} color="blue">
-              {mode === "create" ? "Generate Receipt" : "Update"}
+              {mode === 'create' ? 'Generate Receipt' : 'Update'}
             </Button>
           </div>
         </form>

@@ -16,7 +16,8 @@ const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
-  { key: "roles", label: "Current Roles" },
+  { key: "roles", label: "Roles" },
+  { key: "status", label: "Status" },
   { key: "onboardingStatus", label: "Onboarding" },
 ];
 
@@ -26,6 +27,7 @@ type Row = {
   name?: string | null;
   phone?: string | null;
   address?: string | null;
+  status: string;
   onboardingStatus: string;
   createdAt: string;
   currentRoles: string[];
@@ -105,6 +107,7 @@ export default function FacilitatorsPage() {
           email: u.email,
           phone: u.phone || "",
           roles: (u.currentRoles || []).join(", "),
+          status: u.status,
           onboardingStatus: u.onboardingStatus,
           createdAt: u.createdAt
             ? new Date(u.createdAt).toLocaleDateString("en-GB")
@@ -128,6 +131,7 @@ export default function FacilitatorsPage() {
       email: u.email,
       phone: u.phone || "",
       roles: (u.currentRoles || []).join(", "),
+      status: u.status,
       onboardingStatus: u.onboardingStatus,
       createdAt: u.createdAt
         ? new Date(u.createdAt).toLocaleDateString("en-GB")
@@ -148,6 +152,14 @@ export default function FacilitatorsPage() {
             </Badge>
           ))}
         </>
+      ),
+      status: (
+        <Badge
+          color={u.status === "ACTIVE" ? "success" : "gray"}
+          className="uppercase"
+        >
+          {u.status}
+        </Badge>
       ),
       onboardingStatus: (
         <Badge color="indigo" className="uppercase">
@@ -181,7 +193,8 @@ export default function FacilitatorsPage() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
-              { key: "roles", label: "Current Roles" },
+              { key: "roles", label: "Roles" },
+              { key: "status", label: "Status" },
               { key: "onboardingStatus", label: "Onboarding" },
               { key: "createdAt", label: "Created" },
               { key: "address", label: "Address" },

@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     const address = String(body?.address ?? "").trim();
     const pan = String(body?.pan ?? "").trim();
     const amount = Number(body?.amount);
+    const remarks = String(body?.remarks ?? "No remarks").trim();
     const reason = String(body?.reason ?? "Voluntary Contribution").trim();
     const method = String(body?.method ?? "UPI").trim();
     const transactionId = String(body?.transactionId ?? "").trim();
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
         pan: pan || "",
         amount,
         reason,
+        remarks,
         method,
         gstno,
         transactionId,

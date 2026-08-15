@@ -6,6 +6,7 @@ type DonationData = {
   receiptNumber: string;
   date: string | Date;
   reason: string;
+  remarks: string;
   name: string;
   address: string;
   pan?: string;
@@ -130,6 +131,10 @@ export default function DonationReceiptCard({
           <div className="grid grid-cols-[140px_1fr]">
             <span className="font-bold">Purpose:</span>
             <span>{data.reason}</span>
+          </div>
+          <div className="grid grid-cols-[140px_1fr]">
+            <span className="font-bold">Remarks:</span>
+            <span>{data.remarks}</span>
           </div>
           <div className="grid grid-cols-[140px_1fr]">
             <span className="font-bold">Donor Name:</span>

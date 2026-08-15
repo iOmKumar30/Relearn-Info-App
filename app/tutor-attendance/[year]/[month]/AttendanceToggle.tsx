@@ -15,7 +15,7 @@ interface Props {
 export default function AttendanceToggle({
   classId,
   tutorId,
-  currentStatus,
+  currentStatus = "ABSENT",
   currentRates,
 }: Props) {
   const router = useRouter();
