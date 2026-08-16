@@ -463,6 +463,17 @@ model Donation {
   @@map("donation")
 }
 
+model DonationSyncQueue {
+  id         String   @id @default(uuid()) @db.Uuid
+  donationId String   @unique @map("donation_id")
+  status     String   @default("PENDING") @db.VarChar(16)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("donation_sync_queue")
+}
+
 model Counter {
   financialYear String @id
   seq           Int
