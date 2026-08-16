@@ -9,6 +9,8 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button, Spinner, Tooltip } from "flowbite-react";
+import { Copy, ExternalLink, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -28,6 +30,7 @@ export default function InternsPage() {
   const [editRow, setEditRow] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
+  const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
 
   const fetchInterns = useCallback(async () => {
     try {
@@ -111,6 +114,46 @@ export default function InternsPage() {
     }
   };
 
+  const copyRegistrationLink = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/intern-registration`,
+      );
+      toast.success("Intern registration link copied");
+    } catch {
+      toast.error("Could not copy the registration link");
+    }
+  };
+
+  const handleCreateUser = async (intern: any) => {
+    if (
+      !window.confirm(
+        `Create an app account for ${intern.name}? An admin can assign operational roles later. The temporary password will be WelcomeToRelf.`,
+      )
+    ) {
+      return;
+    }
+
+    setCreatingUserId(intern.id);
+    try {
+      const response = await fetch(
+        `/api/admin/members/interns/${intern.id}/create-user`,
+        { method: "POST" },
+      );
+      const message = await response.text();
+      if (!response.ok) throw new Error(message || "Unable to create user account");
+
+      toast.success("User account created. Temporary password: WelcomeToRelf", {
+        duration: 7000,
+      });
+      await fetchInterns();
+    } catch (createError: any) {
+      toast.error(createError.message || "Unable to create user account");
+    } finally {
+      setCreatingUserId(null);
+    }
+  };
+
   const fetchAllForExport = async () => {
     const params = new URLSearchParams({
       page: "1",
@@ -132,6 +175,7 @@ export default function InternsPage() {
         : "",
       "Education Completed": r.educationCompleted,
       Institution: r.institution,
+      "Previous Institute": r.previousInstitute,
       "Ongoing Course": r.ongoingCourse,
       "Areas of Interest": r.areasOfInterest,
       "Joining Date": r.joiningDate
@@ -159,6 +203,7 @@ export default function InternsPage() {
       { key: "name", label: "Name & Gender" },
       { key: "contact", label: "Contact Info" },
       { key: "education", label: "Education & Interest" },
+      { key: "previousInstitute", label: "Previous Institute" },
       { key: "dates", label: "Timeline" },
       { key: "work", label: "Work & Mode" },
       { key: "fee", label: "Fee & Status" },
@@ -233,6 +278,7 @@ export default function InternsPage() {
           </div>
         </div>
       ),
+      previousInstitute: row.previousInstitute || "—",
       dates: (
         <div className="text-xs text-gray-600">
           <div>
@@ -318,6 +364,26 @@ export default function InternsPage() {
       <Button
         size="xs"
         color="light"
+        title={
+          row.__raw.userId
+            ? "This intern already has a user account"
+            : !row.__raw.email
+              ? "An email address is required to create a user account"
+              : "Create app user account"
+        }
+        aria-label="Create app user account"
+        disabled={
+          creatingUserId === row.__raw.id ||
+          Boolean(row.__raw.userId) ||
+          !row.__raw.email
+        }
+        onClick={() => handleCreateUser(row.__raw)}
+      >
+        <UserPlus className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      <Button
+        size="xs"
+        color="light"
         onClick={() => {
           setEditRow(row.__raw);
           setEditOpen(true);
@@ -351,6 +417,7 @@ export default function InternsPage() {
         : "",
       "Education Completed": r.educationCompleted,
       Institution: r.institution,
+      "Previous Institute": r.previousInstitute,
       "Ongoing Course": r.ongoingCourse,
       "Areas of Interest": r.areasOfInterest,
       "Joining Date": r.joiningDate
@@ -388,6 +455,20 @@ export default function InternsPage() {
             placeholder="Search by name, email, institution..."
           />
           <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:justify-end">
+            <Link href="/intern-registration" target="_blank">
+              <Button color="light" className="w-full sm:w-auto">
+                <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                Registration Page
+              </Button>
+            </Link>
+            <Button
+              color="light"
+              onClick={copyRegistrationLink}
+              className="w-full sm:w-auto"
+            >
+              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+              Copy Registration Link
+            </Button>
             <div className="z-50">
               <ExportXlsxButton
                 fileName="Interns_List"

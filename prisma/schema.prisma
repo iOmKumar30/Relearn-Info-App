@@ -295,6 +295,7 @@ model Intern {
   dateOfBirth          DateTime?
   educationCompleted   String?
   institution          String?
+  previousInstitute    String?        @default("")
   ongoingCourse        String?
   areasOfInterest      String?
   joiningDate          DateTime?

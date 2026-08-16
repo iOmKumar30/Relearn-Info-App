@@ -1,13 +1,19 @@
 import {
   credentialsLoginRatelimit,
   googleAuthRatelimit,
+  internRegistrationRatelimit,
   registerRatelimit,
 } from "@/libs/rate-limit";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
 // Public paths that never require auth
-const PUBLIC_PATHS = new Set<string>(["/", "/auth/signin", "/auth/callback"]);
+const PUBLIC_PATHS = new Set<string>([
+  "/",
+  "/auth/signin",
+  "/auth/callback",
+  "/intern-registration",
+]);
 
 // Role-based access map for top-level routes
 // Keys are route bases; values are arrays of allowed role names (UPPERCASE)
@@ -48,6 +54,35 @@ export async function middleware(req: NextRequest) {
     const ip = getClientIp(req);
     const { success, limit, remaining, reset } =
       await registerRatelimit.limit(ip);
+
+    if (!success) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Too many registration attempts. Please try again later.",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": String(limit),
+            "X-RateLimit-Remaining": String(remaining),
+            "X-RateLimit-Reset": String(reset),
+          },
+        },
+      );
+    }
+
+    const response = NextResponse.next();
+    response.headers.set("X-RateLimit-Limit", String(limit));
+    response.headers.set("X-RateLimit-Remaining", String(remaining));
+    response.headers.set("X-RateLimit-Reset", String(reset));
+    return response;
+  }
+
+  if (pathname === "/api/public/intern-registration") {
+    const ip = getClientIp(req);
+    const { success, limit, remaining, reset } =
+      await internRegistrationRatelimit.limit(ip);
 
     if (!success) {
       return new NextResponse(
@@ -219,6 +254,7 @@ export const config = {
   matcher: [
     // Rate limited API routes
     "/api/register",
+    "/api/public/intern-registration",
     "/api/auth/signin/:path*",
     "/api/auth/callback/:path*",
 
@@ -230,6 +266,7 @@ export const config = {
     "/pending-users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
+    "/intern-registration",
     // "/pending/:path*",
   ],
 };

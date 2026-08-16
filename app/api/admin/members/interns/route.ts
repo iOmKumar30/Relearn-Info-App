@@ -38,6 +38,7 @@ export async function GET(req: Request) {
               { name: { contains: q, mode: "insensitive" } },
               { email: { contains: q, mode: "insensitive" } },
               { institution: { contains: q, mode: "insensitive" } },
+              { previousInstitute: { contains: q, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -53,7 +54,10 @@ export async function GET(req: Request) {
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { joiningDate: { sort: "desc", nulls: "last" } },
+          { createdAt: "desc" },
+        ],
         //  // cacheStrategy: { ttl: 60, swr: 60 },
       }),
     ]);

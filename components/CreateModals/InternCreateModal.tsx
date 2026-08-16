@@ -208,6 +208,17 @@ export default function InternCreateModal({
                 />
               </div>
               <div>
+                <Label htmlFor="previousInstitute">Previous Institute</Label>
+                <TextInput
+                  id="previousInstitute"
+                  placeholder="e.g. Previous college or school"
+                  value={formData.previousInstitute || ""}
+                  onChange={(e) =>
+                    handleChange("previousInstitute", e.target.value)
+                  }
+                />
+              </div>
+              <div>
                 <Label htmlFor="ongoingCourse">Ongoing Course</Label>
                 <TextInput
                   id="ongoingCourse"
