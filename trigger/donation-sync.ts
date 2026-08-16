@@ -50,10 +50,18 @@ export const syncDonationQueueTask = schedules.task({
       try {
         const donation = await prisma.donation.findUnique({
           where: { id: queueItem.donationId },
-          select: { email: true, amount: true, date: true },
+          select: { email: true, amount: true, date: true, reason: true },
         });
         if (!donation) {
           throw new Error("Donation record was not found");
+        }
+
+        if (!/membership|member fee/i.test(donation.reason || "")) {
+          await prisma.donationSyncQueue.update({
+            where: { id: queueItem.id },
+            data: { status: "PROCESSED" },
+          });
+          continue;
         }
 
         const user = await prisma.user.findUnique({
