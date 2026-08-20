@@ -161,7 +161,7 @@ export default function InternRegistrationForm() {
         <header className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 px-5 py-7 sm:px-10 sm:py-9">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <Image
-              src="/assets/relearn_header.png"
+              src="/certificates/assets/logo.png"
               alt="Relearn Foundation"
               width={220}
               height={72}
