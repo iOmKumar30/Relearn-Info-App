@@ -30,6 +30,10 @@ export default function InternsPage() {
   const [editRow, setEditRow] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
+  const [registrationFee, setRegistrationFee] = useState<number | null>(null);
+  const [registrationFeeInput, setRegistrationFeeInput] = useState("");
+  const [registrationFeeLoading, setRegistrationFeeLoading] = useState(true);
+  const [registrationFeeSaving, setRegistrationFeeSaving] = useState(false);
 
   const fetchInterns = useCallback(async () => {
     try {
@@ -57,6 +61,66 @@ export default function InternsPage() {
   useEffect(() => {
     fetchInterns();
   }, [fetchInterns]);
+
+  const fetchRegistrationFee = useCallback(async () => {
+    try {
+      setRegistrationFeeLoading(true);
+      const response = await fetch(
+        "/api/admin/members/interns/registration-fee",
+      );
+      if (!response.ok) throw new Error(await response.text());
+
+      const result = await response.json();
+      if (!Number.isSafeInteger(result.feeAmount) || result.feeAmount <= 0) {
+        throw new Error("Invalid intern registration fee");
+      }
+      setRegistrationFee(result.feeAmount);
+      setRegistrationFeeInput(String(result.feeAmount));
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not load the intern registration fee");
+    } finally {
+      setRegistrationFeeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRegistrationFee();
+  }, [fetchRegistrationFee]);
+
+  const saveRegistrationFee = async () => {
+    const feeAmount = Number(registrationFeeInput);
+    if (!Number.isSafeInteger(feeAmount) || feeAmount <= 0 || feeAmount > 1_000_000) {
+      toast.error("Enter a whole fee between ₹1 and ₹10,00,000");
+      return;
+    }
+
+    const loadingToast = toast.loading("Saving registration fee...");
+    try {
+      setRegistrationFeeSaving(true);
+      const response = await fetch(
+        "/api/admin/members/interns/registration-fee",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feeAmount }),
+        },
+      );
+      if (!response.ok) throw new Error(await response.text());
+
+      const result = await response.json();
+      setRegistrationFee(result.feeAmount);
+      setRegistrationFeeInput(String(result.feeAmount));
+      toast.success("Intern registration fee updated", { id: loadingToast });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Could not update the registration fee", {
+        id: loadingToast,
+      });
+    } finally {
+      setRegistrationFeeSaving(false);
+    }
+  };
 
   const handleCreate = async (formData: any) => {
     const loadingToast = toast.loading("Creating intern...");
@@ -411,14 +475,16 @@ export default function InternsPage() {
                 Registration Page
               </Button>
             </Link>
-            <Button
-              color="light"
-              onClick={copyRegistrationLink}
-              className="w-full sm:w-auto"
-            >
-              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-              Copy Registration Link
-            </Button>
+            <Tooltip content="Copy intern registration link">
+              <Button
+                color="light"
+                onClick={copyRegistrationLink}
+                aria-label="Copy intern registration link"
+                className="w-full sm:w-auto"
+              >
+                <Copy className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </Tooltip>
             <div className="z-50">
               <ExportXlsxButton
                 fileName="Interns_List"
@@ -431,6 +497,58 @@ export default function InternsPage() {
             <AddButton label="Add Intern" onClick={() => setCreateOpen(true)} />
           </div>
         </div>
+
+        <RBACGate roles={["ADMIN"]}>
+          <section
+            aria-labelledby="intern-registration-fee-heading"
+            className="mb-5 flex flex-col gap-4 rounded-lg border border-purple-100 bg-purple-50 p-4 sm:flex-row sm:items-end sm:justify-between"
+          >
+            <div>
+              <h3
+                id="intern-registration-fee-heading"
+                className="text-sm font-semibold text-purple-950"
+              >
+                Intern registration fee
+              </h3>
+              <p className="mt-1 text-sm text-purple-800">
+                {registrationFeeLoading || registrationFee === null
+                  ? "Loading current fee…"
+                  : `₹${registrationFee.toLocaleString("en-IN")} for new public registrations`}
+              </p>
+              <p className="mt-1 text-xs text-purple-700">
+                Existing registrations and payment orders keep their saved amount.
+              </p>
+            </div>
+
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+              <label
+                htmlFor="intern-registration-fee"
+                className="flex flex-col gap-1 text-sm font-medium text-purple-950"
+              >
+                Set fee (₹)
+                <input
+                  id="intern-registration-fee"
+                  type="number"
+                  min="1"
+                  max="1000000"
+                  step="1"
+                  inputMode="numeric"
+                  value={registrationFeeInput}
+                  onChange={(event) => setRegistrationFeeInput(event.target.value)}
+                  disabled={registrationFeeLoading || registrationFeeSaving}
+                  className="w-full rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 disabled:bg-slate-100 sm:w-36"
+                />
+              </label>
+              <Button
+                color="purple"
+                onClick={saveRegistrationFee}
+                disabled={registrationFeeLoading || registrationFeeSaving}
+              >
+                {registrationFeeSaving ? "Saving…" : "Save fee"}
+              </Button>
+            </div>
+          </section>
+        </RBACGate>
 
         {error && (
           <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400">

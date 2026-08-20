@@ -334,6 +334,17 @@ model InternPaymentOrder {
   @@map("intern_payment_orders")
 }
 
+// Singleton configuration used only when a new public intern registration is
+// created. Each Intern stores the fee that applied at registration time.
+model InternRegistrationSettings {
+  id              String   @id @default("default")
+  registrationFee Int      @default(1400) @map("registration_fee")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("intern_registration_settings")
+}
+
 model Student {
   id                String                       @id @default(uuid())
   name              String

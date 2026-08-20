@@ -2,8 +2,8 @@ import { generateNextMemberId } from "@/libs/idGenerator";
 import {
   assertInternPaymentTokenConfiguration,
   createInternPaymentActivationToken,
-  INTERN_PAYMENT_AMOUNT_RUPEES,
 } from "@/libs/intern-payment";
+import { getInternRegistrationFee } from "@/libs/intern-registration-fee";
 import {
   INTERN_TEMPORARY_PASSWORD,
   InternUserConflictError,
@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       }),
       bcrypt.hash(INTERN_TEMPORARY_PASSWORD, 10),
     ]);
+    const registrationFee = await getInternRegistrationFee();
 
     const intern = await prisma.$transaction(
       async (tx) => {
@@ -182,7 +183,9 @@ export async function POST(request: Request) {
             associatedAfter: body?.associatedAfter ?? false,
             joiningDate,
             status: InternStatus.PENDING_START,
-            feeAmount: INTERN_PAYMENT_AMOUNT_RUPEES,
+            // Capture the configured fee at registration time. Later setting
+            // changes must not modify an existing registration or its order.
+            feeAmount: registrationFee,
             user: {
               create: {
                 name,
