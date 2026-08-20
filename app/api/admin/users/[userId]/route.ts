@@ -7,6 +7,7 @@ import {
   InternStatus,
   MemberStatus,
   MemberType,
+  Prisma,
   RoleName,
   UserStatus,
 } from "@prisma/client";
@@ -56,7 +57,7 @@ export async function PUT(
         const [userBeforeUpdate, currentRoleHistory] = await Promise.all([
           tx.user.findUnique({
             where: { id: userId },
-            select: { status: true },
+            select: { status: true, intern: { select: { id: true } } },
           }),
           body.roles !== undefined
             ? tx.userRoleHistory.findMany({
@@ -118,6 +119,17 @@ export async function PUT(
               where: { userId: userId, endDate: null },
               data: { endDate: now },
             }),
+            ...(userBeforeUpdate.intern
+              ? [
+                  tx.intern.update({
+                    where: { id: userBeforeUpdate.intern.id },
+                    data: {
+                      status: InternStatus.COMPLETED,
+                      completionDate: now,
+                    },
+                  }),
+                ]
+              : []),
           ]);
 
           const finalUser = await tx.user.findUnique({
@@ -472,7 +484,19 @@ export async function DELETE(
     });
 
     return new NextResponse(null, { status: 204 });
-  } catch (e) {
-    return new NextResponse("Not Found", { status: 404 });
+  } catch (error) {
+    // The existence check above is the only reliable source for a 404. Do not
+    // disguise database/schema failures as a missing user, or administration
+    // cannot distinguish a stale row from an operational problem.
+    console.error("DELETE_USER_ERROR", { userId, error });
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    return new NextResponse("Unable to delete user", { status: 500 });
   }
 }

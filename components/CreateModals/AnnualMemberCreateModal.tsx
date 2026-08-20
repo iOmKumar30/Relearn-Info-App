@@ -4,6 +4,7 @@ import { getDynamicFiscalYears } from "@/libs/fiscalYears";
 import { DEFAULT_MEMBER_FEES } from "@/libs/memberConstants";
 import { toLocalDateInput } from "@/libs/toLocalDateInput";
 import { MemberType } from "@prisma/client";
+import AddMemberFeeAmountModal from "./AddMemberFeeAmountModal";
 import {
   Button,
   Label,
@@ -74,6 +75,7 @@ export default function AnnualMemberCreateModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [feeToAdd, setFeeToAdd] = useState<string | null>(null);
   // Track original type to detect changes on submit
   const [originalType, setOriginalType] = useState<MemberType>(
     MemberType.ANNUAL,
@@ -152,6 +154,26 @@ export default function AnnualMemberCreateModal({
         fees: {
           ...prev.fees,
           [fiscalLabel]: { ...currentEntry, [field]: value },
+        },
+      };
+    });
+  };
+
+  const addFeeAmount = (amount: number) => {
+    if (!feeToAdd) return;
+
+    setForm((prev) => {
+      const currentEntry = prev.fees[feeToAdd] || {
+        date: "",
+        amount: String(defaultFee),
+      };
+      const currentAmount = Number(currentEntry.amount);
+      const total = Math.round(((Number.isFinite(currentAmount) ? currentAmount : 0) + amount) * 100) / 100;
+      return {
+        ...prev,
+        fees: {
+          ...prev.fees,
+          [feeToAdd]: { ...currentEntry, amount: String(total) },
         },
       };
     });
@@ -256,6 +278,7 @@ export default function AnnualMemberCreateModal({
   };
 
   return (
+    <>
     <Modal
       show={open}
       onClose={onClose}
@@ -379,6 +402,22 @@ export default function AnnualMemberCreateModal({
                         }
                       />
                     </div>
+                    <Button
+                      type="button"
+                      size="xs"
+                      color="light"
+                      className="px-2"
+                      disabled={!entry.date}
+                      title={
+                        entry.date
+                          ? "Add another payment amount"
+                          : "Enter the payment date first"
+                      }
+                      aria-label={`Add another payment for ${label}`}
+                      onClick={() => setFeeToAdd(label)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -561,5 +600,15 @@ export default function AnnualMemberCreateModal({
         </form>
       </ModalBody>
     </Modal>
+    <AddMemberFeeAmountModal
+      open={feeToAdd !== null}
+      fiscalLabel={feeToAdd}
+      currentAmount={
+        feeToAdd ? Number(form.fees[feeToAdd]?.amount ?? defaultFee) || 0 : 0
+      }
+      onClose={() => setFeeToAdd(null)}
+      onConfirm={addFeeAmount}
+    />
+    </>
   );
 }

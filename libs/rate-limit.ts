@@ -20,6 +20,13 @@ export const internRegistrationRatelimit = new Ratelimit({
   prefix: "rl:intern-registration",
 });
 
+export const internPaymentRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(20, "15 m"),
+  analytics: true,
+  prefix: "rl:intern-payment",
+});
+
 export const credentialsLoginRatelimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(10, "10 m"),

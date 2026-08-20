@@ -75,7 +75,9 @@ export async function GET(req: Request) {
         skip: dbSkip,
         take: dbTake,
         include: {
-          user: { select: { id: true, name: true, email: true, phone: true } },
+          user: {
+            select: { id: true, name: true, email: true, phone: true, status: true },
+          },
           fees: true,
           typeHistory: true,
         },

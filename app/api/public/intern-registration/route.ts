@@ -1,7 +1,27 @@
 import { generateNextMemberId } from "@/libs/idGenerator";
+import {
+  assertInternPaymentTokenConfiguration,
+  createInternPaymentActivationToken,
+  INTERN_PAYMENT_AMOUNT_RUPEES,
+} from "@/libs/intern-payment";
+import {
+  INTERN_TEMPORARY_PASSWORD,
+  InternUserConflictError,
+} from "@/libs/intern-user";
 import prisma from "@/libs/prismadb";
 import { verifyTurnstile } from "@/libs/turnstile";
-import { Gender, InternStatus, Prisma, WorkingMode } from "@prisma/client";
+import {
+  Gender,
+  InternStatus,
+  MemberStatus,
+  MemberType,
+  OnboardingStatus,
+  Prisma,
+  RoleName,
+  UserStatus,
+  WorkingMode,
+} from "@prisma/client";
+import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +75,9 @@ export async function POST(request: Request) {
   const userAgent = request.headers.get("user-agent") ?? "unknown";
 
   try {
+    // Validate this before writing the registration: every successful public
+    // registration must be able to continue into the protected payment flow.
+    assertInternPaymentTokenConfiguration();
     const body = await request.json();
     const turnstileToken = typeof body?.cfToken === "string" ? body.cfToken : "";
 
@@ -106,42 +129,91 @@ export async function POST(request: Request) {
       return invalidRequest("Invalid future association selection.");
     }
 
-    const intern = await prisma.$transaction(async (tx) => {
-      const duplicate = await tx.intern.findFirst({
-        where: {
-          OR: [
-            { email: { equals: email, mode: "insensitive" } },
-            { mobile },
-          ],
+    // Hashing is intentionally outside the database transaction. It is CPU
+    // bound and does not need a database lock; the nested writes below remain
+    // one atomic transaction.
+    const [memberRole, passwordHash] = await Promise.all([
+      prisma.role.upsert({
+        where: { name: RoleName.MEMBER },
+        update: {},
+        create: {
+          name: RoleName.MEMBER,
+          description: "Members, including interns",
         },
         select: { id: true },
-      });
-      if (duplicate) throw new DuplicateRegistrationError();
+      }),
+      bcrypt.hash(INTERN_TEMPORARY_PASSWORD, 10),
+    ]);
 
-      const memberId = await generateNextMemberId(tx, "INTERN");
-      return tx.intern.create({
-        data: {
-          memberId,
-          name,
-          email,
-          mobile,
-          address,
-          gender: gender || null,
-          dateOfBirth,
-          institution,
-          previousInstitute,
-          educationCompleted,
-          ongoingCourse,
-          areasOfInterest,
-          preferredHoursPerDay,
-          workingMode: workingMode || null,
-          associatedAfter: body?.associatedAfter ?? false,
-          joiningDate,
-          status: InternStatus.PENDING_START,
-        },
-        select: { id: true },
-      });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    const intern = await prisma.$transaction(
+      async (tx) => {
+        const [duplicateIntern, existingUser] = await Promise.all([
+          tx.intern.findFirst({
+            where: {
+              OR: [
+                { email: { equals: email, mode: "insensitive" } },
+                { mobile },
+              ],
+            },
+            select: { id: true },
+          }),
+          tx.user.findUnique({ where: { email }, select: { id: true } }),
+        ]);
+        if (duplicateIntern) throw new DuplicateRegistrationError();
+        if (existingUser) throw new InternUserConflictError();
+
+        const memberId = await generateNextMemberId(tx, "INTERN");
+        return tx.intern.create({
+          data: {
+            memberId,
+            name,
+            email,
+            mobile,
+            address,
+            gender: gender || null,
+            dateOfBirth,
+            institution,
+            previousInstitute,
+            educationCompleted,
+            ongoingCourse,
+            areasOfInterest,
+            preferredHoursPerDay,
+            workingMode: workingMode || null,
+            associatedAfter: body?.associatedAfter ?? false,
+            joiningDate,
+            status: InternStatus.PENDING_START,
+            feeAmount: INTERN_PAYMENT_AMOUNT_RUPEES,
+            user: {
+              create: {
+                name,
+                email,
+                phone: mobile,
+                address,
+                gender: gender || null,
+                status: UserStatus.ACTIVE,
+                onboardingStatus: OnboardingStatus.ACTIVE,
+                activatedAt: new Date(),
+                emailCredential: { create: { email, passwordHash } },
+                roleHistory: { create: { roleId: memberRole.id } },
+                member: {
+                  create: {
+                    memberId,
+                    memberType: MemberType.INTERN,
+                    joiningDate: joiningDate ?? new Date(),
+                    status: MemberStatus.ACTIVE,
+                    typeHistory: {
+                      create: { memberType: MemberType.INTERN },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          select: { id: true },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     console.info("INTERN_REGISTRATION_ACCEPTED", {
       internId: intern.id,
@@ -150,7 +222,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { message: "Your internship registration has been submitted successfully." },
+      {
+        message: "Your internship registration has been submitted successfully.",
+        paymentToken: createInternPaymentActivationToken(intern.id),
+      },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -160,6 +235,20 @@ export async function POST(request: Request) {
         ip,
         userAgent,
       });
+      return invalidRequest(
+        "A registration already exists for the supplied contact details.",
+        409,
+      );
+    }
+
+    if (error instanceof InternUserConflictError) {
+      return invalidRequest(
+        "A user account already exists for the supplied email address.",
+        409,
+      );
+    }
+
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
       return invalidRequest(
         "A registration already exists for the supplied contact details.",
         409,

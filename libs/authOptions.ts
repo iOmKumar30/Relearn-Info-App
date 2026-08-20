@@ -134,6 +134,15 @@ export const authOptions: AuthOptions = {
             return null;
           }
 
+          if (user.status !== UserStatus.ACTIVE) {
+            console.warn("LOGIN_REJECTED", {
+              reason: "inactive_user",
+              ip,
+              email,
+            });
+            return null;
+          }
+
           const ok = await bcrypt.compare(
             password,
             user.emailCredential.passwordHash,
@@ -175,9 +184,13 @@ export const authOptions: AuthOptions = {
         const email = user.email;
         if (!email) return false;
 
-        await prisma.$transaction(async (tx) => {
+        const allowed = await prisma.$transaction(async (tx) => {
           // Find or create user
           let dbUser = await tx.user.findUnique({ where: { email } });
+
+          if (dbUser && dbUser.status !== UserStatus.ACTIVE) {
+            return false;
+          }
 
           if (!dbUser) {
             const pendingRole = await ensurePendingRole(tx);
@@ -227,7 +240,9 @@ export const authOptions: AuthOptions = {
               tokenType: account.token_type as string | undefined,
             },
           });
+          return true;
         });
+        if (!allowed) return false;
         const dbUserWithRoles = await prisma.user.findUnique({
           where: { email },
           include: {

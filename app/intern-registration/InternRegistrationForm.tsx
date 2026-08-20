@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
@@ -74,6 +75,7 @@ export default function InternRegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const router = useRouter();
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
@@ -125,10 +127,15 @@ export default function InternRegistrationForm() {
       if (!response.ok) {
         throw new Error(data?.error || "Unable to submit the registration. Please try again later.");
       }
+      if (typeof data?.paymentToken !== "string" || !data.paymentToken) {
+        throw new Error("Unable to start your internship activation. Please contact Relearn Foundation.");
+      }
 
       setForm(initialForm);
       setSuccess(true);
       resetTurnstile();
+      sessionStorage.setItem("intern-registration-payment-token", data.paymentToken);
+      router.replace("/intern-registration/activate");
     } catch (submissionError) {
       setError(
         submissionError instanceof Error

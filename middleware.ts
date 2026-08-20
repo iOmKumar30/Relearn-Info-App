@@ -2,6 +2,7 @@ import {
   credentialsLoginRatelimit,
   googleAuthRatelimit,
   internRegistrationRatelimit,
+  internPaymentRatelimit,
   registerRatelimit,
 } from "@/libs/rate-limit";
 import { getToken } from "next-auth/jwt";
@@ -13,6 +14,9 @@ const PUBLIC_PATHS = new Set<string>([
   "/auth/signin",
   "/auth/callback",
   "/intern-registration",
+  "/intern-registration/activate",
+  "/intern-registration/thank-you",
+  "/intern-registration/receipt",
 ]);
 
 // Role-based access map for top-level routes
@@ -88,6 +92,35 @@ export async function middleware(req: NextRequest) {
       return new NextResponse(
         JSON.stringify({
           error: "Too many registration attempts. Please try again later.",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": String(limit),
+            "X-RateLimit-Remaining": String(remaining),
+            "X-RateLimit-Reset": String(reset),
+          },
+        },
+      );
+    }
+
+    const response = NextResponse.next();
+    response.headers.set("X-RateLimit-Limit", String(limit));
+    response.headers.set("X-RateLimit-Remaining", String(remaining));
+    response.headers.set("X-RateLimit-Reset", String(reset));
+    return response;
+  }
+
+  if (pathname.startsWith("/api/public/intern-registration/payment/")) {
+    const ip = getClientIp(req);
+    const { success, limit, remaining, reset } =
+      await internPaymentRatelimit.limit(ip);
+
+    if (!success) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Too many payment requests. Please try again later.",
         }),
         {
           status: 429,
@@ -255,6 +288,7 @@ export const config = {
     // Rate limited API routes
     "/api/register",
     "/api/public/intern-registration",
+    "/api/public/intern-registration/payment/:path*",
     "/api/auth/signin/:path*",
     "/api/auth/callback/:path*",
 
@@ -266,7 +300,7 @@ export const config = {
     "/pending-users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
-    "/intern-registration",
+    "/intern-registration/:path*",
     // "/pending/:path*",
   ],
 };

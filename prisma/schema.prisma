@@ -311,6 +311,27 @@ model Intern {
   memberId             String?        @unique
   userId               String?        @unique
   user                 User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentOrders        InternPaymentOrder[]
+}
+
+model InternPaymentOrder {
+  id                String                   @id @default(cuid())
+  internId          String                   @map("intern_id")
+  razorpayOrderId   String                   @unique @map("razorpay_order_id")
+  razorpayPaymentId String?                  @unique @map("razorpay_payment_id")
+  receiptNumber     String                   @unique @map("receipt_number")
+  amount            Int
+  currency          String                   @default("INR") @db.VarChar(3)
+  status            InternPaymentOrderStatus @default(CREATED)
+  paidAt            DateTime?                @map("paid_at")
+  failedAt          DateTime?                @map("failed_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  intern            Intern                   @relation(fields: [internId], references: [id], onDelete: Cascade)
+
+  @@index([internId, status])
+  @@index([status, createdAt])
+  @@map("intern_payment_orders")
 }
 
 model Student {
@@ -851,6 +872,13 @@ enum RoleName {
   RELF_EMPLOYEE
   TUTOR_OF_TUTOR
   MEMBER
+}
+
+enum InternPaymentOrderStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
 }
 
 enum OnboardingStatus {

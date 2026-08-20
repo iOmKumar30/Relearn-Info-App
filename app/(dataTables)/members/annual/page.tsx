@@ -34,6 +34,7 @@ export default function AnnualMembersPage() {
   const [editRow, setEditRow] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
+  const [deactivatingOverdue, setDeactivatingOverdue] = useState(false);
 
   // Fiscal Year Filter States
   const [fiscalYearModalOpen, setFiscalYearModalOpen] = useState(false);
@@ -154,6 +155,39 @@ export default function AnnualMembersPage() {
     }
   };
 
+  const handleDeactivateOverdueMembers = async () => {
+    if (
+      !window.confirm(
+        "Mark eligible annual members inactive? This applies only to members who joined before the earliest of the last three fiscal years and have no recorded fee for any of those three years.",
+      )
+    ) {
+      return;
+    }
+
+    setDeactivatingOverdue(true);
+    try {
+      const response = await fetch(
+        "/api/admin/members/annual/deactivate-overdue",
+        { method: "POST" },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to deactivate overdue members");
+      }
+
+      toast.success(
+        `${result.deactivatedCount} annual member${result.deactivatedCount === 1 ? "" : "s"} marked inactive for missing fees in ${result.fiscalLabels.join(", ")}.`,
+      );
+      await fetchMembers();
+    } catch (deactivationError: any) {
+      toast.error(
+        deactivationError.message || "Unable to deactivate overdue members",
+      );
+    } finally {
+      setDeactivatingOverdue(false);
+    }
+  };
+
   // Handle Fiscal Year Selection
   const handleApplyFiscalYears = (years: string[]) => {
     const sorted = years.sort((a, b) => b.localeCompare(a));
@@ -189,6 +223,7 @@ export default function AnnualMembersPage() {
       { key: "phone", label: "Mobile" },
       { key: "pan", label: "PAN" },
       { key: "joiningDate", label: "Joining Date" },
+      { key: "status", label: "Status" },
     ];
 
     const yearsToShow =
@@ -241,6 +276,7 @@ export default function AnnualMembersPage() {
         phone: row.user?.phone || "—",
         pan: row.pan || "—",
         joiningDate: new Date(row.joiningDate).toLocaleDateString("en-GB"),
+        status: row.user?.status === "INACTIVE" ? "Inactive" : "Active",
         ...feeCells,
         __raw: row, // Keep full row data for editing
       };
@@ -381,6 +417,17 @@ export default function AnnualMembersPage() {
 
             <Button color="warning" size="sm" onClick={handlePendingPayment}>
               Pending Payment
+            </Button>
+
+            <Button
+              color="failure"
+              size="sm"
+              disabled={deactivatingOverdue}
+              onClick={handleDeactivateOverdueMembers}
+            >
+              {deactivatingOverdue
+                ? "Deactivating…"
+                : "Deactivate 3-Year Overdue"}
             </Button>
 
             {isFilterActive && (

@@ -80,6 +80,18 @@ export const syncDonationQueueTask = schedules.task({
 
         const fiscalLabel = fiscalLabelForDonation(donation.date);
         await prisma.$transaction(async (tx) => {
+          // Legacy MemberFee rows may have a null amount. Normalize those rows
+          // before the atomic increment so a new payment is never lost to SQL
+          // null arithmetic (NULL + amount remains NULL).
+          await tx.memberFee.updateMany({
+            where: {
+              memberId: user.member!.id,
+              fiscalLabel,
+              amount: null,
+            },
+            data: { amount: 0 },
+          });
+
           await tx.memberFee.upsert({
             where: {
               memberId_fiscalLabel: {
@@ -89,7 +101,8 @@ export const syncDonationQueueTask = schedules.task({
             },
             update: {
               paidOn: donation.date,
-              amount: donation.amount,
+              // Each membership donation contributes to the annual total.
+              amount: { increment: donation.amount },
             },
             create: {
               memberId: user.member!.id,

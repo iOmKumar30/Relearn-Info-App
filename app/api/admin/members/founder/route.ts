@@ -14,6 +14,40 @@ import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
+type FeeChange = {
+  fiscalLabel: string;
+  paidOn: Date | null;
+  amount: number | null;
+};
+
+function parseFeeChanges(value: unknown): FeeChange[] | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid membership fee data");
+  }
+
+  return Object.entries(value).map(([rawLabel, rawFee]) => {
+    const fiscalLabel = rawLabel.trim();
+    if (!fiscalLabel) throw new Error("Invalid fiscal year");
+
+    const fee: { date?: unknown; amount?: unknown } =
+      rawFee && typeof rawFee === "object" && !Array.isArray(rawFee)
+        ? (rawFee as { date?: unknown; amount?: unknown })
+        : { date: rawFee };
+    const dateValue = typeof fee.date === "string" ? fee.date.trim() : "";
+    const paidOn = dateValue ? toUTCDate(dateValue) : null;
+    if (dateValue && !paidOn) throw new Error("Invalid payment date");
+
+    const hasAmount = fee.amount !== undefined && fee.amount !== null && fee.amount !== "";
+    const amount = hasAmount ? Number(fee.amount) : null;
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      throw new Error("Invalid payment amount");
+    }
+
+    return { fiscalLabel, paidOn, amount };
+  });
+}
+
 // GET: List all Founder Members
 export async function GET(req: Request) {
   try {
@@ -24,6 +58,11 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
+    const fiscalYears = (searchParams.get("fiscalYears") || "")
+      .split(",")
+      .map((year) => year.trim())
+      .filter(Boolean);
+    const pendingOnly = searchParams.get("pendingOnly") === "true";
 
     const where: any = {
       memberType: MemberType.FOUNDER,
@@ -49,15 +88,36 @@ export async function GET(req: Request) {
     const members = await prisma.member.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true, phone: true } },
+        user: {
+          select: { id: true, name: true, email: true, phone: true, status: true },
+        },
+        fees: true,
       },
       orderBy: { user: { name: "asc" } },
       // cacheStrategy: { ttl: 60, swr: 60 },
     });
-    const rows = members.map((m: any) => ({
-      ...m,
-      joiningDate: m.joiningDate?.toISOString().slice(0, 10), // "2021-06-15"
-    }));
+    let rows = members.map((member) => {
+      const feesMapFull: Record<string, { paidOn: string; amount: number | null }> = {};
+      for (const fee of member.fees) {
+        feesMapFull[fee.fiscalLabel] = {
+          paidOn: fee.paidOn.toISOString().slice(0, 10),
+          amount: fee.amount === null ? null : Number(fee.amount),
+        };
+      }
+
+      return {
+        ...member,
+        joiningDate: member.joiningDate?.toISOString().slice(0, 10),
+        feesMapFull,
+      };
+    });
+
+    if (pendingOnly && fiscalYears.length > 0) {
+      rows = rows.filter((member) =>
+        fiscalYears.some((fiscalYear) => !member.feesMapFull[fiscalYear]),
+      );
+    }
+
     return NextResponse.json({ rows });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
@@ -83,6 +143,7 @@ export async function POST(req: Request) {
     const joiningDate = body.joiningDate
       ? toUTCDate(body.joiningDate)
       : new Date();
+    const feeChanges = parseFeeChanges(body.fees);
 
     if (!email) return new NextResponse("Email is required", { status: 400 });
 
@@ -173,6 +234,30 @@ export async function POST(req: Request) {
               status: MemberStatus.ACTIVE,
             },
           });
+        }
+
+        if (feeChanges) {
+          await Promise.all(
+            feeChanges
+              .filter((fee) => fee.paidOn)
+              .map((fee) =>
+                tx.memberFee.upsert({
+                  where: {
+                    memberId_fiscalLabel: {
+                      memberId: member.id,
+                      fiscalLabel: fee.fiscalLabel,
+                    },
+                  },
+                  update: { paidOn: fee.paidOn!, amount: fee.amount },
+                  create: {
+                    memberId: member.id,
+                    fiscalLabel: fee.fiscalLabel,
+                    paidOn: fee.paidOn!,
+                    amount: fee.amount,
+                  },
+                }),
+              ),
+          );
         }
       },
       {

@@ -9,7 +9,7 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { Badge, Button, Spinner, Tooltip } from "flowbite-react";
-import { Copy, ExternalLink, UserPlus } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -30,7 +30,6 @@ export default function InternsPage() {
   const [editRow, setEditRow] = useState<any>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<any>(null);
-  const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
 
   const fetchInterns = useCallback(async () => {
     try {
@@ -122,35 +121,6 @@ export default function InternsPage() {
       toast.success("Intern registration link copied");
     } catch {
       toast.error("Could not copy the registration link");
-    }
-  };
-
-  const handleCreateUser = async (intern: any) => {
-    if (
-      !window.confirm(
-        `Create an app account for ${intern.name}? An admin can assign operational roles later. The temporary password will be WelcomeToRelf.`,
-      )
-    ) {
-      return;
-    }
-
-    setCreatingUserId(intern.id);
-    try {
-      const response = await fetch(
-        `/api/admin/members/interns/${intern.id}/create-user`,
-        { method: "POST" },
-      );
-      const message = await response.text();
-      if (!response.ok) throw new Error(message || "Unable to create user account");
-
-      toast.success("User account created. Temporary password: WelcomeToRelf", {
-        duration: 7000,
-      });
-      await fetchInterns();
-    } catch (createError: any) {
-      toast.error(createError.message || "Unable to create user account");
-    } finally {
-      setCreatingUserId(null);
     }
   };
 
@@ -361,26 +331,6 @@ export default function InternsPage() {
 
   const renderActions = (row: any) => (
     <div className="flex gap-2">
-      <Button
-        size="xs"
-        color="light"
-        title={
-          row.__raw.userId
-            ? "This intern already has a user account"
-            : !row.__raw.email
-              ? "An email address is required to create a user account"
-              : "Create app user account"
-        }
-        aria-label="Create app user account"
-        disabled={
-          creatingUserId === row.__raw.id ||
-          Boolean(row.__raw.userId) ||
-          !row.__raw.email
-        }
-        onClick={() => handleCreateUser(row.__raw)}
-      >
-        <UserPlus className="h-4 w-4" aria-hidden="true" />
-      </Button>
       <Button
         size="xs"
         color="light"

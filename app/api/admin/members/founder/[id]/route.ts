@@ -7,7 +7,41 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// PUT: Update Founder Member details (No fees)
+type FeeChange = {
+  fiscalLabel: string;
+  paidOn: Date | null;
+  amount: number | null;
+};
+
+function parseFeeChanges(value: unknown): FeeChange[] | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid membership fee data");
+  }
+
+  return Object.entries(value).map(([rawLabel, rawFee]) => {
+    const fiscalLabel = rawLabel.trim();
+    if (!fiscalLabel) throw new Error("Invalid fiscal year");
+
+    const fee: { date?: unknown; amount?: unknown } =
+      rawFee && typeof rawFee === "object" && !Array.isArray(rawFee)
+        ? (rawFee as { date?: unknown; amount?: unknown })
+        : { date: rawFee };
+    const dateValue = typeof fee.date === "string" ? fee.date.trim() : "";
+    const paidOn = dateValue ? toUTCDate(dateValue) : null;
+    if (dateValue && !paidOn) throw new Error("Invalid payment date");
+
+    const hasAmount = fee.amount !== undefined && fee.amount !== null && fee.amount !== "";
+    const amount = hasAmount ? Number(fee.amount) : null;
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      throw new Error("Invalid payment amount");
+    }
+
+    return { fiscalLabel, paidOn, amount };
+  });
+}
+
+// PUT: Update Founder Member details and yearly fee payments.
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -28,6 +62,7 @@ export async function PUT(
     const joiningDate = body.joiningDate
       ? toUTCDate(body.joiningDate)
       : undefined;
+    const feeChanges = parseFeeChanges(body.fees);
 
     await prisma.$transaction(
       async (tx) => {
@@ -56,6 +91,34 @@ export async function PUT(
               phone: phone || undefined,
             },
           });
+        }
+
+        if (feeChanges) {
+          await Promise.all(
+            feeChanges.map((fee) => {
+              if (!fee.paidOn) {
+                return tx.memberFee.deleteMany({
+                  where: { memberId: id, fiscalLabel: fee.fiscalLabel },
+                });
+              }
+
+              return tx.memberFee.upsert({
+                where: {
+                  memberId_fiscalLabel: {
+                    memberId: id,
+                    fiscalLabel: fee.fiscalLabel,
+                  },
+                },
+                update: { paidOn: fee.paidOn, amount: fee.amount },
+                create: {
+                  memberId: id,
+                  fiscalLabel: fee.fiscalLabel,
+                  paidOn: fee.paidOn,
+                  amount: fee.amount,
+                },
+              });
+            }),
+          );
         }
       },
       {
