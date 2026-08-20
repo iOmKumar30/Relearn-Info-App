@@ -127,11 +127,22 @@ export async function DELETE(
   }
 
   try {
+    const intern = await prisma.intern.findUnique({
+      where: { id: id },
+      select: { userId: true },
+    });
+    if (!intern) {
+      return new NextResponse('Intern not found', { status: 404 });
+    }
     await prisma.intern.delete({
       where: { id: id },
     });
-
-    return new NextResponse(null, { status: 204 });
+    if (intern.userId) {
+      await prisma.user.delete({
+        where: { id: intern.userId },
+      });
+    }
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('DELETE_INTERN_ERROR', error);
     return new NextResponse(
