@@ -1,22 +1,34 @@
-"use client";
+'use client';
 
-import { KpiCard, type KpiDto } from "@/components/dashboard/KpiCard";
-import { KpiSkeleton } from "@/components/dashboard/KpiSkeleton";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Calendar } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { KpiCard, type KpiDto } from '@/components/dashboard/KpiCard';
+import { KpiSkeleton } from '@/components/dashboard/KpiSkeleton';
+import { exportToExcel, formatKpiValueForExcel } from '@/libs/kpi/excel';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeft, Calendar, Download } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 
 const MONTH_NAMES = [
-  "", "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const MONTHLY_FINANCE_KPI_KEYS = new Set([
-  "finance.revenue.monthly.lakhs",
-  "finance.expenditure.monthly.lakhs",
+  'finance.revenue.monthly.lakhs',
+  'finance.expenditure.monthly.lakhs',
 ]);
 
 export default function KpiMonthPage() {
@@ -29,9 +41,9 @@ export default function KpiMonthPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/kpi/month/${year}/${month}`, {
-          cache: "no-store",
+          cache: 'no-store',
         });
-        if (!res.ok) throw new Error("Failed to load");
+        if (!res.ok) throw new Error('Failed to load');
         const json = await res.json();
         // Map the month route shape to KpiDto shape (add empty trend array)
         const mapped = (json.kpis || []).map((k: any) => ({
@@ -42,7 +54,7 @@ export default function KpiMonthPage() {
         }));
         setKpis(mapped);
       } catch (e: any) {
-        toast.error(e?.message || "Failed to load KPIs");
+        toast.error(e?.message || 'Failed to load KPIs');
       } finally {
         setLoading(false);
       }
@@ -53,8 +65,8 @@ export default function KpiMonthPage() {
   const groups = useMemo(() => {
     const g = new Map<string, KpiDto[]>();
     for (const k of kpis) {
-      const group = k.category || "General";
-      if (group === "Finance" && !MONTHLY_FINANCE_KPI_KEYS.has(k.key)) continue;
+      const group = k.category || 'General';
+      if (group === 'Finance' && !MONTHLY_FINANCE_KPI_KEYS.has(k.key)) continue;
       if (!g.has(group)) g.set(group, []);
       g.get(group)!.push(k);
     }
@@ -64,13 +76,34 @@ export default function KpiMonthPage() {
 
   const monthLabel = `${MONTH_NAMES[parseInt(month)]} ${year}`;
 
+  const handleExport = () => {
+    if (!kpis.length) return;
+
+    const exportData = kpis.map((k) => ({
+      Category: k.category || 'General',
+      'KPI Name': k.label,
+      Value:
+        k.currentValue !== null
+          ? formatKpiValueForExcel(k.currentValue, k.unit)
+          : 'No snapshot',
+      'Unit/Format': k.unit,
+      Source: k.currentSource || 'Manual',
+    }));
+
+    exportToExcel(
+      `KPI_${MONTH_NAMES[parseInt(month)]}_${year}`,
+      'Monthly KPIs',
+      exportData,
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafa] p-6">
       <div className="mx-auto max-w-7xl space-y-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
         >
           <div className="flex items-center gap-4">
             <Link
@@ -92,6 +125,17 @@ export default function KpiMonthPage() {
               </p>
             </div>
           </div>
+
+          {/* Export Excel Button */}
+          {!loading && kpis.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <Download className="h-4 w-4" />
+              Export Excel
+            </button>
+          )}
         </motion.div>
 
         <div className="relative min-h-[500px]">
@@ -122,8 +166,10 @@ export default function KpiMonthPage() {
                 {Array.from(groups.entries()).map(([cat, arr]) => (
                   <section key={cat} className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-gray-800">{cat}</h3>
-                      <div className="h-px flex-1 bg-linear-to-r from-gray-200 to-transparent" />
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        {cat}
+                      </h3>
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
                     </div>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {arr.map((k, idx) => (
@@ -135,8 +181,12 @@ export default function KpiMonthPage() {
                 {groups.size === 0 && (
                   <div className="flex flex-col items-center justify-center py-24 text-gray-400">
                     <Calendar className="mb-4 h-12 w-12 opacity-30" />
-                    <p className="text-lg font-medium">No data for {monthLabel}</p>
-                    <p className="mt-1 text-sm">KPIs haven't been synced for this month yet.</p>
+                    <p className="text-lg font-medium">
+                      No data for {monthLabel}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      KPIs haven't been synced for this month yet.
+                    </p>
                   </div>
                 )}
               </motion.div>

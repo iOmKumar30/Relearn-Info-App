@@ -1,11 +1,20 @@
-"use client";
+'use client';
 
-import { cn } from "@/libs/kpi/utils";
-import { currentMonthYYYYMM } from "@/libs/kpi/month";
-import { ArrowLeft, Calendar, CheckCircle, Clock } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { currentMonthYYYYMM } from '@/libs/kpi/month';
+import { cn } from '@/libs/kpi/utils';
+import { exportToExcel, formatKpiValueForExcel } from '@/libs/kpi/excel';
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Download,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { ClipLoader } from 'react-spinners';
 import {
   CartesianGrid,
   Legend,
@@ -15,21 +24,33 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
-import { toast } from "react-hot-toast";
-import { ClipLoader } from "react-spinners";
+} from 'recharts';
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const ESSENTIAL_TREND_KPIS = [
-  { key: "students.total", label: "Total Active Students", color: "#2563eb" },
-  { key: "classrooms.total", label: "Total Active Classrooms", color: "#16a34a" },
-  { key: "tutors.total", label: "Total Active Tutors", color: "#9333ea" },
-  { key: "members.total", label: "Total Core Members", color: "#ea580c" },
-  { key: "persons.trained", label: "Number of Interns", color: "#db2777" },
+  { key: 'students.total', label: 'Total Active Students', color: '#2563eb' },
+  {
+    key: 'classrooms.total',
+    label: 'Total Active Classrooms',
+    color: '#16a34a',
+  },
+  { key: 'tutors.total', label: 'Total Active Tutors', color: '#9333ea' },
+  { key: 'members.total', label: 'Total Core Members', color: '#ea580c' },
+  { key: 'persons.trained', label: 'Number of Interns', color: '#db2777' },
 ] as const;
 
 type RangeKpi = {
@@ -38,15 +59,15 @@ type RangeKpi = {
 };
 
 function formatValue(value: number | null, unit: string): string {
-  if (value === null || value === undefined) return "—";
-  if (unit === "PERCENT") return `${(value * 100).toFixed(1)}%`;
-  if (unit === "LAKHS") return `₹${value.toFixed(2)}L`;
-  return value.toLocaleString("en-IN");
+  if (value === null || value === undefined) return '—';
+  if (unit === 'PERCENT') return `${(value * 100).toFixed(1)}%`;
+  if (unit === 'LAKHS') return `₹${value.toFixed(2)}L`;
+  return value.toLocaleString('en-IN');
 }
 
 function formatMonthLabel(month: string | null): string | null {
   if (!month) return null;
-  const [year, monthNumber] = month.split("-").map(Number);
+  const [year, monthNumber] = month.split('-').map(Number);
   return `${MONTHS[monthNumber - 1]} ${year}`;
 }
 
@@ -61,7 +82,10 @@ type SummaryKpi = {
   monthsCovered: number;
   latestAvailableMonth: string | null;
   fiscalLabel: string | null;
-  historicalAvailability: "MANUAL_ENTRY_REQUIRED" | "HISTORICAL_DATA_UNAVAILABLE" | null;
+  historicalAvailability:
+    | 'MANUAL_ENTRY_REQUIRED'
+    | 'HISTORICAL_DATA_UNAVAILABLE'
+    | null;
 };
 
 type SummaryData = {
@@ -92,13 +116,13 @@ export default function KpiYearPage() {
       try {
         setLoading(true);
         const [summaryRes, monthRes] = await Promise.all([
-          fetch(`/api/kpi/years/${year}/summary`, { cache: "no-store" }),
+          fetch(`/api/kpi/years/${year}/summary`, { cache: 'no-store' }),
           fetch(`/api/kpi/range?from=${year}-01&to=${year}-12`, {
-            cache: "no-store",
+            cache: 'no-store',
           }),
         ]);
 
-        if (!summaryRes.ok) throw new Error("Failed to load summary");
+        if (!summaryRes.ok) throw new Error('Failed to load summary');
         const summaryJson = await summaryRes.json();
         setSummary(summaryJson);
 
@@ -108,15 +132,15 @@ export default function KpiYearPage() {
           // Determine which months have at least one non-null value across all KPIs
           const statuses: MonthStatus[] = Array.from({ length: 12 }, (_, i) => {
             const monthIdx = i; // 0-based
-            const hasData = (rangeJson.kpis || []).some((k: any) =>
-              k.series?.[monthIdx]?.value !== null,
+            const hasData = (rangeJson.kpis || []).some(
+              (k: any) => k.series?.[monthIdx]?.value !== null,
             );
             return { month: i + 1, hasData };
           });
           setMonthStatuses(statuses);
         }
       } catch (e: any) {
-        toast.error(e?.message || "Failed to load year data");
+        toast.error(e?.message || 'Failed to load year data');
       } finally {
         setLoading(false);
       }
@@ -124,7 +148,9 @@ export default function KpiYearPage() {
     load();
   }, [year]);
 
-  const [currentYear, currentMonth] = currentMonthYYYYMM().split("-").map(Number);
+  const [currentYear, currentMonth] = currentMonthYYYYMM()
+    .split('-')
+    .map(Number);
 
   const annualTrendData = useMemo(() => {
     const kpisByKey = new Map(rangeKpis.map((kpi) => [kpi.key, kpi]));
@@ -132,11 +158,12 @@ export default function KpiYearPage() {
       const point: Record<string, string | number | null> = {
         month: monthLabel.slice(0, 3),
       };
-      const isCurrentYearInProgressMonth = yearNum === currentYear && index + 1 >= currentMonth;
+      const isCurrentYearInProgressMonth =
+        yearNum === currentYear && index + 1 >= currentMonth;
       for (const kpi of ESSENTIAL_TREND_KPIS) {
         point[kpi.key] = isCurrentYearInProgressMonth
           ? null
-          : kpisByKey.get(kpi.key)?.series[index]?.value ?? null;
+          : (kpisByKey.get(kpi.key)?.series[index]?.value ?? null);
       }
       return point;
     });
@@ -150,7 +177,7 @@ export default function KpiYearPage() {
   const groups = new Map<string, SummaryKpi[]>();
   if (summary) {
     for (const k of summary.kpis) {
-      const cat = k.category || "General";
+      const cat = k.category || 'General';
       if (!groups.has(cat)) groups.set(cat, []);
       groups.get(cat)!.push(k);
     }
@@ -158,13 +185,43 @@ export default function KpiYearPage() {
       arr.sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
+  const handleExport = () => {
+    if (!summary) return;
+
+    const exportData = summary.kpis.map((k) => ({
+      Category: k.category || 'General',
+      'KPI Name': k.label,
+      Value:
+        k.aggregatedValue !== null
+          ? formatKpiValueForExcel(k.aggregatedValue, k.unit)
+          : 'No snapshot',
+      'Unit/Format': k.unit,
+      Notes:
+        k.historicalAvailability === 'MANUAL_ENTRY_REQUIRED'
+          ? 'Manual entry required'
+          : k.historicalAvailability === 'HISTORICAL_DATA_UNAVAILABLE'
+            ? 'Historical data unavailable'
+            : k.aggregatedValue === null
+              ? 'No snapshot'
+              : k.unit === 'PERCENT'
+                ? summary.isCurrentYear
+                  ? 'Average across completed months'
+                  : `Average across ${k.monthsCovered} months`
+                : summary.isCurrentYear
+                  ? `Latest completed month: ${formatMonthLabel(summary.latestCompletedMonth)}`
+                  : `Latest available month: ${formatMonthLabel(k.latestAvailableMonth)}`,
+    }));
+
+    exportToExcel(`KPI_YTD_${year}`, 'YTD KPIs', exportData);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
-              href="/dashboard/kpi/historical"
+            href="/dashboard/kpi/historical"
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -176,24 +233,35 @@ export default function KpiYearPage() {
               {summary && (
                 <span
                   className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    'rounded-full px-2.5 py-0.5 text-xs font-medium',
                     summary.isFullYear
-                      ? "bg-green-100 text-green-700"
-                      : "bg-amber-100 text-amber-700",
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700',
                   )}
                 >
-                  {summary.isFullYear ? "Full Year" : "Year to Date"}
+                  {summary.isFullYear ? 'Full Year' : 'Year to Date'}
                 </span>
               )}
             </div>
             {summary && (
               <p className="text-sm text-gray-500">
-                {summary.monthsWithData} of 12 months have data ·{" "}
+                {summary.monthsWithData} of 12 months have data ·{' '}
                 {summary.fiscalLabel} for finance KPIs
               </p>
             )}
           </div>
         </div>
+
+        {/* Export Excel Button */}
+        {!loading && summary && (
+          <button
+            onClick={handleExport}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            <Download className="h-4 w-4" />
+            Export YTD Excel
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -210,7 +278,7 @@ export default function KpiYearPage() {
                   <div className="flex items-center gap-3">
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
                       {cat}
-                      {cat === "Finance" && (
+                      {cat === 'Finance' && (
                         <span className="ml-2 font-normal normal-case text-gray-400">
                           ({summary.fiscalLabel})
                         </span>
@@ -231,19 +299,20 @@ export default function KpiYearPage() {
                           {formatValue(k.aggregatedValue, k.unit)}
                         </p>
                         <p className="mt-1 text-xs text-gray-400">
-                          {k.historicalAvailability === "MANUAL_ENTRY_REQUIRED"
-                            ? "Manual entry required"
-                            : k.historicalAvailability === "HISTORICAL_DATA_UNAVAILABLE"
-                              ? "Historical data unavailable"
-                            : k.aggregatedValue === null
-                              ? "No snapshot"
-                              : k.unit === "PERCENT"
-                                ? summary.isCurrentYear
-                                  ? "Average across completed months"
-                                  : `Average across ${k.monthsCovered} months`
-                                : summary.isCurrentYear
-                                  ? `Latest completed month: ${formatMonthLabel(summary.latestCompletedMonth)}`
-                                  : `Latest available month: ${formatMonthLabel(k.latestAvailableMonth)}`}
+                          {k.historicalAvailability === 'MANUAL_ENTRY_REQUIRED'
+                            ? 'Manual entry required'
+                            : k.historicalAvailability ===
+                                'HISTORICAL_DATA_UNAVAILABLE'
+                              ? 'Historical data unavailable'
+                              : k.aggregatedValue === null
+                                ? 'No snapshot'
+                                : k.unit === 'PERCENT'
+                                  ? summary.isCurrentYear
+                                    ? 'Average across completed months'
+                                    : `Average across ${k.monthsCovered} months`
+                                  : summary.isCurrentYear
+                                    ? `Latest completed month: ${formatMonthLabel(summary.latestCompletedMonth)}`
+                                    : `Latest available month: ${formatMonthLabel(k.latestAvailableMonth)}`}
                         </p>
                       </div>
                     ))}
@@ -260,21 +329,38 @@ export default function KpiYearPage() {
                 Essential KPI Trends
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Monthly progress for the selected calendar year. Missing snapshots appear as gaps.
+                Monthly progress for the selected calendar year. Missing
+                snapshots appear as gaps.
               </p>
             </div>
             {hasAnnualTrendData ? (
-              <div className="mt-5 h-80 min-w-0" role="img" aria-label={`Essential KPI trends for ${year}`}>
+              <div
+                className="mt-5 h-80 min-w-0"
+                role="img"
+                aria-label={`Essential KPI trends for ${year}`}
+              >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={annualTrendData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                  <LineChart
+                    data={annualTrendData}
+                    margin={{ top: 8, right: 12, left: -12, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fill: "#6b7280", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} allowDecimals={false} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                    />
+                    <YAxis
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      allowDecimals={false}
+                    />
                     <Tooltip
-                      formatter={(value, name) => [Number(value).toLocaleString("en-IN"), String(name)]}
+                      formatter={(value, name) => [
+                        Number(value).toLocaleString('en-IN'),
+                        String(name),
+                      ]}
                       labelFormatter={(label) => `${label} ${year}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
                     {ESSENTIAL_TREND_KPIS.map((kpi) => (
                       <Line
                         key={kpi.key}
@@ -309,9 +395,7 @@ export default function KpiYearPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {MONTHS.map((name, idx) => {
                 const monthNum = idx + 1;
-                const status = monthStatuses.find(
-                  (s) => s.month === monthNum,
-                );
+                const status = monthStatuses.find((s) => s.month === monthNum);
                 const hasData = status?.hasData ?? false;
                 const isFuture =
                   yearNum === currentYear && monthNum > currentMonth;
@@ -326,12 +410,12 @@ export default function KpiYearPage() {
                       router.push(`/dashboard/kpi/${year}/${monthNum}`)
                     }
                     className={cn(
-                      "group rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-teal-500",
+                      'group rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-teal-500',
                       isFuture
-                        ? "cursor-not-allowed border-gray-100 bg-gray-50 opacity-40"
+                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 opacity-40'
                         : hasData
-                          ? "cursor-pointer border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-teal-300"
-                          : "cursor-pointer border-dashed border-gray-200 bg-white hover:border-gray-300",
+                          ? 'cursor-pointer border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-teal-300'
+                          : 'cursor-pointer border-dashed border-gray-200 bg-white hover:border-gray-300',
                     )}
                   >
                     <div className="flex items-start justify-between">
@@ -340,7 +424,7 @@ export default function KpiYearPage() {
                           {name.slice(0, 3)}
                         </p>
                         <p className="mt-0.5 text-lg font-bold text-gray-900">
-                          {String(monthNum).padStart(2, "0")}
+                          {String(monthNum).padStart(2, '0')}
                         </p>
                       </div>
                       {isCurrent ? (
@@ -355,15 +439,15 @@ export default function KpiYearPage() {
                     </div>
                     <p
                       className={cn(
-                        "mt-3 text-xs",
-                        hasData ? "text-green-600" : "text-gray-400",
+                        'mt-3 text-xs',
+                        hasData ? 'text-green-600' : 'text-gray-400',
                       )}
                     >
                       {isFuture
-                        ? "Upcoming"
+                        ? 'Upcoming'
                         : hasData
-                          ? "Data available"
-                          : "No data"}
+                          ? 'Data available'
+                          : 'No data'}
                     </p>
                   </button>
                 );

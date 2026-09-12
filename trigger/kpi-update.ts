@@ -24,11 +24,15 @@ import { schedules, task } from '@trigger.dev/sdk/v3';
 // crashes without reclaiming a normally running task.
 const STALE_PROCESSING_MS = 15 * 60 * 1000;
 
-async function claimKpiTask(targetMonth: string): Promise<{ id: string; claimed: boolean }> {
+async function claimKpiTask(
+  targetMonth: string,
+): Promise<{ id: string; claimed: boolean }> {
   let job = await prisma.kpiJobQueue.findUnique({ where: { targetMonth } });
   if (!job) {
     try {
-      job = await prisma.kpiJobQueue.create({ data: { targetMonth, status: 'PROCESSING', attempts: 1 } });
+      job = await prisma.kpiJobQueue.create({
+        data: { targetMonth, status: 'PROCESSING', attempts: 1 },
+      });
       return { id: job.id, claimed: true };
     } catch {
       job = await prisma.kpiJobQueue.findUnique({ where: { targetMonth } });
@@ -66,20 +70,28 @@ export const updateKpisTask = task({
       const claim = await claimKpiTask(monthStr);
       jobId = claim.id;
       if (!claim.claimed) {
-        return { success: true, message: 'KPI job already processing', month: monthStr };
+        return {
+          success: true,
+          message: 'KPI job already processing',
+          month: monthStr,
+        };
       }
 
-      console.log(`[TRIGGER.DEV] Starting background KPI update for ${monthStr}`);
+      console.log(
+        `[TRIGGER.DEV] Starting background KPI update for ${monthStr}`,
+      );
 
       const defs = await prisma.kPI.findMany({
-      where: { active: true },
-    });
+        where: { active: true },
+      });
 
       const finances = await computeFinances(monthDate);
-      const monthlyFinances = defs.some((definition) => [
-        'finance.revenue.monthly.lakhs',
-        'finance.expenditure.monthly.lakhs',
-      ].includes(definition.key))
+      const monthlyFinances = defs.some((definition) =>
+        [
+          'finance.revenue.monthly.lakhs',
+          'finance.expenditure.monthly.lakhs',
+        ].includes(definition.key),
+      )
         ? await computeMonthlyFinances(monthDate)
         : null;
 
@@ -88,148 +100,180 @@ export const updateKpisTask = task({
       const skipped: string[] = [];
 
       for (const k of defs) {
-      try {
-        switch (k.key) {
-          case 'students.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeStudentsTotal(monthDate),
-            );
-            break;
+        try {
+          switch (k.key) {
+            case 'students.total':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeStudentsTotal(monthDate),
+              );
+              break;
 
-          case 'classrooms.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeClassroomsTotal(monthDate),
-            );
-            break;
+            case 'classrooms.total':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeClassroomsTotal(monthDate),
+              );
+              break;
 
-          case 'classrooms.senior.share':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeSeniorShare(monthDate),
-            );
-            break;
+            case 'classrooms.senior.share':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeSeniorShare(monthDate),
+              );
+              break;
 
-          case 'students.passed.x':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeStudentsPassedX(monthDate),
-            );
-            break;
+            case 'students.passed.x':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeStudentsPassedX(monthDate),
+              );
+              break;
 
-          case 'tutors.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeTutorsTotal(monthDate),
-            );
-            break;
+            case 'tutors.total':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeTutorsTotal(monthDate),
+              );
+              break;
 
-          case 'members.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeMembersTotal(monthDate),
-            );
-            break;
+            case 'members.total':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeMembersTotal(monthDate),
+              );
+              break;
 
-          case 'persons.trained':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computePersonsTrained(monthDate),
-            );
-            break;
+            case 'persons.trained':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computePersonsTrained(monthDate),
+              );
+              break;
 
-          case 'projects.ongoing':
-            if (isHistoricalMonth) {
-              // Project status is mutable and there is no lifecycle history. Preserve
-              // existing historical AUTO snapshots rather than replacing them with an
-              // approximation based on today's status.
-              skipped.push(k.key);
-              console.warn('[TRIGGER.DEV] Skipped approximate historical project KPI recomputation', { month: monthStr, key: k.key });
+            case 'projects.ongoing':
+              if (isHistoricalMonth) {
+                // Project status is mutable and there is no lifecycle history. Preserve
+                // existing historical AUTO snapshots rather than replacing them with an
+                // approximation based on today's status.
+                skipped.push(k.key);
+                console.warn(
+                  '[TRIGGER.DEV] Skipped approximate historical project KPI recomputation',
+                  { month: monthStr, key: k.key },
+                );
+                continue;
+              }
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeProjectsOngoing(monthDate),
+              );
+              break;
+
+            case 'projects.past':
+              if (isHistoricalMonth) {
+                skipped.push(k.key);
+                console.warn(
+                  '[TRIGGER.DEV] Skipped approximate historical project KPI recomputation',
+                  { month: monthStr, key: k.key },
+                );
+                continue;
+              }
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeProjectsPast(monthDate),
+              );
+              break;
+
+            case 'centres.total':
+              await upsertAuto(
+                k.id,
+                monthDate,
+                await computeCentresTotal(monthDate),
+              );
+              break;
+
+            case 'finance.revenue.current.lakhs':
+              await upsertAuto(k.id, monthDate, finances.currentRevenue);
+              break;
+
+            case 'finance.expenditure.current.lakhs':
+              await upsertAuto(k.id, monthDate, finances.currentExpenditure);
+              break;
+
+            case 'finance.revenue.past.lakhs':
+              await upsertAuto(k.id, monthDate, finances.pastRevenue);
+              break;
+
+            case 'finance.expenditure.past.lakhs':
+              await upsertAuto(k.id, monthDate, finances.pastExpenditure);
+              break;
+
+            case 'finance.revenue.monthly.lakhs':
+              await upsertAuto(k.id, monthDate, monthlyFinances!.revenue);
+              break;
+
+            case 'finance.expenditure.monthly.lakhs':
+              await upsertAuto(k.id, monthDate, monthlyFinances!.expenditure);
+              break;
+
+            default:
+              console.warn(
+                `[TRIGGER.DEV] No compute handler found for KPI: ${k.key}`,
+              );
               continue;
-            }
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeProjectsOngoing(monthDate),
-            );
-            break;
+          }
 
-          case 'projects.past':
-            if (isHistoricalMonth) {
-              skipped.push(k.key);
-              console.warn('[TRIGGER.DEV] Skipped approximate historical project KPI recomputation', { month: monthStr, key: k.key });
-              continue;
-            }
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeProjectsPast(monthDate),
-            );
-            break;
-
-          case 'centres.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeCentresTotal(monthDate),
-            );
-            break;
-
-          case 'finance.revenue.current.lakhs':
-            await upsertAuto(k.id, monthDate, finances.currentRevenue);
-            break;
-
-          case 'finance.expenditure.current.lakhs':
-            await upsertAuto(k.id, monthDate, finances.currentExpenditure);
-            break;
-
-          case 'finance.revenue.past.lakhs':
-            await upsertAuto(k.id, monthDate, finances.pastRevenue);
-            break;
-
-          case 'finance.expenditure.past.lakhs':
-            await upsertAuto(k.id, monthDate, finances.pastExpenditure);
-            break;
-
-          case 'finance.revenue.monthly.lakhs':
-            await upsertAuto(k.id, monthDate, monthlyFinances!.revenue);
-            break;
-
-          case 'finance.expenditure.monthly.lakhs':
-            await upsertAuto(k.id, monthDate, monthlyFinances!.expenditure);
-            break;
-
-          default:
-            console.warn(
-              `[TRIGGER.DEV] No compute handler found for KPI: ${k.key}`,
-            );
-            continue;
+          updated++;
+        } catch (error) {
+          failed.push(k.key);
+          console.error(`[TRIGGER.DEV] Failed KPI update for ${k.key}`, error);
         }
-
-        updated++;
-      } catch (error) {
-        failed.push(k.key);
-        console.error(`[TRIGGER.DEV] Failed KPI update for ${k.key}`, error);
       }
-    }
 
       if (failed.length > 0) {
-        await prisma.kpiJobQueue.update({ where: { id: jobId }, data: { status: 'FAILED', lastError: `Failed KPIs: ${failed.join(', ')}` } });
+        await prisma.kpiJobQueue.update({
+          where: { id: jobId },
+          data: {
+            status: 'FAILED',
+            lastError: `Failed KPIs: ${failed.join(', ')}`,
+          },
+        });
         throw new Error(`KPI update failed for: ${failed.join(', ')}`);
       }
-      await prisma.kpiJobQueue.update({ where: { id: jobId }, data: { status: 'COMPLETED', lastError: null } });
-      return { success: true, updatedKPIs: updated, failedKPIs: [], skippedKPIs: skipped, month: monthStr };
+      await prisma.kpiJobQueue.update({
+        where: { id: jobId },
+        data: { status: 'COMPLETED', lastError: null },
+      });
+      return {
+        success: true,
+        updatedKPIs: updated,
+        failedKPIs: [],
+        skippedKPIs: skipped,
+        month: monthStr,
+      };
     } catch (error) {
       if (jobId) {
-        await prisma.kpiJobQueue.update({ where: { id: jobId }, data: { status: 'FAILED', lastError: error instanceof Error ? error.message : 'Unknown KPI task failure' } }).catch(() => undefined);
+        await prisma.kpiJobQueue
+          .update({
+            where: { id: jobId },
+            data: {
+              status: 'FAILED',
+              lastError:
+                error instanceof Error
+                  ? error.message
+                  : 'Unknown KPI task failure',
+            },
+          })
+          .catch(() => undefined);
       }
       throw error;
     }
@@ -242,6 +286,19 @@ export const dailyKpiSchedule = schedules.task({
   cron: '30 20 * * *',
   run: async () => {
     console.log('[TRIGGER.DEV] Daily KPI update schedule triggered.');
+
+    await updateKpisTask.trigger({
+      monthStr: currentMonthYYYYMM(),
+    });
+  },
+});
+
+export const monthlyKpiSchedule = schedules.task({
+  id: 'monthly-kpi-update',
+  // 20:30 UTC on the 27th is 02:00 IST on the 28th of the month
+  cron: '30 20 27 * *',
+  run: async () => {
+    console.log('[TRIGGER.DEV] Monthly KPI update schedule triggered.');
 
     await updateKpisTask.trigger({
       monthStr: currentMonthYYYYMM(),
