@@ -1,7 +1,10 @@
 import { authOptions } from '@/libs/authOptions';
 import { canViewKpis } from '@/libs/kpi/auth';
 import { historicalKpiSkipReason } from '@/libs/kpi/backfill';
-import { computeHistoricalProjectsPast } from '@/libs/kpi/compute';
+import {
+  computeHistoricalProjectsPast,
+  computeProjectsOngoing,
+} from '@/libs/kpi/compute';
 import { currentMonthYYYYMM } from '@/libs/kpi/month';
 import { parseKpiYear } from '@/libs/kpi/validation';
 import { getYearSummaryWindow, resolveEffectiveMonthlyValues } from '@/libs/kpi/yearSummary';
@@ -92,9 +95,11 @@ export async function GET(
       1,
     ))
     : null;
-  const historicalPastProjects = await computeHistoricalProjectsPast(
-    new Date(Date.UTC(yearNum, 0, 1)),
-  );
+  const projectYearDate = new Date(Date.UTC(yearNum, 0, 1));
+  const [historicalOngoingProjects, historicalPastProjects] = await Promise.all([
+    computeProjectsOngoing(projectYearDate),
+    computeHistoricalProjectsPast(projectYearDate),
+  ]);
 
   const summaryKpis = kpis.map((k) => {
     const isFinance = FINANCE_KPI_KEYS.includes(k.key);
@@ -107,7 +112,8 @@ export async function GET(
 
     const values = monthlyValues.map((entry) => entry.value);
     const hasData = monthlyValues.length > 0;
-    const isHistoricalProjectPast = k.key === 'projects.past';
+    const isSelectedYearProject =
+      k.key === 'projects.ongoing' || k.key === 'projects.past';
     const latestProjectManual = latestProjectSummaryMonth
       ? relevant.find(
           (value) =>
@@ -118,10 +124,13 @@ export async function GET(
 
     let aggregatedValue: number | null = null;
 
-    if (isHistoricalProjectPast && latestProjectSummaryMonth) {
+    if (isSelectedYearProject && latestProjectSummaryMonth) {
       // Each historical month uses the selected-year rule. A MANUAL entry for
       // the latest eligible month remains higher precedence than that value.
-      aggregatedValue = latestProjectManual?.value ?? historicalPastProjects;
+      aggregatedValue = latestProjectManual?.value ??
+        (k.key === 'projects.ongoing'
+          ? historicalOngoingProjects
+          : historicalPastProjects);
     } else if (hasData) {
       const latestValue = monthlyValues[monthlyValues.length - 1].value;
 
@@ -148,13 +157,13 @@ export async function GET(
       category: k.category,
       sortOrder: k.sortOrder,
       aggregatedValue,
-      monthsCovered: isHistoricalProjectPast && latestProjectSummaryMonth
+      monthsCovered: isSelectedYearProject && latestProjectSummaryMonth
         ? Math.max(
             values.length,
             (latestProjectSummaryMonth.getUTCMonth() + 1),
           )
         : values.length,
-      latestAvailableMonth: isHistoricalProjectPast && latestProjectSummaryMonth
+      latestAvailableMonth: isSelectedYearProject && latestProjectSummaryMonth
         ? latestProjectSummaryMonth.toISOString().slice(0, 7)
         : monthlyValues.at(-1)?.monthKey ?? null,
       fiscalLabel: isFinance ? fiscalLabel : null,

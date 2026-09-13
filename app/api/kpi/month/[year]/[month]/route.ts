@@ -3,7 +3,7 @@ import { canViewKpis } from "@/libs/kpi/auth";
 import { historicalKpiSkipReason } from "@/libs/kpi/backfill";
 import {
   computeHistoricalProjectsPast,
-  computeProjectsPast,
+  computeProjectsOngoing,
 } from "@/libs/kpi/compute";
 import { currentMonthYYYYMM, firstDayOfMonthFromYYYYMM } from "@/libs/kpi/month";
 import { parseKpiYear, parseMonthInput } from "@/libs/kpi/validation";
@@ -28,9 +28,13 @@ export async function GET(
   }
   const monthDate = firstDayOfMonthFromYYYYMM(monthStr);
   const isHistoricalMonth = monthStr < currentMonthYYYYMM();
-  const projectPastValue = isHistoricalMonth
-    ? await computeHistoricalProjectsPast(monthDate)
-    : await computeProjectsPast(monthDate);
+  // This explicit year/month route always follows selected-year project
+  // semantics, including for the current month. The live dashboard has its
+  // own cumulative meaning for projects.past.
+  const [projectOngoingValue, projectPastValue] = await Promise.all([
+    computeProjectsOngoing(monthDate),
+    computeHistoricalProjectsPast(monthDate),
+  ]);
 
   const kpis = await prisma.kPI.findMany({
     where: { active: true },
@@ -54,7 +58,14 @@ export async function GET(
       const manual = values.find((v) => v.source === "MANUAL");
       const auto = values.find((v) => v.source === "AUTO");
       const effective = manual ?? auto ?? null;
-      const useComputedProjectPast = k.key === "projects.past" && !manual;
+      const computedProjectValue = !manual
+        ? k.key === "projects.ongoing"
+          ? projectOngoingValue
+          : k.key === "projects.past"
+            ? projectPastValue
+            : null
+        : null;
+      const useComputedProjectValue = computedProjectValue !== null;
       const historicalRecomputationReason = isHistoricalMonth
         ? historicalKpiSkipReason(k.key)
         : null;
@@ -68,11 +79,11 @@ export async function GET(
         unit: k.unit,
         category: k.category,
         sortOrder: k.sortOrder,
-        value: useComputedProjectPast ? projectPastValue : effective?.value ?? null,
-        source: useComputedProjectPast ? "AUTO" : effective?.source ?? null,
+        value: useComputedProjectValue ? computedProjectValue : effective?.value ?? null,
+        source: useComputedProjectValue ? "AUTO" : effective?.source ?? null,
         notes: effective?.notes ?? null,
-        snapshotState: effective || useComputedProjectPast ? "SNAPSHOT" : "NO_SNAPSHOT",
-        historicalAvailability: !effective && !useComputedProjectPast && historicalRecomputationReason
+        snapshotState: effective || useComputedProjectValue ? "SNAPSHOT" : "NO_SNAPSHOT",
+        historicalAvailability: !effective && !useComputedProjectValue && historicalRecomputationReason
           ? k.key === "entrepreneurs.created"
             ? "MANUAL_ENTRY_REQUIRED"
             : "HISTORICAL_DATA_UNAVAILABLE"

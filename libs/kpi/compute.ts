@@ -82,45 +82,6 @@ function monthWindow(monthDate: Date) {
   return { start, endExclusive: nextMonthStart(start) };
 }
 
-// Helper to safely parse and check project year ranges
-function isTargetYearInProjectYear(
-  yearStr: string | null,
-  targetYear: number,
-): boolean {
-  if (!yearStr) return false;
-
-  // Split the string by '-' to get start and end parts, e.g., ["2025", "26"] or ["2025", "2027"]
-  const parts = yearStr.split('-').map((p) => p.trim());
-  if (parts.length === 0 || !parts[0]) return false;
-
-  const startYear = parseInt(parts[0], 10);
-  if (isNaN(startYear)) return false;
-
-  let endYear = startYear;
-
-  if (parts.length > 1 && parts[1]) {
-    const endPart = parseInt(parts[1], 10);
-    if (!isNaN(endPart)) {
-      if (endPart < 100) {
-        // Handle 2-digit years like "26" in "2025-26" -> converts to 2026
-        const century = Math.floor(startYear / 100) * 100;
-        endYear = century + endPart;
-
-        // Safety check if a cross-century wrap happens (e.g., 1999-00 -> 2000)
-        if (endYear < startYear) {
-          endYear += 100;
-        }
-      } else {
-        // Handle 4-digit years like "2027" in "2025-2027" -> 2027
-        endYear = endPart;
-      }
-    }
-  }
-
-  // Inclusive check: Target year must be between start and end year (extremes included)
-  return targetYear >= startYear && targetYear <= endYear;
-}
-
 export async function computeProjectsOngoing(monthDate: Date): Promise<number> {
   return computeProjectCount(monthDate, 'ONGOING');
 }
@@ -162,7 +123,7 @@ async function computeProjectCount(
   );
 
   return projects.filter((project) =>
-    isTargetYearInProjectYear(project.year, targetYear),
+    projectYearIncludes(project.year, targetYear),
   ).length;
 }
 
