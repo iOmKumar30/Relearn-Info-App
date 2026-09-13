@@ -93,7 +93,7 @@ export async function GET() {
         ? [`${incompleteInternCount} completed or dropped interns have no completionDate; intern KPI history may be overstated.`]
         : []),
       'students.passed.x uses all legacy board-result records whose passingYear equals the KPI snapshot year.',
-      'Historical project AUTO snapshots are intentionally excluded because project lifecycle history is unavailable.',
+      'Historical project AUTO recomputation is excluded because lifecycle history is unavailable. Historical projects.past views use current COMPLETED status and the selected project year, so they are approximate.',
       'entrepreneurs.created has no approved historical compute handler and is excluded from historical AUTO backfill.',
     ];
 
@@ -105,7 +105,7 @@ export async function GET() {
         sample: incompleteInterns,
       },
       historicalKpiWarnings: {
-        projects: 'Historical project recomputation is approximate because status is mutable and lifecycle event history is unavailable. Historical project AUTO snapshots are preserved.',
+        projects: 'Historical project AUTO recomputation is excluded because status is mutable and lifecycle event history is unavailable. Historical projects.past views use current COMPLETED status and the selected project year; MANUAL values still override it.',
         interns: 'Completed or dropped interns without completionDate are counted as historically active after their joining date until the data is corrected.',
         boardResults: `students.passed.x uses legacy board-result records by passingYear. ${boardResultCount} legacy result records are currently stored.`,
         entrepreneursCreated: 'entrepreneurs.created has no approved historical compute handler and is excluded from historical AUTO backfill.',

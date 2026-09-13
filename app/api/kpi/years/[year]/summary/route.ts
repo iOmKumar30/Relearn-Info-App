@@ -1,6 +1,7 @@
 import { authOptions } from '@/libs/authOptions';
 import { canViewKpis } from '@/libs/kpi/auth';
 import { historicalKpiSkipReason } from '@/libs/kpi/backfill';
+import { computeHistoricalProjectsPast } from '@/libs/kpi/compute';
 import { currentMonthYYYYMM } from '@/libs/kpi/month';
 import { parseKpiYear } from '@/libs/kpi/validation';
 import { getYearSummaryWindow, resolveEffectiveMonthlyValues } from '@/libs/kpi/yearSummary';
@@ -84,6 +85,16 @@ export async function GET(
   const currentKpiYear = Number(currentBusinessMonth.slice(0, 4));
   const isFullYear = yearNum < currentKpiYear && monthsWithData === 12;
   const isHistoricalYear = yearNum <= currentKpiYear;
+  const latestProjectSummaryMonth = window.calendarToExclusive > window.calendarFrom
+    ? new Date(Date.UTC(
+      window.calendarToExclusive.getUTCFullYear(),
+      window.calendarToExclusive.getUTCMonth() - 1,
+      1,
+    ))
+    : null;
+  const historicalPastProjects = await computeHistoricalProjectsPast(
+    new Date(Date.UTC(yearNum, 0, 1)),
+  );
 
   const summaryKpis = kpis.map((k) => {
     const isFinance = FINANCE_KPI_KEYS.includes(k.key);
@@ -96,10 +107,22 @@ export async function GET(
 
     const values = monthlyValues.map((entry) => entry.value);
     const hasData = monthlyValues.length > 0;
+    const isHistoricalProjectPast = k.key === 'projects.past';
+    const latestProjectManual = latestProjectSummaryMonth
+      ? relevant.find(
+          (value) =>
+            value.source === 'MANUAL' &&
+            value.month.getTime() === latestProjectSummaryMonth.getTime(),
+        )
+      : null;
 
     let aggregatedValue: number | null = null;
 
-    if (hasData) {
+    if (isHistoricalProjectPast && latestProjectSummaryMonth) {
+      // Each historical month uses the selected-year rule. A MANUAL entry for
+      // the latest eligible month remains higher precedence than that value.
+      aggregatedValue = latestProjectManual?.value ?? historicalPastProjects;
+    } else if (hasData) {
       const latestValue = monthlyValues[monthlyValues.length - 1].value;
 
       if (isFinance) {
@@ -125,8 +148,15 @@ export async function GET(
       category: k.category,
       sortOrder: k.sortOrder,
       aggregatedValue,
-      monthsCovered: values.length,
-      latestAvailableMonth: monthlyValues.at(-1)?.monthKey ?? null,
+      monthsCovered: isHistoricalProjectPast && latestProjectSummaryMonth
+        ? Math.max(
+            values.length,
+            (latestProjectSummaryMonth.getUTCMonth() + 1),
+          )
+        : values.length,
+      latestAvailableMonth: isHistoricalProjectPast && latestProjectSummaryMonth
+        ? latestProjectSummaryMonth.toISOString().slice(0, 7)
+        : monthlyValues.at(-1)?.monthKey ?? null,
       fiscalLabel: isFinance ? fiscalLabel : null,
       historicalAvailability: aggregatedValue === null && isHistoricalYear && historicalKpiSkipReason(k.key)
         ? k.key === 'entrepreneurs.created'

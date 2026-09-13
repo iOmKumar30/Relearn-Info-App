@@ -1,5 +1,6 @@
 import { authOptions } from "@/libs/authOptions";
 import { canViewKpis } from "@/libs/kpi/auth";
+import { computeProjectsPast } from "@/libs/kpi/compute";
 import {
   currentMonthYYYYMM,
   firstDayOfMonthFromYYYYMM,
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
     return new NextResponse("Forbidden", { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const monthStr = searchParams.get("month") || currentMonthYYYYMM();
+  const currentBusinessMonth = currentMonthYYYYMM();
+  const monthStr = searchParams.get("month") || currentBusinessMonth;
   if (!parseMonthInput(monthStr)) return new NextResponse("Invalid month", { status: 400 });
   const requestedMonthsBack = parseFiniteNumber(searchParams.get("monthsBack") || 6);
   if (requestedMonthsBack === null || !Number.isInteger(requestedMonthsBack)) return new NextResponse("Invalid monthsBack", { status: 400 });
@@ -26,6 +28,7 @@ export async function GET(req: Request) {
 
   const month = firstDayOfMonthFromYYYYMM(monthStr);
   const months = monthsBackArray(month, monthsBack);
+  const isLiveMonth = monthStr === currentBusinessMonth;
 
   const kpis = await prisma.kPI.findMany({
     where: { active: true },
@@ -42,6 +45,12 @@ export async function GET(req: Request) {
   const targetsByKpi = new Map<string, (typeof allTargets)[number]>();
   for (const target of allTargets) if (!targetsByKpi.has(target.kpiId)) targetsByKpi.set(target.kpiId, target);
 
+  // The live past-project card is intentionally a current cumulative count.
+  // A MANUAL value remains authoritative for the live month.
+  const livePastProjects = isLiveMonth
+    ? await computeProjectsPast(month)
+    : null;
+
   const out = kpis.map((k) => {
       const values = valuesByKpi.get(k.id) ?? [];
 
@@ -53,7 +62,14 @@ export async function GET(req: Request) {
         const auto = values.find(
           (v) => v.source === "AUTO" && v.month.getTime() === ms
         );
-        const eff = manual ?? auto;
+        const useLivePastProjects =
+          k.key === "projects.past" &&
+          isLiveMonth &&
+          m.getTime() === month.getTime() &&
+          !manual;
+        const eff = useLivePastProjects
+          ? { value: livePastProjects, source: "AUTO" as const }
+          : manual ?? auto;
         return {
           month: m.toISOString(),
           value: eff?.value ?? null,

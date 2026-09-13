@@ -1,6 +1,10 @@
 import { authOptions } from "@/libs/authOptions";
 import { canViewKpis } from "@/libs/kpi/auth";
 import { historicalKpiSkipReason } from "@/libs/kpi/backfill";
+import {
+  computeHistoricalProjectsPast,
+  computeProjectsPast,
+} from "@/libs/kpi/compute";
 import { currentMonthYYYYMM, firstDayOfMonthFromYYYYMM } from "@/libs/kpi/month";
 import { parseKpiYear, parseMonthInput } from "@/libs/kpi/validation";
 import prisma from "@/libs/prismadb";
@@ -24,6 +28,9 @@ export async function GET(
   }
   const monthDate = firstDayOfMonthFromYYYYMM(monthStr);
   const isHistoricalMonth = monthStr < currentMonthYYYYMM();
+  const projectPastValue = isHistoricalMonth
+    ? await computeHistoricalProjectsPast(monthDate)
+    : await computeProjectsPast(monthDate);
 
   const kpis = await prisma.kPI.findMany({
     where: { active: true },
@@ -47,6 +54,7 @@ export async function GET(
       const manual = values.find((v) => v.source === "MANUAL");
       const auto = values.find((v) => v.source === "AUTO");
       const effective = manual ?? auto ?? null;
+      const useComputedProjectPast = k.key === "projects.past" && !manual;
       const historicalRecomputationReason = isHistoricalMonth
         ? historicalKpiSkipReason(k.key)
         : null;
@@ -60,11 +68,11 @@ export async function GET(
         unit: k.unit,
         category: k.category,
         sortOrder: k.sortOrder,
-        value: effective?.value ?? null,
-        source: effective?.source ?? null,
+        value: useComputedProjectPast ? projectPastValue : effective?.value ?? null,
+        source: useComputedProjectPast ? "AUTO" : effective?.source ?? null,
         notes: effective?.notes ?? null,
-        snapshotState: effective ? "SNAPSHOT" : "NO_SNAPSHOT",
-        historicalAvailability: !effective && historicalRecomputationReason
+        snapshotState: effective || useComputedProjectPast ? "SNAPSHOT" : "NO_SNAPSHOT",
+        historicalAvailability: !effective && !useComputedProjectPast && historicalRecomputationReason
           ? k.key === "entrepreneurs.created"
             ? "MANUAL_ENTRY_REQUIRED"
             : "HISTORICAL_DATA_UNAVAILABLE"

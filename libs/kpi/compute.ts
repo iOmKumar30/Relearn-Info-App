@@ -125,7 +125,25 @@ export async function computeProjectsOngoing(monthDate: Date): Promise<number> {
   return computeProjectCount(monthDate, 'ONGOING');
 }
 
-export async function computeProjectsPast(monthDate: Date): Promise<number> {
+/**
+ * Live "Past Projects" is a cumulative operational metric: every project
+ * currently marked COMPLETED, independent of the reporting month/year.
+ */
+export async function computeProjectsPast(_monthDate: Date): Promise<number> {
+  return withTimeout(
+    prisma.project.count({ where: { status: 'COMPLETED' } }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
+/**
+ * Historical project views use the selected KPI year. Project lifecycle dates
+ * are unavailable, so this is an approximation based on current status and
+ * the stored project year string.
+ */
+export async function computeHistoricalProjectsPast(
+  monthDate: Date,
+): Promise<number> {
   return computeProjectCount(monthDate, 'COMPLETED');
 }
 
@@ -134,8 +152,8 @@ async function computeProjectCount(
   status: 'ONGOING' | 'COMPLETED',
 ): Promise<number> {
   // Project has only mutable status plus a year string, not lifecycle events. This
-  // is suitable for the live month only; historical recomputation is intentionally
-  // skipped by the queue so existing AUTO snapshots remain legacy records.
+  // supports the selected-year historical display, but is not an immutable
+  // historical lifecycle snapshot. The queue still skips historical AUTO backfill.
   const targetYear = normalizeMonthDate(monthDate).getUTCFullYear();
 
   const projects = await withTimeout(
@@ -143,7 +161,6 @@ async function computeProjectCount(
     KPI_COMPUTATION_TIMEOUT,
   );
 
-  // Use the robust parsing function to check if target year is inside the project year range
   return projects.filter((project) =>
     isTargetYearInProjectYear(project.year, targetYear),
   ).length;

@@ -293,15 +293,3 @@ export const dailyKpiSchedule = schedules.task({
   },
 });
 
-export const monthlyKpiSchedule = schedules.task({
-  id: 'monthly-kpi-update',
-  // 20:30 UTC on the 27th is 02:00 IST on the 28th of the month
-  cron: '30 20 27 * *',
-  run: async () => {
-    console.log('[TRIGGER.DEV] Monthly KPI update schedule triggered.');
-
-    await updateKpisTask.trigger({
-      monthStr: currentMonthYYYYMM(),
-    });
-  },
-});
