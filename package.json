@@ -23,6 +23,7 @@
     "@uploadthing/react": "^7.3.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "@vercel/analytics": "^2.0.1",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "clsx": "^2.1.1",
@@ -56,6 +57,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@trigger.dev/build": "4.5.16",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^20.19.9",
     "@types/pg": "^8.15.6",
@@ -66,7 +68,6 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "@trigger.dev/build": "4.5.16",
     "tsx": "^4.22.3",
     "typescript": "^5.8.3"
   },
