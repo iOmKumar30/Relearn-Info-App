@@ -1,6 +1,6 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 function userHasAccess(
   userRoles: string[] | undefined,
@@ -14,7 +14,10 @@ export function useRBAC(allowedRoles: string[]) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const userRoles = session?.user?.roles?.map((r) => r.toUpperCase()) ?? [];
+  const userRoles = useMemo(
+    () => session?.user?.roles?.map((r) => r.toUpperCase()) ?? [],
+    [session?.user?.roles],
+  );
   const hasAccess = userHasAccess(userRoles, allowedRoles);
 
   useEffect(() => {

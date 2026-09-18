@@ -1,5 +1,3 @@
-'use client';
-
 import KpiEntryCard from '@/components/dashboard/KpiEntryCard';
 
 export default function Dashboard() {

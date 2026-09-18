@@ -1,11 +1,12 @@
-import html2canvas from "html2canvas-pro";
-import jsPDF from "jspdf";
-
 export async function downloadReceiptAsPDF(opts: {
   element: HTMLElement;
   filename: string;
   scale?: number;
 }) {
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import("html2canvas-pro"),
+    import("jspdf"),
+  ]);
   const { element, filename, scale = 2 } = opts;
 
   // 1. Capture the element

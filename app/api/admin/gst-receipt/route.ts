@@ -119,7 +119,8 @@ export async function GET(req: Request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // if (!(await isAdmin(session.user.id))) return new NextResponse("Forbidden", { status: 403 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);

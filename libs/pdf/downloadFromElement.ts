@@ -1,6 +1,3 @@
-import html2canvas from "html2canvas-pro";
-import jsPDF from "jspdf";
-
 export async function downloadElementAsPDF(opts: {
   element: HTMLElement;
   filename: string;
@@ -8,6 +5,10 @@ export async function downloadElementAsPDF(opts: {
   // scale improves sharpness; 2 or 3 recommended
   scale?: number;
 }) {
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import("html2canvas-pro"),
+    import("jspdf"),
+  ]);
   const { element, filename, scale = 2 } = opts;
 
   const canvas = await html2canvas(element, {

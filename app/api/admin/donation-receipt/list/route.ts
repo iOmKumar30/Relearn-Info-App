@@ -1,4 +1,5 @@
 import { authOptions } from "@/libs/authOptions";
+import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -11,8 +12,8 @@ export async function GET(req: Request) {
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
-  // Optional: Check admin status
-  // if (!(await isAdmin(session.user.id))) return new NextResponse("Forbidden", { status: 403 });
+  if (!(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);

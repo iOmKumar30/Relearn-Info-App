@@ -264,13 +264,6 @@ export const authOptions: AuthOptions = {
     // inside callbacks: { jwt: async ({ token, user, account }) => { ... } }
     async jwt({ token, user, account }) {
       try {
-        // Debug: log the incoming pieces (remove or reduce logging in production)
-        console.log("JWT callback start", {
-          hasUser: !!user,
-          tokenSub: token.sub,
-          email: token.email,
-        });
-
         // On initial sign-in NextAuth supplies `user`. Use it to seed token quickly.
         if (user) {
           // prefer explicit user.id if provider returned it (Credentials did)
@@ -334,12 +327,6 @@ export const authOptions: AuthOptions = {
         // final normalization: upper-case role names for consistent checks
         if (Array.isArray(token.roles))
           token.roles = token.roles.map((r: string) => String(r).toUpperCase());
-
-        // log the token
-        console.log("JWT callback done", {
-          userId: token.userId,
-          roles: token.roles,
-        });
 
         return token;
       } catch (err: any) {

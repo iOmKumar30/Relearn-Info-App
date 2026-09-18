@@ -1,6 +1,6 @@
 "use client";
 
-import { ExportColumn, exportToXlsx } from "@/libs/export/xlsx";
+import type { ExportColumn } from "@/libs/export/xlsx";
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import { Download } from "lucide-react";
 import { useState } from "react";
@@ -24,10 +24,15 @@ export default function ExportXlsxButton({
 }: Props) {
   const [busy, setBusy] = useState<"visible" | "all" | null>(null);
 
+  const exportRows = async (rows: Record<string, any>[]) => {
+    const { exportToXlsx } = await import("@/libs/export/xlsx");
+    exportToXlsx(rows, { fileName, columns, sheetName, preface });
+  };
+
   const onExportVisible = async () => {
     try {
       setBusy("visible");
-      exportToXlsx(visibleRows, { fileName, columns, sheetName, preface });
+      await exportRows(visibleRows);
     } finally {
       setBusy(null);
     }
@@ -38,7 +43,7 @@ export default function ExportXlsxButton({
     try {
       setBusy("all");
       const all = await fetchAll();
-      exportToXlsx(all, { fileName, columns, sheetName, preface });
+      await exportRows(all);
     } finally {
       setBusy(null);
     }

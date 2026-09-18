@@ -2,9 +2,14 @@ import { formatKpiValue } from "@/libs/kpi/format";
 import { cn } from "@/libs/kpi/utils";
 import { motion } from "framer-motion";
 import { Activity, Target } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import CountUp from "react-countup";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
+
+const KpiTrendChart = dynamic(() => import("./KpiTrendChart"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full" />,
+});
 
 export type TrendPt = {
   month: string;
@@ -156,31 +161,7 @@ export function KpiCard({ kpi, index }: { kpi: KpiDto; index: number }) {
         </div>
 
         <div className="h-10 w-full pt-2 opacity-60 transition-opacity group-hover:opacity-100">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient
-                  id={`gradient-${kpi.id}`}
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill={`url(#gradient-${kpi.id})`}
-                isAnimationActive={true}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <KpiTrendChart data={chartData} kpiId={kpi.id} />
         </div>
       </div>
     </motion.div>

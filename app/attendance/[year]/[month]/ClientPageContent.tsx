@@ -25,7 +25,6 @@ import {
   HiUpload,
   HiXCircle,
 } from "react-icons/hi";
-import * as XLSX from "xlsx";
 import {
   bulkUploadAttendance,
   clearMonthAttendance,
@@ -195,7 +194,7 @@ export default function ClientPageContent({
       setIsProcessing(false);
     }
   };
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     const templateData: any[] = [];
 
     initialData.forEach((centre) => {
@@ -224,6 +223,7 @@ export default function ClientPageContent({
       return;
     }
 
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Attendance_Template");
@@ -325,6 +325,7 @@ export default function ClientPageContent({
 
     reader.onload = async (evt) => {
       try {
+        const XLSX = await import("xlsx");
         const buffer = evt.target?.result as ArrayBuffer;
         const wb = XLSX.read(buffer, { type: "array" });
         const wsname = wb.SheetNames[0];

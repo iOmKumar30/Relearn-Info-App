@@ -13,8 +13,6 @@ export default async function Layout({ children }: { children: ReactNode }) {
   const roles = Array.isArray((session as any)?.user?.roles)
     ? ((session as any).user.roles as Role[])
     : [];
-  console.log("Roles for sidebar:", roles);
-
   return (
     <>
       <SidebarLayout roles={roles}>{children}</SidebarLayout>

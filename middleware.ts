@@ -29,6 +29,7 @@ const PROTECTED_ROUTES: Record<string, string[]> = {
   "/pending-users": ["ADMIN"],
   "/facilitators": ["ADMIN", "RELF_EMPLOYEE"],
   "/tutors": ["ADMIN"],
+  "/admin": ["ADMIN"],
 };
 
 const PENDING_PATH = "/pending";
@@ -230,12 +231,6 @@ export async function middleware(req: NextRequest) {
   // Check JWT token for protected routes
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  console.log("MIDDLEWARE token:", {
-    path: pathname,
-    tokenSub: token?.sub,
-    roles: (token as any)?.roles,
-  });
-
   if (!token || !Array.isArray((token as any).roles)) {
     // Not authenticated -send to landing page
     return NextResponse.redirect(new URL("/", req.url));
@@ -300,7 +295,8 @@ export const config = {
     "/pending-users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
+    "/admin/:path*",
     "/intern-registration/:path*",
-    // "/pending/:path*",
+    "/pending/:path*",
   ],
 };

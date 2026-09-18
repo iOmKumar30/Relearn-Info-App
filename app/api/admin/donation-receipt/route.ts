@@ -2,6 +2,7 @@ import { authOptions } from "@/libs/authOptions";
 import getFinancialYear from "@/libs/getFinancialYear";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { syncDonationQueueTask } from "@/trigger/donation-sync";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -45,32 +46,49 @@ export async function POST(req: Request) {
 
     const financialYear = getFinancialYear();
 
-    const counter = await prisma.counter.upsert({
-      where: { financialYear },
-      update: { seq: { increment: 1 } },
-      create: { financialYear, seq: 1 },
+    const created = await prisma.$transaction(async (tx) => {
+      const counter = await tx.counter.upsert({
+        where: { financialYear },
+        update: { seq: { increment: 1 } },
+        create: { financialYear, seq: 1 },
+      });
+
+      const serialNumber = counter.seq.toString().padStart(3, "0");
+      const receiptNumber = `RELF/FY ${financialYear}/${serialNumber}`;
+      const donation = await tx.donation.create({
+        data: {
+          receiptNumber,
+          date,
+          name,
+          email,
+          contact,
+          address,
+          pan: pan || "",
+          amount,
+          reason,
+          remarks,
+          method,
+          gstno,
+          transactionId,
+        },
+      });
+
+      await tx.donationSyncQueue.create({
+        data: { donationId: donation.id },
+      });
+
+      return donation;
     });
 
-    const serialNumber = counter.seq.toString().padStart(3, "0");
-    const receiptNumber = `RELF/FY ${financialYear}/${serialNumber}`;
-
-    const created = await prisma.donation.create({
-      data: {
-        receiptNumber,
-        date,
-        name,
-        email,
-        contact,
-        address,
-        pan: pan || "",
-        amount,
-        reason,
-        remarks,
-        method,
-        gstno,
-        transactionId,
-      },
-    });
+    // The transactional outbox makes the sync durable; Trigger.dev is invoked
+    // only for a newly-created donation, rather than polling Neon indefinitely.
+    try {
+      await syncDonationQueueTask.trigger({ donationId: created.id });
+    } catch (triggerError) {
+      // Keep the receipt successful and leave the durable outbox row pending;
+      // operators can replay it without asking the donor to submit again.
+      console.error("DONATION_SYNC_TRIGGER_ERROR", triggerError);
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {

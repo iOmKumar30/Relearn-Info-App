@@ -15,5 +15,9 @@ export default async function Layout({ children }: { children: ReactNode }) {
     ? ((session as any).user.roles as Role[])
     : [];
 
+  if (!roles.includes("ADMIN")) {
+    redirect("/dashboard");
+  }
+
   return <SidebarLayout roles={roles}>{children}</SidebarLayout>;
 }
