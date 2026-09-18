@@ -214,6 +214,7 @@ export async function computeMembersTotal(monthDate: Date): Promise<number> {
   return withTimeout(
     prisma.member.count({
       where: {
+        status: 'ACTIVE',
         joiningDate: { lt: endExclusive },
         OR: [{ leavingDate: null }, { leavingDate: { gte: start } }],
         typeHistory: {
