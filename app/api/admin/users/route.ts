@@ -16,6 +16,18 @@ import {
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+
+// These are UI-only filters, not RoleName enum values. Membership remains a
+// single MEMBER role in the database; the selected member type lives on the
+// related Member record.
+const MEMBER_TYPE_ROLE_FILTERS: Record<string, MemberType> = {
+  ANNUAL_MEMBER: MemberType.ANNUAL,
+  LIFE_MEMBER: MemberType.LIFE,
+  HONORARY_MEMBER: MemberType.HONORARY,
+  FOUNDER_MEMBER: MemberType.FOUNDER,
+  INTERN: MemberType.INTERN,
+};
+
 // GET /api/admin/users?page=&pageSize=&q=
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -52,14 +64,24 @@ export async function GET(req: Request) {
   }
 
   if (role) {
-    where.roleHistory = {
-      some: {
-        endDate: null,
-        role: {
-          name: role as RoleName,
+    const memberType = MEMBER_TYPE_ROLE_FILTERS[role];
+
+    if (memberType) {
+      where.member = {
+        is: { memberType },
+      };
+    } else if (Object.values(RoleName).includes(role as RoleName)) {
+      where.roleHistory = {
+        some: {
+          endDate: null,
+          role: {
+            name: role as RoleName,
+          },
         },
-      },
-    };
+      };
+    } else {
+      return new NextResponse("Invalid role filter", { status: 400 });
+    }
   }
 
   const [total, rows] = await Promise.all([
