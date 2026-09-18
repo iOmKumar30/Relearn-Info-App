@@ -1,7 +1,7 @@
 import { authOptions } from '@/libs/authOptions';
 import { isAdmin } from '@/libs/isAdmin';
 import prisma from '@/libs/prismadb';
-import { InternStatus, UserStatus } from '@prisma/client';
+import { InternStatus, MemberStatus, UserStatus } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -88,10 +88,31 @@ export async function PUT(
           userData.status = UserStatus.ACTIVE;
         }
 
-        await tx.user.update({
-          where: { id: existingIntern.userId },
-          data: userData,
-        });
+        const now = new Date();
+        await Promise.all([
+          tx.user.update({
+            where: { id: existingIntern.userId },
+            data: userData,
+          }),
+          ...(updateData.status === InternStatus.COMPLETED
+            ? [
+                tx.member.updateMany({
+                  where: {
+                    userId: existingIntern.userId,
+                    status: MemberStatus.ACTIVE,
+                  },
+                  data: { status: MemberStatus.INACTIVE },
+                }),
+                tx.memberTypeHistory.updateMany({
+                  where: {
+                    member: { userId: existingIntern.userId },
+                    endDate: null,
+                  },
+                  data: { endDate: now },
+                }),
+              ]
+            : []),
+        ]);
       }
 
       return updatedIntern;
