@@ -2,6 +2,7 @@ import {
   computeCentresTotal,
   computeClassroomsTotal,
   computeFinances,
+  computeLiveMembersTotal,
   computeMonthlyFinances,
   computeMembersTotal,
   computePersonsTrained,
@@ -12,6 +13,7 @@ import {
   computeStudentsTotal,
   computeTutorsTotal,
   upsertAuto,
+  upsertLiveAuto,
 } from '@/libs/kpi/compute';
 import { currentMonthYYYYMM, firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
 import prisma from '@/libs/prismadb';
@@ -128,13 +130,19 @@ export async function executeWorkerJob() {
             );
             break;
 
-          case 'members.total':
-            await upsertAuto(
-              k.id,
-              monthDate,
-              await computeMembersTotal(monthDate),
-            );
+          case 'members.total': {
+            // Preserve the monthly reporting snapshot and update the separate
+            // live core-member count used by the current dashboard.
+            const [monthlyMembers, liveMembers] = await Promise.all([
+              computeMembersTotal(monthDate),
+              computeLiveMembersTotal(),
+            ]);
+            await Promise.all([
+              upsertAuto(k.id, monthDate, monthlyMembers),
+              upsertLiveAuto(k.id, liveMembers),
+            ]);
             break;
+          }
 
           case 'persons.trained':
             await upsertAuto(

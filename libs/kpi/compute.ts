@@ -41,6 +41,7 @@ type InternCountClient = {
 };
 
 type AutoValueClient = Pick<typeof prisma, 'kPIMonthlyValue'>;
+type LiveValueClient = Pick<typeof prisma, 'kPILiveValue'>;
 
 export function logOperation(
   level: 'info' | 'warn' | 'error',
@@ -230,6 +231,25 @@ export async function computeMembersTotal(monthDate: Date): Promise<number> {
   );
 }
 
+/**
+ * Current operational core-member count for the live dashboard.
+ *
+ * Monthly KPI snapshots deliberately use membership history and month bounds in
+ * computeMembersTotal(). This count instead reflects the Member record as it
+ * stands today, so the live card matches the active member register.
+ */
+export async function computeLiveMembersTotal(): Promise<number> {
+  return withTimeout(
+    prisma.member.count({
+      where: {
+        status: 'ACTIVE',
+        memberType: { in: ['ANNUAL', 'HONORARY', 'LIFE', 'FOUNDER'] },
+      },
+    }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
 export function personsTrainedMonthFilter(
   monthDate: Date,
 ): Prisma.InternWhereInput {
@@ -359,6 +379,26 @@ export async function upsertAuto(
       },
       update: { value },
       create: { kpiId, month: normalizedMonth, value, source: 'AUTO' },
+    }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
+export async function upsertLiveAuto(
+  kpiId: string,
+  value: number,
+  capturedAt = new Date(),
+  client: LiveValueClient = prisma,
+): Promise<void> {
+  if (!kpiId || !Number.isFinite(value)) {
+    throw new Error('Invalid live KPI value');
+  }
+
+  await withTimeout(
+    client.kPILiveValue.upsert({
+      where: { kpiId },
+      update: { value, capturedAt },
+      create: { kpiId, value, capturedAt },
     }),
     KPI_COMPUTATION_TIMEOUT,
   );
