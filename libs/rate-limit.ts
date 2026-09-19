@@ -40,3 +40,10 @@ export const googleAuthRatelimit = new Ratelimit({
   analytics: true,
   prefix: "rl:login:google",
 });
+
+export const passwordChangeRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "15 m"),
+  analytics: true,
+  prefix: "rl:password-change",
+});

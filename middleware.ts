@@ -298,5 +298,6 @@ export const config = {
     "/admin/:path*",
     "/intern-registration/:path*",
     "/pending/:path*",
+    "/profile/:path*",
   ],
 };

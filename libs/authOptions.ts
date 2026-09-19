@@ -262,8 +262,18 @@ export const authOptions: AuthOptions = {
 
     // Persist id/roles/onboardingStatus in the token; hydrate when missing
     // inside callbacks: { jwt: async ({ token, user, account }) => { ... } }
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       try {
+        // Self-service profile edits update the current JWT presentation data.
+        // Authorization remains based on the server-validated user id and roles.
+        if (trigger === "update" && session) {
+          const update = session as { name?: unknown; email?: unknown; image?: unknown };
+          if (typeof update.name === "string") token.name = update.name;
+          if (typeof update.email === "string") token.email = update.email;
+          if (typeof update.image === "string") token.picture = update.image;
+          else if (update.image === null) token.picture = undefined;
+        }
+
         // On initial sign-in NextAuth supplies `user`. Use it to seed token quickly.
         if (user) {
           // prefer explicit user.id if provider returned it (Credentials did)
@@ -341,6 +351,9 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         session.user.id = (token.userId as string) || (token.sub as string);
         session.user.roles = (token.roles as string[]) || [];
+        session.user.name = typeof token.name === "string" ? token.name : null;
+        session.user.email = typeof token.email === "string" ? token.email : null;
+        session.user.image = typeof token.picture === "string" ? token.picture : null;
         (session.user as any).onboardingStatus = token.onboardingStatus as
           | string
           | undefined;

@@ -15,6 +15,7 @@ declare module "next-auth" {
     id: string;
     roles?: string[];
     onboardingStatus?: string;
+    image?: string | null;
   }
 }
 

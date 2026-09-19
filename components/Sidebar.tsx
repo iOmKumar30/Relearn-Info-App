@@ -12,6 +12,11 @@ import SidebarItem from "./Sidebar/SidebarItem";
 interface LayoutProps {
   children: React.ReactNode;
   roles: Role[] | null;
+  profile: {
+    name: string | null;
+    email: string;
+    avatarUrl: string | null;
+  } | null;
 }
 
 /**
@@ -34,7 +39,7 @@ function unionRoleMenus(roles: Role[] | undefined | null): NavEntry[] {
   return unique;
 }
 
-export default function SidebarLayout({ children, roles }: LayoutProps) {
+export default function SidebarLayout({ children, roles, profile }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -154,20 +159,27 @@ export default function SidebarLayout({ children, roles }: LayoutProps) {
                 !collapsed ? "flex-1 min-w-0" : ""
               }`}
               title="View Profile"
+              onClick={handleItemClick}
             >
-              <div className="h-9 w-9 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-gray-600 transition-colors shrink-0">
-                <UserIcon size={18} />
+              <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-gray-600 transition-colors shrink-0">
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <UserIcon size={18} />
+                )}
               </div>
 
               {(!collapsed || isMobile) && (
                 <div className="overflow-hidden">
-                  {/* We will put name here */}
                   <p className="text-sm font-medium text-gray-200 group-hover:text-white truncate transition-colors">
-                    User Profile
+                    {profile?.name || "User Profile"}
                   </p>
-                  {/* We will put email here */}
                   <p className="text-xs text-gray-500 truncate">
-                    {roles?.[0] || "Guest"}
+                    {profile?.email || roles?.[0] || "Guest"}
                   </p>
                 </div>
               )}

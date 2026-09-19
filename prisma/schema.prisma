@@ -82,6 +82,7 @@ model User {
   status                   UserStatus                   @default(ACTIVE)
   sessionVersion           Int?                         @default(0)
   gender                   Gender?
+  avatarUrl                String?                      @map("avatar_url")
   roleHistory              UserRoleHistory[]
   employee                 Employee?
   member                   Member?
