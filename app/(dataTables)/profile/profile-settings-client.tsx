@@ -1,6 +1,7 @@
 "use client";
 
-import { UploadButton } from "@/libs/uploadthing";
+import { useUploadThing } from "@/libs/uploadthing";
+import ProfilePhotoCropper from "./profile-photo-cropper";
 import {
   Camera,
   CheckCircle2,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
 type Profile = {
@@ -67,6 +68,9 @@ export default function ProfileSettingsClient() {
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [photoToCrop, setPhotoToCrop] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const { startUpload: uploadProfilePhoto, isUploading: isPhotoUploading } = useUploadThing("profilePhoto");
 
   useEffect(() => {
     let mounted = true;
@@ -98,6 +102,36 @@ export default function ProfileSettingsClient() {
 
   function updateField<Key extends keyof Profile>(key: Key, value: Profile[Key]) {
     setForm((current) => (current ? { ...current, [key]: value } : current));
+  }
+
+  function selectProfilePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file for your profile photo");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Choose an image smaller than 2 MB");
+      event.target.value = "";
+      return;
+    }
+    setPhotoToCrop(file);
+  }
+
+  async function uploadCroppedProfilePhoto(file: File) {
+    try {
+      const result = await uploadProfilePhoto([file]);
+      const url = result?.[0]?.url;
+      if (!url) throw new Error("The photo upload did not return a file URL");
+      updateField("avatarUrl", url);
+      setPhotoToCrop(null);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+      toast.success("Photo ready. Save your profile to apply it.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Photo upload failed. Please try again.");
+    }
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -263,24 +297,10 @@ export default function ProfileSettingsClient() {
             <h2 className="mt-4 font-bold text-slate-900">Profile photo</h2>
             <p className="mt-1 text-sm leading-5 text-slate-500">Use a square image up to 2 MB for the best result.</p>
             <div className="mt-4 flex flex-col items-center gap-2">
-              <UploadButton
-                endpoint="profilePhoto"
-                appearance={{
-                  button: "ut-ready:bg-blue-600 ut-uploading:cursor-not-allowed rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700",
-                  allowedContent: "hidden",
-                }}
-                content={{ button: ({ ready }) => ready ? <span className="inline-flex items-center gap-2"><Camera className="h-4 w-4" />Upload photo</span> : "Preparing upload…" }}
-                onClientUploadComplete={(result) => {
-                  const url = result?.[0]?.url;
-                  if (url) {
-                    updateField("avatarUrl", url);
-                    toast.success("Photo ready. Save your profile to apply it.");
-                  }
-                }}
-                onUploadError={() => {
-                  toast.error("Photo upload failed. Please try another image.");
-                }}
-              />
+              <input ref={photoInputRef} id="profile-photo-input" type="file" accept="image/*" className="sr-only" onChange={selectProfilePhoto} />
+              <label htmlFor="profile-photo-input" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-within:outline-none focus-within:ring-4 focus-within:ring-blue-500/20">
+                <Camera className="h-4 w-4" />Choose and crop photo
+              </label>
               {form.avatarUrl && (
                 <button type="button" onClick={() => updateField("avatarUrl", null)} className="text-xs font-semibold text-rose-600 transition hover:text-rose-700">Remove photo</button>
               )}
@@ -329,6 +349,19 @@ export default function ProfileSettingsClient() {
           <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800"><Mail className="mr-2 inline h-4 w-4" />This account uses an external sign-in provider. Manage its password with that provider.</div>
         )}
       </section>
+      {photoToCrop && (
+        <ProfilePhotoCropper
+          file={photoToCrop}
+          uploading={isPhotoUploading}
+          onCancel={() => {
+            if (!isPhotoUploading) {
+              setPhotoToCrop(null);
+              if (photoInputRef.current) photoInputRef.current.value = "";
+            }
+          }}
+          onConfirm={uploadCroppedProfilePhoto}
+        />
+      )}
     </div>
   );
 }
