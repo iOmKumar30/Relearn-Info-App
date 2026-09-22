@@ -304,7 +304,7 @@ export default function ProfileSettingsClient() {
           <div className="rounded-xl bg-amber-50 p-2 text-amber-700"><KeyRound className="h-5 w-5" /></div>
           <div>
             <h2 className="font-bold text-slate-900">Change password</h2>
-            <p className="mt-1 text-sm text-slate-500">Use at least 12 characters. You will be signed out after changing it.</p>
+            <p className="mt-1 text-sm text-slate-500">You will be signed out after changing it.</p>
           </div>
         </div>
 
@@ -314,7 +314,7 @@ export default function ProfileSettingsClient() {
               <div key={field}>
                 <FieldLabel>{field === "currentPassword" ? "Current password" : field === "newPassword" ? "New password" : "Confirm new password"}</FieldLabel>
                 <div className="relative">
-                  <input className={`${inputClass} pr-11`} type={showPasswords ? "text" : "password"} value={passwordForm[field]} onChange={(event) => setPasswordForm((current) => ({ ...current, [field]: event.target.value }))} autoComplete={field === "currentPassword" ? "current-password" : "new-password"} minLength={field === "currentPassword" ? undefined : 12} required />
+                  <input className={`${inputClass} pr-11`} type={showPasswords ? "text" : "password"} value={passwordForm[field]} onChange={(event) => setPasswordForm((current) => ({ ...current, [field]: event.target.value }))} autoComplete={field === "currentPassword" ? "current-password" : "new-password"} required />
                   <button type="button" onClick={() => setShowPasswords((visible) => !visible)} className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-400 hover:text-slate-700" aria-label={showPasswords ? "Hide passwords" : "Show passwords"}>{showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
                 </div>
               </div>

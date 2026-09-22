@@ -7,7 +7,7 @@ export default async function Home() {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
 
-  if (session) {
+  if (session?.user?.id) {
     redirect(roles.includes("PENDING") ? "/pending" : "/dashboard");
   }
 

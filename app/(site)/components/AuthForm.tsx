@@ -7,6 +7,7 @@ import { BsGoogle } from "react-icons/bs";
 
 import Button from "@/components/Button";
 import Input from "@/components/Inputs/Input";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
@@ -285,6 +286,17 @@ export function AuthForm() {
             label="Password"
             type="password"
           />
+
+          {variant === "LOGIN" && (
+            <div className="-mt-3 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-blue-600 transition hover:text-blue-700 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
           <div className="space-y-2">
             <div ref={turnstileRef} />

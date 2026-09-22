@@ -1,13 +1,11 @@
 import { authOptions } from "@/libs/authOptions";
 import prisma from "@/libs/prismadb";
 import { passwordChangeRatelimit } from "@/libs/rate-limit";
+import { recordSessionVersion } from "@/libs/session-revocation";
 import { UserStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-
-const MIN_PASSWORD_LENGTH = 12;
-const MAX_PASSWORD_LENGTH = 128;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -31,12 +29,6 @@ export async function POST(req: Request) {
   const newPassword = body?.newPassword;
   if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
     return new NextResponse("Current and new passwords are required", { status: 400 });
-  }
-  if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) {
-    return new NextResponse(`New password must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters`, { status: 400 });
-  }
-  if (currentPassword === newPassword) {
-    return new NextResponse("Choose a new password that differs from your current password", { status: 400 });
   }
 
   const user = await prisma.user.findUnique({
@@ -62,10 +54,22 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  await prisma.emailCredential.update({
-    where: { id: user.emailCredential.id },
-    data: { passwordHash, failedCount: 0, lockedUntil: null },
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    await tx.emailCredential.update({
+      where: { id: user.emailCredential!.id },
+      data: { passwordHash, failedCount: 0, lockedUntil: null },
+    });
+    return tx.user.update({
+      where: { id: userId },
+      data: { sessionVersion: { increment: 1 } },
+      select: { sessionVersion: true },
+    });
   });
+  try {
+    await recordSessionVersion(userId, updatedUser.sessionVersion ?? 0);
+  } catch (error) {
+    console.error("PASSWORD_CHANGE_SESSION_REVOCATION_CACHE_ERROR", { userId, error });
+  }
 
   return NextResponse.json({ success: true });
 }

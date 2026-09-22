@@ -5,6 +5,7 @@ import {
   internPaymentRatelimit,
   registerRatelimit,
 } from "@/libs/rate-limit";
+import { getRecordedSessionVersion } from "@/libs/session-revocation";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,6 +14,8 @@ const PUBLIC_PATHS = new Set<string>([
   "/",
   "/auth/signin",
   "/auth/callback",
+  "/forgot-password",
+  "/reset-password",
   "/intern-registration",
   "/intern-registration/activate",
   "/intern-registration/thank-you",
@@ -236,6 +239,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  const userId = (token as any).userId || token.sub;
+  if (userId) {
+    try {
+      const currentVersion = await getRecordedSessionVersion(String(userId));
+      const tokenVersion = Number((token as any).sessionVersion ?? 0);
+      if (currentVersion !== null && currentVersion !== tokenVersion) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    } catch (error) {
+      // Authentication remains available if the rate-limit store is briefly
+      // unavailable; reset completion itself logs and surfaces that failure.
+      console.error("SESSION_REVOCATION_CHECK_ERROR", error);
+    }
+  }
+
   const roles = ((token as any).roles as string[]).map((r) => r.toUpperCase());
 
   // If user is still pending, allow only /pending
@@ -286,6 +304,8 @@ export const config = {
     "/api/public/intern-registration/payment/:path*",
     "/api/auth/signin/:path*",
     "/api/auth/callback/:path*",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
 
     // RBAC routes
     "/dashboard/:path*",

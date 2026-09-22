@@ -11,6 +11,7 @@ import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { verifyTurnstile } from "./turnstile";
+import { getRecordedSessionVersion, recordSessionVersion } from "./session-revocation";
 // Credentials: checks EmailCredential.passwordHash
 // Google: upserts User + Account, assigns PENDING role on first login
 // JWT strategy; enrich token with userId, roles, onboardingStatus
@@ -168,6 +169,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             onboardingStatus: user.onboardingStatus,
             roles: extractRoleNames(user),
+            sessionVersion: user.sessionVersion ?? 0,
           } as any;
         } catch (error) {
           console.error("LOGIN_ERROR", error);
@@ -255,6 +257,7 @@ export const authOptions: AuthOptions = {
           (user as any).id = dbUserWithRoles.id;
           (user as any).roles = extractRoleNames(dbUserWithRoles); // returns array of role names
           (user as any).onboardingStatus = dbUserWithRoles.onboardingStatus;
+          (user as any).sessionVersion = dbUserWithRoles.sessionVersion ?? 0;
         }
       }
       return true;
@@ -285,6 +288,14 @@ export const authOptions: AuthOptions = {
 
           if (userId) token.userId = String(userId);
 
+          const sessionVersion = (user as any).sessionVersion;
+          if (typeof sessionVersion === "number") {
+            token.sessionVersion = sessionVersion;
+            // This is written only at sign-in. Middleware then checks Redis,
+            // avoiding a Neon query for every protected navigation.
+            await recordSessionVersion(String(userId), sessionVersion);
+          }
+
           if ((user as any).onboardingStatus)
             token.onboardingStatus = (user as any).onboardingStatus;
           if ((user as any).roles) token.roles = (user as any).roles;
@@ -296,6 +307,23 @@ export const authOptions: AuthOptions = {
             (token.sub as string) ||
             (await getUserIdByEmail(token.email as string | undefined)) ||
             undefined;
+        }
+
+        // Route handlers also use getServerSession and do not pass through
+        // middleware. Check the edge-readable version here so a reset revokes
+        // stale JWTs for those requests too, without a Neon lookup.
+        if (token.userId && !user) {
+          try {
+            const currentVersion = await getRecordedSessionVersion(String(token.userId));
+            if (
+              currentVersion !== null &&
+              currentVersion !== Number(token.sessionVersion ?? 0)
+            ) {
+              token.sessionRevoked = true;
+            }
+          } catch (error) {
+            console.error("SESSION_REVOCATION_JWT_CHECK_ERROR", error);
+          }
         }
 
         // If roles or onboardingStatus are missing — hydrate from DB (safe fallback)
@@ -349,6 +377,14 @@ export const authOptions: AuthOptions = {
     // Copy token info to session for server/client consumption
     async session({ session, token }) {
       if (session.user) {
+        if (token.sessionRevoked) {
+          session.user.id = "";
+          session.user.roles = [];
+          session.user.name = null;
+          session.user.email = null;
+          session.user.image = null;
+          return session;
+        }
         session.user.id = (token.userId as string) || (token.sub as string);
         session.user.roles = (token.roles as string[]) || [];
         session.user.name = typeof token.name === "string" ? token.name : null;

@@ -90,6 +90,7 @@ model User {
   facilitatorAssignments   FacilitatorAssignment[]
   attendanceEntered        MonthlyClassroomAttendance[] @relation("AttendanceEnteredBy")
   emailCredential          EmailCredential?
+  passwordResetTokens      PasswordResetToken[]
   accounts                 Account[]
   roleRequests             RoleRequest[]
   facilitatorEmployeeLinks FacilitatorEmployee[]        @relation("FacilitatorToEmployee")
@@ -313,6 +314,21 @@ model Intern {
   userId               String?        @unique
   user                 User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   paymentOrders        InternPaymentOrder[]
+}
+
+// Only a one-way digest of a reset secret is persisted. The original secret
+// exists only in the reset link sent to the account holder.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }
 
 model InternPaymentOrder {
