@@ -15,6 +15,8 @@ declare module "next-auth" {
     id: string;
     roles?: string[];
     onboardingStatus?: string;
+    image?: string | null;
+    sessionVersion?: number | null;
   }
 }
 
@@ -24,5 +26,7 @@ declare module "next-auth/jwt" {
     userId?: string;
     roles?: string[];
     onboardingStatus?: string;
+    sessionVersion?: number;
+    sessionRevoked?: boolean;
   }
 }

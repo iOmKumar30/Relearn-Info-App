@@ -2,7 +2,6 @@
 
 import { KpiCard, type KpiDto } from '@/components/dashboard/KpiCard';
 import { KpiSkeleton } from '@/components/dashboard/KpiSkeleton';
-import { exportToExcel, formatKpiValueForExcel } from '@/libs/kpi/excel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Download } from 'lucide-react';
 import Link from 'next/link';
@@ -76,8 +75,9 @@ export default function KpiMonthPage() {
 
   const monthLabel = `${MONTH_NAMES[parseInt(month)]} ${year}`;
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!kpis.length) return;
+    const { exportToExcel, formatKpiValueForExcel } = await import('@/libs/kpi/excel');
 
     const exportData = kpis.map((k) => ({
       Category: k.category || 'General',

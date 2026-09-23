@@ -2,6 +2,7 @@ import {
   computeCentresTotal,
   computeClassroomsTotal,
   computeFinances,
+  computeLiveMembersTotal,
   computeMonthlyFinances,
   computeMembersTotal,
   computePersonsTrained,
@@ -12,6 +13,7 @@ import {
   computeStudentsTotal,
   computeTutorsTotal,
   upsertAuto,
+  upsertLiveAuto,
 } from '@/libs/kpi/compute';
 import {
   currentMonthYYYYMM,
@@ -142,13 +144,19 @@ export const updateKpisTask = task({
               );
               break;
 
-            case 'members.total':
-              await upsertAuto(
-                k.id,
-                monthDate,
-                await computeMembersTotal(monthDate),
-              );
+            case 'members.total': {
+              // Keep the reporting-month snapshot intact, while refreshing a
+              // separate current-value cache for the live dashboard.
+              const [monthlyMembers, liveMembers] = await Promise.all([
+                computeMembersTotal(monthDate),
+                computeLiveMembersTotal(),
+              ]);
+              await Promise.all([
+                upsertAuto(k.id, monthDate, monthlyMembers),
+                upsertLiveAuto(k.id, liveMembers),
+              ]);
               break;
+            }
 
             case 'persons.trained':
               await upsertAuto(

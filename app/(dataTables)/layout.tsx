@@ -1,5 +1,6 @@
 import SidebarLayout from "@/components/Sidebar";
 import { authOptions } from "@/libs/authOptions";
+import { getSidebarProfile } from "@/libs/sidebar-profile";
 import { Role } from "@/libs/roleMenus";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -13,11 +14,10 @@ export default async function Layout({ children }: { children: ReactNode }) {
   const roles = Array.isArray((session as any)?.user?.roles)
     ? ((session as any).user.roles as Role[])
     : [];
-  console.log("Roles for sidebar:", roles);
-
+  const profile = await getSidebarProfile(session.user.id);
   return (
     <>
-      <SidebarLayout roles={roles}>{children}</SidebarLayout>
+      <SidebarLayout roles={roles} profile={profile}>{children}</SidebarLayout>
     </>
   );
 }

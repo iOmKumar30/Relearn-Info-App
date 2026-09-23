@@ -2,6 +2,7 @@
 
 import { toUTCDate } from "@/libs/finance-utils";
 import prisma from "@/libs/prismadb";
+import { isCurrentUserAdmin } from "@/libs/server-auth";
 import { MonthlyStatement, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
@@ -21,6 +22,8 @@ export type FinancialYearWithMonths = Prisma.FinancialYearGetPayload<{
 }>;
 
 export async function getFinancialYears() {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const years = await prisma.financialYear.findMany({
       orderBy: { startDate: "desc" },
@@ -37,6 +40,8 @@ export async function getFinancialYears() {
 }
 
 export async function createFinancialYear(startYear: number) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const name = `FY ${startYear}-${(startYear + 1).toString().slice(-2)}`;
     const startDate = new Date(Date.UTC(startYear, 3, 1));
@@ -58,6 +63,8 @@ export async function createFinancialYear(startYear: number) {
 }
 
 export async function getFinancialYearDetails(yearId: string) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const rawYear = await prisma.financialYear.findUnique({
       where: { id: yearId },
@@ -103,6 +110,7 @@ export async function getFinancialYearDetails(yearId: string) {
   }
 }
 export async function getMonthDetails(monthId: string) {
+  if (!(await isCurrentUserAdmin())) return null;
   try {
     const statement = await prisma.monthlyStatement.findUnique({
       where: { id: monthId },
@@ -168,6 +176,8 @@ export async function uploadMonthlyStatement(
   formData: FormData,
   statementId: string,
 ) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const file = formData.get("file") as File;
     if (!file) return { success: false, error: "No file uploaded" };
@@ -280,6 +290,8 @@ export async function updateMonthlyBalances(
   startBalance: number,
   endBalance: number,
 ) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     await prisma.monthlyStatement.update({
       where: { id: statementId },
@@ -297,6 +309,8 @@ export async function updateMonthlyBalances(
   }
 }
 export async function clearMonthlyData(statementId: string) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     await prisma.transaction.deleteMany({
       where: { statementId },
@@ -319,6 +333,8 @@ export async function clearMonthlyData(statementId: string) {
 }
 
 export async function upsertTransaction(data: any) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const { id, statementId, ...fields } = data;
 
@@ -360,6 +376,8 @@ export async function upsertTransaction(data: any) {
   }
 }
 export async function deleteTransaction(id: string) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     await prisma.transaction.delete({ where: { id } });
     revalidatePath(`/admin/finance`);
@@ -382,6 +400,8 @@ type YearWithAnalyticsData = Prisma.FinancialYearGetPayload<{
 }>;
 
 export async function getYearlyAnalytics(yearId: string) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     const rawYear = await prisma.financialYear.findUnique({
       where: { id: yearId },
@@ -462,6 +482,8 @@ export async function getYearlyAnalytics(yearId: string) {
 
 
 export async function toggleFinancialYearStatus(yearId: string, isActive: boolean) {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized" };
   try {
     await prisma.financialYear.update({
       where: { id: yearId },

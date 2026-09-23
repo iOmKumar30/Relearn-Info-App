@@ -16,6 +16,19 @@ export const myFileRouter = {
       console.log("file url", file.ufsUrl || file.url);
       return { uploadedBy: metadata.userId };
     }),
+  profilePhoto: f({ image: { maxFileSize: "2MB", maxFileCount: 1 } })
+    .middleware(async () => {
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.info("PROFILE_PHOTO_UPLOADED", {
+        userId: metadata.userId,
+        fileKey: file.key,
+      });
+      return { uploadedBy: metadata.userId };
+    }),
 } satisfies FileRouter;
 
 export type myFileRouter = typeof myFileRouter;

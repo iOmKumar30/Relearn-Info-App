@@ -1,12 +1,13 @@
 "use client";
 
 import axios from "axios";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import Script from "next/script";
 import { BsGoogle } from "react-icons/bs";
 
 import Button from "@/components/Button";
 import Input from "@/components/Inputs/Input";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
@@ -35,7 +36,6 @@ declare global {
 }
 
 export function AuthForm() {
-  const { data: session, status } = useSession();
   const router = useRouter();
 
   const [variant, setVariant] = useState<Variant>("LOGIN");
@@ -45,18 +45,6 @@ export function AuthForm() {
 
   const turnstileRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.roles) {
-      const roles = session.user.roles;
-
-      if (roles.includes("PENDING")) {
-        router.push("/pending");
-      } else {
-        router.push("/dashboard");
-      }
-    }
-  }, [status, session, router]);
 
   const renderTurnstile = useCallback(() => {
     if (!window.turnstile || !turnstileRef.current) return;
@@ -298,6 +286,17 @@ export function AuthForm() {
             label="Password"
             type="password"
           />
+
+          {variant === "LOGIN" && (
+            <div className="-mt-3 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-blue-600 transition hover:text-blue-700 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
           <div className="space-y-2">
             <div ref={turnstileRef} />

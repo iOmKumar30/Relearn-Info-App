@@ -44,6 +44,10 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return new NextResponse("Forbidden", { status: 403 });
   }
+  const roles = session.user.roles ?? [];
+  if (!roles.some((role) => ["ADMIN", "FACILITATOR", "RELF_EMPLOYEE"].includes(role))) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
 
   try {
     const body = await req.json();

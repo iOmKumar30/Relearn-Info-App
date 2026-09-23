@@ -82,6 +82,7 @@ model User {
   status                   UserStatus                   @default(ACTIVE)
   sessionVersion           Int?                         @default(0)
   gender                   Gender?
+  avatarUrl                String?                      @map("avatar_url")
   roleHistory              UserRoleHistory[]
   employee                 Employee?
   member                   Member?
@@ -89,6 +90,7 @@ model User {
   facilitatorAssignments   FacilitatorAssignment[]
   attendanceEntered        MonthlyClassroomAttendance[] @relation("AttendanceEnteredBy")
   emailCredential          EmailCredential?
+  passwordResetTokens      PasswordResetToken[]
   accounts                 Account[]
   roleRequests             RoleRequest[]
   facilitatorEmployeeLinks FacilitatorEmployee[]        @relation("FacilitatorToEmployee")
@@ -314,6 +316,21 @@ model Intern {
   paymentOrders        InternPaymentOrder[]
 }
 
+// Only a one-way digest of a reset secret is persisted. The original secret
+// exists only in the reset link sent to the account holder.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
 model InternPaymentOrder {
   id                String                   @id @default(cuid())
   internId          String                   @map("intern_id")
@@ -527,6 +544,7 @@ model KPI {
   updatedAt   DateTime          @updatedAt
   values      KPIMonthlyValue[]
   targets     KPIFiscalTarget[]
+  liveValue   KPILiveValue?
 }
 
 model KPIMonthlyValue {
@@ -543,6 +561,18 @@ model KPIMonthlyValue {
 
   @@unique([kpiId, month, source])
   @@index([month, kpiId])
+}
+
+// The current-value cache used by the live dashboard. It is deliberately
+// independent of monthly snapshots so daily live refreshes cannot overwrite
+// historical KPI reporting.
+model KPILiveValue {
+  kpiId       String   @id
+  value       Float
+  capturedAt  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 }
 
 model KPIFiscalTarget {

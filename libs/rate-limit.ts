@@ -1,7 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-const redis = new Redis({
+export const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
@@ -39,4 +39,25 @@ export const googleAuthRatelimit = new Ratelimit({
   limiter: Ratelimit.slidingWindow(10, "10 m"),
   analytics: true,
   prefix: "rl:login:google",
+});
+
+export const passwordChangeRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "15 m"),
+  analytics: true,
+  prefix: "rl:password-change",
+});
+
+export const forgotPasswordRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, "15 m"),
+  analytics: true,
+  prefix: "rl:password-forgot",
+});
+
+export const passwordResetRatelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "15 m"),
+  analytics: true,
+  prefix: "rl:password-reset",
 });

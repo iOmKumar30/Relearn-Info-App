@@ -2,7 +2,6 @@
 
 import { currentMonthYYYYMM } from '@/libs/kpi/month';
 import { cn } from '@/libs/kpi/utils';
-import { exportToExcel, formatKpiValueForExcel } from '@/libs/kpi/excel';
 import {
   ArrowLeft,
   Calendar,
@@ -185,8 +184,9 @@ export default function KpiYearPage() {
       arr.sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!summary) return;
+    const { exportToExcel, formatKpiValueForExcel } = await import('@/libs/kpi/excel');
 
     const exportData = summary.kpis.map((k) => ({
       Category: k.category || 'General',

@@ -13,9 +13,6 @@ import {
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-// @ts-ignore
-console.log("prisma import type:", typeof prisma);
-
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)

@@ -1,7 +1,7 @@
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
-import { MemberType, UserStatus } from "@prisma/client";
+import { MemberStatus, MemberType, UserStatus } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -53,10 +53,11 @@ export async function POST() {
             },
           },
         },
-        select: { userId: true },
+        select: { id: true, userId: true },
       });
 
       const userIds = overdueMembers.map((member) => member.userId);
+      const memberIds = overdueMembers.map((member) => member.id);
       if (userIds.length === 0) return 0;
 
       const updated = await tx.user.updateMany({
@@ -68,6 +69,19 @@ export async function POST() {
         where: { userId: { in: userIds }, endDate: null },
         data: { endDate: now },
       });
+
+      // The overdue rule deactivates the user, so it must also close the
+      // current membership period. No member or fee history is deleted.
+      await Promise.all([
+        tx.member.updateMany({
+          where: { id: { in: memberIds }, status: MemberStatus.ACTIVE },
+          data: { status: MemberStatus.INACTIVE },
+        }),
+        tx.memberTypeHistory.updateMany({
+          where: { memberId: { in: memberIds }, endDate: null },
+          data: { endDate: now },
+        }),
+      ]);
 
       return updated.count;
     });

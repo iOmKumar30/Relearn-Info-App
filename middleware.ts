@@ -5,6 +5,7 @@ import {
   internPaymentRatelimit,
   registerRatelimit,
 } from "@/libs/rate-limit";
+import { getRecordedSessionVersion } from "@/libs/session-revocation";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,6 +14,8 @@ const PUBLIC_PATHS = new Set<string>([
   "/",
   "/auth/signin",
   "/auth/callback",
+  "/forgot-password",
+  "/reset-password",
   "/intern-registration",
   "/intern-registration/activate",
   "/intern-registration/thank-you",
@@ -29,6 +32,7 @@ const PROTECTED_ROUTES: Record<string, string[]> = {
   "/pending-users": ["ADMIN"],
   "/facilitators": ["ADMIN", "RELF_EMPLOYEE"],
   "/tutors": ["ADMIN"],
+  "/admin": ["ADMIN"],
 };
 
 const PENDING_PATH = "/pending";
@@ -230,15 +234,24 @@ export async function middleware(req: NextRequest) {
   // Check JWT token for protected routes
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  console.log("MIDDLEWARE token:", {
-    path: pathname,
-    tokenSub: token?.sub,
-    roles: (token as any)?.roles,
-  });
-
   if (!token || !Array.isArray((token as any).roles)) {
     // Not authenticated -send to landing page
     return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  const userId = (token as any).userId || token.sub;
+  if (userId) {
+    try {
+      const currentVersion = await getRecordedSessionVersion(String(userId));
+      const tokenVersion = Number((token as any).sessionVersion ?? 0);
+      if (currentVersion !== null && currentVersion !== tokenVersion) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    } catch (error) {
+      // Authentication remains available if the rate-limit store is briefly
+      // unavailable; reset completion itself logs and surfaces that failure.
+      console.error("SESSION_REVOCATION_CHECK_ERROR", error);
+    }
   }
 
   const roles = ((token as any).roles as string[]).map((r) => r.toUpperCase());
@@ -291,6 +304,8 @@ export const config = {
     "/api/public/intern-registration/payment/:path*",
     "/api/auth/signin/:path*",
     "/api/auth/callback/:path*",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
 
     // RBAC routes
     "/dashboard/:path*",
@@ -300,7 +315,9 @@ export const config = {
     "/pending-users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
+    "/admin/:path*",
     "/intern-registration/:path*",
-    // "/pending/:path*",
+    "/pending/:path*",
+    "/profile/:path*",
   ],
 };

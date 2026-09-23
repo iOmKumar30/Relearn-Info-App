@@ -1,5 +1,5 @@
 import prisma from "@/libs/prismadb";
-import { schedules } from "@trigger.dev/sdk/v3";
+import { schedules, task } from "@trigger.dev/sdk/v3";
 
 const BATCH_SIZE = 50;
 const STALE_PROCESSING_MS = 15 * 60 * 1000;
@@ -11,11 +11,10 @@ function fiscalLabelForDonation(date: Date): string {
   return `${year}-${year + 1}`;
 }
 
-export const syncDonationQueueTask = schedules.task({
+export const syncDonationQueueTask = task({
   id: "sync-donation-outbox",
-  cron: "*/5 * * * *",
   maxDuration: 300,
-  run: async () => {
+  run: async (payload: { donationId?: string } = {}) => {
     const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
     await prisma.donationSyncQueue.updateMany({
       where: { status: "PROCESSING", updatedAt: { lt: staleBefore } },
@@ -23,7 +22,10 @@ export const syncDonationQueueTask = schedules.task({
     });
 
     const pending = await prisma.donationSyncQueue.findMany({
-      where: { status: "PENDING" },
+      where: {
+        status: "PENDING",
+        ...(payload.donationId ? { donationId: payload.donationId } : {}),
+      },
       orderBy: { createdAt: "asc" },
       take: BATCH_SIZE,
       select: { id: true, donationId: true },
@@ -134,5 +136,17 @@ export const syncDonationQueueTask = schedules.task({
     }
 
     return result;
+  },
+});
+
+// Event delivery above is the normal path. This low-frequency reconciliation
+// protects the durable outbox from a transient Trigger.dev dispatch failure
+// without keeping Neon awake throughout the day.
+export const dailyDonationSyncRecovery = schedules.task({
+  id: "sync-donation-outbox-recovery",
+  // 20:45 UTC = 02:15 IST; deliberately offset from the KPI schedule.
+  cron: "45 20 * * *",
+  run: async () => {
+    await syncDonationQueueTask.trigger({});
   },
 });

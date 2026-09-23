@@ -3,7 +3,7 @@ import {
   getYearlyAnalytics,
 } from "@/app/actions/finance";
 import Breadcrumbs from "@/components/Breadcrumbs";
-import { AnalyticsDashboard } from "@/components/finance/analytics-dashboard";
+import { AnalyticsDashboardLoader } from "@/components/finance/AnalyticsDashboardLoader";
 import { YearStatusToggle } from "@/components/finance/year-status-toggle";
 import { YearlyExportButton } from "@/components/finance/yearly-export-button"; // <-- NEW IMPORT
 import {
@@ -94,7 +94,7 @@ export default async function FinancialYearDetail({
 
   return (
     <div className="min-h-screen space-y-8 bg-gray-50/50">
-      {analytics && <AnalyticsDashboard data={analytics} />}
+      {analytics && <AnalyticsDashboardLoader data={analytics} />}
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">

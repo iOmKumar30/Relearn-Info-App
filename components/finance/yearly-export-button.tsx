@@ -1,7 +1,7 @@
 "use client";
 
 import { getYearlyExportTransactions } from "@/app/actions/finance-export";
-import { ExportColumn, exportToXlsx } from "@/libs/export/xlsx";
+import type { ExportColumn } from "@/libs/export/xlsx";
 import { Button } from "flowbite-react";
 import { Download } from "lucide-react";
 import { useState } from "react";
@@ -25,6 +25,7 @@ export function YearlyExportButton({
     setLoading(true);
     try {
       const data = await getYearlyExportTransactions(yearId);
+      const { exportToXlsx } = await import("@/libs/export/xlsx");
       exportToXlsx(data, {
         fileName,
         columns,

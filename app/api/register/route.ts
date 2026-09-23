@@ -28,16 +28,6 @@ export async function POST(req: Request) {
       return new NextResponse("Missing fields", { status: 400 });
     }
 
-    if (typeof password !== "string" || password.length < 6) {
-      console.warn("REGISTER_REJECTED", {
-        reason: "password_too_short",
-        ip,
-        userAgent,
-        email: normalizedEmail,
-      });
-      return new NextResponse("Password too short", { status: 400 });
-    }
-
     if (!cfToken) {
       console.warn("REGISTER_REJECTED", {
         reason: "missing_turnstile_token",

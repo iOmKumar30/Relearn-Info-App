@@ -26,7 +26,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse("Forbidden", { status: 403 });
+  if (!session?.user?.id || !(await isAdmin(session.user.id)))
+    return new NextResponse("Forbidden", { status: 403 });
 
   const { id } = await params;
   const body = await req.json();

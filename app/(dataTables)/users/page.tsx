@@ -99,7 +99,11 @@ export default function UsersPage() {
       options: [
         "ADMIN",
         "FACILITATOR",
-        "MEMBER",
+        "ANNUAL_MEMBER",
+        "LIFE_MEMBER",
+        "HONORARY_MEMBER",
+        "FOUNDER_MEMBER",
+        "INTERN",
         "TUTOR",
         "RELF_EMPLOYEE",
         "TUTOR_OF_TUTOR",

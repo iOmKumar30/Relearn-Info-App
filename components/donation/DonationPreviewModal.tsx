@@ -2,8 +2,6 @@
 
 import DonationReceiptCard from "@/components/donation/DonationReceiptCard";
 import { Button } from "flowbite-react";
-import html2canvas from "html2canvas-pro";
-import jsPDF from "jspdf";
 import { useState } from "react";
 import { HiDownload } from "react-icons/hi";
 
@@ -25,6 +23,10 @@ export default function DonationPreviewModal({ open, data, onClose }: Props) {
     setIsDownloading(true);
 
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
       // Capture at print-quality resolution. 2x keeps text sharp without the
       // multi-megabyte PNG produced by the previous 4x capture.
       const canvas = await html2canvas(element, {

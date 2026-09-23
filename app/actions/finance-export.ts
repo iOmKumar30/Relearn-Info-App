@@ -1,8 +1,10 @@
 "use server";
 
 import prisma from "@/libs/prismadb";
+import { isCurrentUserAdmin } from "@/libs/server-auth";
 
 export async function getYearlyExportTransactions(yearId: string) {
+  if (!(await isCurrentUserAdmin())) return [];
   const year: any = await prisma.financialYear.findUnique({
     where: { id: yearId },
     include: {

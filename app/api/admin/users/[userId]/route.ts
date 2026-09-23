@@ -119,6 +119,17 @@ export async function PUT(
               where: { userId: userId, endDate: null },
               data: { endDate: now },
             }),
+            // A membership cannot remain active when its user account is
+            // inactive. Keep the member record and its history for auditing;
+            // only close the current membership period.
+            tx.member.updateMany({
+              where: { userId, status: MemberStatus.ACTIVE },
+              data: { status: MemberStatus.INACTIVE },
+            }),
+            tx.memberTypeHistory.updateMany({
+              where: { member: { userId }, endDate: null },
+              data: { endDate: now },
+            }),
             ...(userBeforeUpdate.intern
               ? [
                   tx.intern.update({
