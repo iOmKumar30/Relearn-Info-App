@@ -57,7 +57,7 @@ const projects: NavItem = {
 const donate: NavItem = {
   type: "item",
   label: "Donate",
-  href: "https://rzp-payment-serverless.vercel.app",
+  href: "https://donate.relf.in",
   icon: FaDonate as any,
   external: true,
 };
