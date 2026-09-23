@@ -1,6 +1,7 @@
 import { ToasterProvider } from "@/components/toaster-provider";
 import { authOptions } from "@/libs/authOptions";
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { getServerSession } from "next-auth";
 import AuthContext from "./context/AuthContext";
 import "./globals.css";
@@ -24,6 +25,7 @@ export default async function RootLayout({
           {children}
           <ToasterProvider />
         </AuthContext>
+        <Analytics />
       </body>
     </html>
   );
