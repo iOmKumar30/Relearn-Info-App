@@ -73,10 +73,6 @@ export async function POST(req: Request) {
         },
       });
 
-      await tx.donationSyncQueue.create({
-        data: { donationId: donation.id },
-      });
-
       return donation;
     });
 
