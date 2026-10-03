@@ -54,7 +54,7 @@ export default function MonthlyAttendanceClient({
 
   // Excel export
   const tutorExportColumns = [
-    { label: "S.No", key: "sno" },
+    { label: "Classroom Code(s)", key: "classroomCodes" },
     { label: "Tutor Name", key: "name" },
     { label: "Facilitator Name", key: "facilitatorName" },
     ...classes.map((cls: any) => {
@@ -72,9 +72,9 @@ export default function MonthlyAttendanceClient({
     { label: "Total Payout (₹)", key: "totalPayout" },
   ];
 
-  const tutorExportRows = sortedTutors.map((tutor: any, idx: number) => {
+  const tutorExportRows = sortedTutors.map((tutor: any) => {
     const row: Record<string, any> = {
-      sno: idx + 1,
+      classroomCodes: tutor.classroomCodes,
       name: tutor.name,
       facilitatorName: tutor.facilitatorName,
       score: `${tutor.score}%`,
@@ -176,15 +176,15 @@ export default function MonthlyAttendanceClient({
               </div>
             </div>
           ) : (
-            sortedTutors.map((tutor, idx) => (
+            sortedTutors.map((tutor) => (
               <article key={tutor.id} className="bg-white p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      S. No.
+                      Classroom Code(s)
                     </p>
                     <p className="text-sm font-semibold text-gray-800">
-                      {idx + 1}
+                      {tutor.classroomCodes}
                     </p>
                   </div>
                 </div>
@@ -260,7 +260,7 @@ export default function MonthlyAttendanceClient({
           <table className="min-w-[900px] text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th className="p-4 w-16 text-center">S.No</th>
+                <th className="p-4 min-w-[160px]">Classroom Code(s)</th>
                 <th className="p-4 min-w-[200px]">Tutor Name</th>
                 <th className="p-4 min-w-[180px]">Facilitator</th>
 
@@ -347,13 +347,13 @@ export default function MonthlyAttendanceClient({
                   </td>
                 </tr>
               ) : (
-                sortedTutors.map((tutor, idx) => (
+                sortedTutors.map((tutor) => (
                   <tr
                     key={tutor.id}
                     className="hover:bg-blue-50/30 transition-colors"
                   >
-                    <td className="p-4 text-gray-400 font-medium text-center">
-                      {idx + 1}
+                    <td className="p-4 font-medium text-gray-600">
+                      {tutor.classroomCodes}
                     </td>
                     <td className="p-4 font-bold text-gray-900">
                       {tutor.name}

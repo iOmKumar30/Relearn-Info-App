@@ -98,7 +98,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
               ],
             },
             select: {
-              classroom: { select: { centreId: true } },
+              classroom: { select: { centreId: true, code: true } },
             },
           },
         },
@@ -171,6 +171,13 @@ export async function getMonthlyTrainingData(year: number, month: number) {
 
   for (const tutor of activeTutors) {
     const centreId = tutor.tutorAssignments?.[0]?.classroom?.centreId;
+    const classroomCodes = Array.from(
+      new Set(
+        tutor.tutorAssignments
+          ?.map((assignment: any) => assignment.classroom?.code)
+          .filter((code: unknown): code is string => typeof code === "string" && code.length > 0),
+      ),
+    ).join(", ");
     const facilitator = centreId ? centreToFacilitatorMap[centreId] : null;
 
     const facilitatorName = facilitator?.name || "Unassigned";
@@ -198,6 +205,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
     tutorList.push({
       id: tutor.id,
       name: tutor.name || "Unknown Tutor",
+      classroomCodes: classroomCodes || "—",
       facilitatorName,
       attendanceMap,
       totalPayout,
