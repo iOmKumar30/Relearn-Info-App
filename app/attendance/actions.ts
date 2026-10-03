@@ -19,19 +19,35 @@ export async function createAcademicYear(year: number) {
 export async function getAttendanceData(year: number, month: number) {
   // 1. Fetch all Active Centres
   const firstDayOfMonth = new Date(year, month - 1, 1);
+  const firstDayOfNextMonth = new Date(year, month, 1);
   const centres = await prisma.centre.findMany({
     where: { status: "ACTIVE" },
     orderBy: { name: "asc" },
     include: {
       // 2. Include Active Classrooms for each centre
       classrooms: {
-        where: { 
-          OR : [
-            {dateClosed: null},
-            {dateClosed: {gte: firstDayOfMonth}}
-            , 
-          ]
-         },
+        // A classroom is relevant only when it overlaps the requested calendar
+        // month. In particular, a classroom created in September must not be
+        // offered on August (or earlier) attendance pages.
+        where: {
+          AND: [
+            {
+              OR: [
+                { dateCreated: { lt: firstDayOfNextMonth } },
+                // Preserve visibility of legacy classrooms that predate the
+                // dateCreated field, without treating newly-created rooms as
+                // historical ones.
+                { dateCreated: null, createdAt: { lt: firstDayOfNextMonth } },
+              ],
+            },
+            {
+              OR: [
+                { dateClosed: null },
+                { dateClosed: { gte: firstDayOfMonth } },
+              ],
+            },
+          ],
+        },
         include: {
           // 3. Include the specific attendance record for this month/year
           monthlyAttendance: {
