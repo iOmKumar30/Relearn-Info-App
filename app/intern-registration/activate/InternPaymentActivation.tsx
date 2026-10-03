@@ -25,7 +25,7 @@ function currency(value: number | null) {
   return value === null ? "" : `₹${value.toLocaleString("en-IN")}`;
 }
 
-export default function InternPaymentActivation() {
+export default function InternPaymentActivation({ nonce }: { nonce?: string }) {
   const router = useRouter();
   const [paymentToken, setPaymentToken] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -191,6 +191,7 @@ export default function InternPaymentActivation() {
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:py-12">
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
+        nonce={nonce}
         strategy="afterInteractive"
         onLoad={() => setCheckoutReady(true)}
         onError={() => setError("The secure payment service could not be loaded. Please try again later.")}

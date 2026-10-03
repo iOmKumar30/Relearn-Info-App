@@ -134,7 +134,7 @@ function FieldLabel({
 const inputClassName =
   'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
 
-export default function InternRegistrationForm() {
+export default function InternRegistrationForm({ nonce }: { nonce?: string }) {
   const [form, setForm] = useState<FormState>(initialForm);
   const [customFields, setCustomFields] =
     useState<CustomFieldsState>(initialCustomFields);
@@ -242,6 +242,7 @@ export default function InternRegistrationForm() {
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:py-12">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        nonce={nonce}
         async
         defer
         onLoad={() => setTurnstileReady(true)}

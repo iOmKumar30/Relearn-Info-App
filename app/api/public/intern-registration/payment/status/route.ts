@@ -2,16 +2,22 @@ import {
   createInternPaymentReceiptToken,
   verifyInternPaymentActivationToken,
 } from "@/libs/intern-payment";
+import {
+  boundedString,
+  PublicJsonRequestError,
+  readPublicJsonObject,
+} from "@/libs/public-json";
 import prisma from "@/libs/prismadb";
 import { InternPaymentOrderStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+const MAX_PAYMENT_REQUEST_BYTES = 4_096;
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const token = typeof body?.paymentToken === "string" ? body.paymentToken : "";
+    const body = await readPublicJsonObject(request, MAX_PAYMENT_REQUEST_BYTES);
+    const token = boundedString(body.paymentToken, 2_048);
     const internId = token ? verifyInternPaymentActivationToken(token) : null;
     if (!internId) {
       return NextResponse.json(
@@ -52,6 +58,12 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (error instanceof PublicJsonRequestError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     console.error("INTERN_PAYMENT_STATUS_ERROR", {
       error: error instanceof Error ? error.message : "Unknown error",
     });

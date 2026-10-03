@@ -6,11 +6,20 @@ import {
   verifyInternPaymentActivationToken,
   verifyRazorpayPaymentSignature,
 } from "@/libs/intern-payment";
+import {
+  boundedString,
+  PublicJsonRequestError,
+  readPublicJsonObject,
+} from "@/libs/public-json";
 import prisma from "@/libs/prismadb";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const MAX_PAYMENT_REQUEST_BYTES = 4_096;
+const RAZORPAY_ORDER_ID_PATTERN = /^order_[A-Za-z0-9]+$/;
+const RAZORPAY_PAYMENT_ID_PATTERN = /^pay_[A-Za-z0-9]+$/;
+const RAZORPAY_SIGNATURE_PATTERN = /^[a-f0-9]{64}$/i;
 
 function response(message: string, status: number) {
   return NextResponse.json(
@@ -19,18 +28,25 @@ function response(message: string, status: number) {
   );
 }
 
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const internId = verifyInternPaymentActivationToken(stringValue(body?.paymentToken));
-    const paymentId = stringValue(body?.razorpay_payment_id);
-    const requestedOrderId = stringValue(body?.razorpay_order_id);
-    const signature = stringValue(body?.razorpay_signature);
-    if (!internId || !paymentId || !requestedOrderId || !signature) {
+    const body = await readPublicJsonObject(request, MAX_PAYMENT_REQUEST_BYTES);
+    const paymentToken = boundedString(body.paymentToken, 2_048);
+    const internId = paymentToken
+      ? verifyInternPaymentActivationToken(paymentToken)
+      : null;
+    const paymentId = boundedString(body.razorpay_payment_id, 128);
+    const requestedOrderId = boundedString(body.razorpay_order_id, 128);
+    const signature = boundedString(body.razorpay_signature, 64);
+    if (
+      !internId ||
+      !paymentId ||
+      !requestedOrderId ||
+      !signature ||
+      !RAZORPAY_ORDER_ID_PATTERN.test(requestedOrderId) ||
+      !RAZORPAY_PAYMENT_ID_PATTERN.test(paymentId) ||
+      !RAZORPAY_SIGNATURE_PATTERN.test(signature)
+    ) {
       return response("Unable to verify this payment.", 400);
     }
 
@@ -97,6 +113,9 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (error instanceof PublicJsonRequestError) {
+      return response(error.message, error.status);
+    }
     console.error("INTERN_PAYMENT_VERIFY_ERROR", {
       error: error instanceof Error ? error.message : "Unknown error",
     });

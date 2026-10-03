@@ -246,7 +246,7 @@ export async function POST(request: Request) {
 
     if (error instanceof InternUserConflictError) {
       return invalidRequest(
-        "A user account already exists for the supplied email address.",
+        "A registration already exists for the supplied contact details.",
         409,
       );
     }

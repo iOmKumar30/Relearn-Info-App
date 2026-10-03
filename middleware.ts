@@ -38,6 +38,43 @@ const PROTECTED_ROUTES: Record<string, string[]> = {
 const PENDING_PATH = "/pending";
 const ALLOW_PENDING_ONLY = new Set<string>([PENDING_PATH]);
 
+function contentSecurityPolicy(nonce: string): string {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    `script-src 'self' 'nonce-${nonce}' https://checkout.razorpay.com https://challenges.cloudflare.com https://va.vercel-scripts.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://challenges.cloudflare.com https://*.razorpay.com https://*.uploadthing.com https://*.ingest.uploadthing.com https://*.ufs.sh https://utfs.io https://*.utfs.io https://va.vercel-scripts.com https://*.vercel-insights.com",
+    "frame-src https://challenges.cloudflare.com https://*.razorpay.com https://drive.google.com https://docs.google.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+function applySecurityHeaders(response: NextResponse, csp: string): NextResponse {
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), geolocation=(), microphone=(), usb=()",
+  );
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=63072000",
+    );
+  }
+  return response;
+}
+
 // Get the client IP from request headers
 function getClientIp(req: NextRequest): string {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -56,6 +93,19 @@ function getClientIp(req: NextRequest): string {
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const pathname = (url.pathname.replace(/\/+$/, "") || "/").toLowerCase();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const csp = contentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(req.headers);
+  // Next.js reads this nonce when rendering its own scripts. The public
+  // Turnstile/Razorpay scripts receive the same nonce explicitly.
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+  const next = () =>
+    applySecurityHeaders(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      csp,
+    );
+  const secure = (response: NextResponse) => applySecurityHeaders(response, csp);
 
   // Rate limit: register route
   if (pathname === "/api/register") {
@@ -64,7 +114,7 @@ export async function middleware(req: NextRequest) {
       await registerRatelimit.limit(ip);
 
     if (!success) {
-      return new NextResponse(
+      return secure(new NextResponse(
         JSON.stringify({
           error: "Too many registration attempts. Please try again later.",
         }),
@@ -77,10 +127,10 @@ export async function middleware(req: NextRequest) {
             "X-RateLimit-Reset": String(reset),
           },
         },
-      );
+      ));
     }
 
-    const response = NextResponse.next();
+    const response = next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
     response.headers.set("X-RateLimit-Reset", String(reset));
@@ -93,7 +143,7 @@ export async function middleware(req: NextRequest) {
       await internRegistrationRatelimit.limit(ip);
 
     if (!success) {
-      return new NextResponse(
+      return secure(new NextResponse(
         JSON.stringify({
           error: "Too many registration attempts. Please try again later.",
         }),
@@ -106,10 +156,10 @@ export async function middleware(req: NextRequest) {
             "X-RateLimit-Reset": String(reset),
           },
         },
-      );
+      ));
     }
 
-    const response = NextResponse.next();
+    const response = next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
     response.headers.set("X-RateLimit-Reset", String(reset));
@@ -122,7 +172,7 @@ export async function middleware(req: NextRequest) {
       await internPaymentRatelimit.limit(ip);
 
     if (!success) {
-      return new NextResponse(
+      return secure(new NextResponse(
         JSON.stringify({
           error: "Too many payment requests. Please try again later.",
         }),
@@ -135,10 +185,10 @@ export async function middleware(req: NextRequest) {
             "X-RateLimit-Reset": String(reset),
           },
         },
-      );
+      ));
     }
 
-    const response = NextResponse.next();
+    const response = next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
     response.headers.set("X-RateLimit-Reset", String(reset));
@@ -156,7 +206,7 @@ export async function middleware(req: NextRequest) {
       await credentialsLoginRatelimit.limit(ip);
 
     if (!success) {
-      return new NextResponse(
+      return secure(new NextResponse(
         JSON.stringify({
           error: "Too many login attempts. Please try again later.",
         }),
@@ -169,10 +219,10 @@ export async function middleware(req: NextRequest) {
             "X-RateLimit-Reset": String(reset),
           },
         },
-      );
+      ));
     }
 
-    const response = NextResponse.next();
+    const response = next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
     response.headers.set("X-RateLimit-Reset", String(reset));
@@ -190,7 +240,7 @@ export async function middleware(req: NextRequest) {
       await googleAuthRatelimit.limit(ip);
 
     if (!success) {
-      return new NextResponse(
+      return secure(new NextResponse(
         JSON.stringify({
           error: "Too many Google sign-in attempts. Please try again later.",
         }),
@@ -203,10 +253,10 @@ export async function middleware(req: NextRequest) {
             "X-RateLimit-Reset": String(reset),
           },
         },
-      );
+      ));
     }
 
-    const response = NextResponse.next();
+    const response = next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
     response.headers.set("X-RateLimit-Reset", String(reset));
@@ -223,12 +273,12 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/_vercel") ||
     pathname.startsWith("/_vercel/image")
   ) {
-    return NextResponse.next();
+    return next();
   }
 
   // Public pages are always allowed
   if (PUBLIC_PATHS.has(pathname)) {
-    return NextResponse.next();
+    return next();
   }
 
   // Check JWT token for protected routes
@@ -236,7 +286,7 @@ export async function middleware(req: NextRequest) {
 
   if (!token || !Array.isArray((token as any).roles)) {
     // Not authenticated -send to landing page
-    return NextResponse.redirect(new URL("/", req.url));
+    return secure(NextResponse.redirect(new URL("/", req.url)));
   }
 
   const userId = (token as any).userId || token.sub;
@@ -245,7 +295,7 @@ export async function middleware(req: NextRequest) {
       const currentVersion = await getRecordedSessionVersion(String(userId));
       const tokenVersion = Number((token as any).sessionVersion ?? 0);
       if (currentVersion !== null && currentVersion !== tokenVersion) {
-        return NextResponse.redirect(new URL("/", req.url));
+        return secure(NextResponse.redirect(new URL("/", req.url)));
       }
     } catch (error) {
       // Authentication remains available if the rate-limit store is briefly
@@ -259,14 +309,14 @@ export async function middleware(req: NextRequest) {
   // If user is still pending, allow only /pending
   if (roles.includes("PENDING")) {
     if (!ALLOW_PENDING_ONLY.has(pathname)) {
-      return NextResponse.redirect(new URL(PENDING_PATH, req.url));
+      return secure(NextResponse.redirect(new URL(PENDING_PATH, req.url)));
     }
-    return NextResponse.next();
+    return next();
   }
 
   // If user is not pending, block /pending
   if (pathname === PENDING_PATH) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return secure(NextResponse.redirect(new URL("/dashboard", req.url)));
   }
 
   // Find the protected route that matches the current path
@@ -276,7 +326,7 @@ export async function middleware(req: NextRequest) {
 
   // If route is not in the protected routes list, allow it
   if (!matchedBase) {
-    return NextResponse.next();
+    return next();
   }
 
   // Check whether the user has at least one allowed role
@@ -286,14 +336,14 @@ export async function middleware(req: NextRequest) {
   if (!hasAccess) {
     // If pending somehow reaches here, send to pending page
     if (roles.includes("PENDING")) {
-      return NextResponse.redirect(new URL(PENDING_PATH, req.url));
+      return secure(NextResponse.redirect(new URL(PENDING_PATH, req.url)));
     }
 
     // Otherwise send to dashboard
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return secure(NextResponse.redirect(new URL("/dashboard", req.url)));
   }
 
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {
