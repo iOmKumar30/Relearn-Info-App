@@ -8,6 +8,8 @@ import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const MAX_BACKFILL_MONTHS = 12;
+// A single month may require several independent database aggregations.
+export const maxDuration = 300;
 
 function hasFinancialYearOverlap(rows: Array<{ startDate: Date; endDate: Date }>) {
   const ordered = [...rows].sort((left, right) => left.startDate.getTime() - right.startDate.getTime());

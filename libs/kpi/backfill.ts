@@ -2,6 +2,9 @@ import {
   computeCentresTotal,
   computeClassroomsTotal,
   computeFinances,
+  computeHistoricalMembersTotal,
+  computeHistoricalPersonsTrained,
+  computeHistoricalTutorsTotal,
   computeMonthlyFinances,
   computeMembersTotal,
   computePersonsTrained,
@@ -11,7 +14,7 @@ import {
   computeTutorsTotal,
   upsertAuto,
 } from '@/libs/kpi/compute';
-import { firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
+import { currentMonthYYYYMM, firstDayOfMonthFromYYYYMM } from '@/libs/kpi/month';
 import prisma from '@/libs/prismadb';
 
 const STALE_PROCESSING_MS = 15 * 60 * 1000;
@@ -27,6 +30,7 @@ export const HISTORICAL_KPI_SKIP_REASONS: Record<string, string> = {
   'projects.ongoing': 'Historical project lifecycle data is unavailable',
   'projects.past': 'Historical project lifecycle data is unavailable',
   'entrepreneurs.created': 'No approved historical compute handler',
+  'classrooms.senior.share': 'Historical classroom section changes are unavailable',
 };
 
 export function historicalKpiSkipReason(key: string): string | null {
@@ -49,6 +53,11 @@ const SUPPORTED_KPI_KEYS = new Set([
   'finance.revenue.monthly.lakhs',
   'finance.expenditure.monthly.lakhs',
 ]);
+
+export function isBackfillKpiEligible(key: string, isHistoricalMonth: boolean): boolean {
+  return SUPPORTED_KPI_KEYS.has(key) &&
+    !(isHistoricalMonth && key === 'classrooms.senior.share');
+}
 
 export type BackfillMonthResult = {
   month: string;
@@ -93,15 +102,16 @@ async function writeComputedAuto(
   monthDate: Date,
   finance: Awaited<ReturnType<typeof computeFinances>> | null,
   monthlyFinance: Awaited<ReturnType<typeof computeMonthlyFinances>> | null,
+  isHistoricalMonth: boolean,
 ) {
   switch (key) {
     case 'students.total': return upsertAuto(kpiId, monthDate, await computeStudentsTotal(monthDate));
     case 'classrooms.total': return upsertAuto(kpiId, monthDate, await computeClassroomsTotal(monthDate));
     case 'classrooms.senior.share': return upsertAuto(kpiId, monthDate, await computeSeniorShare(monthDate));
     case 'students.passed.x': return upsertAuto(kpiId, monthDate, await computeStudentsPassedX(monthDate));
-    case 'tutors.total': return upsertAuto(kpiId, monthDate, await computeTutorsTotal(monthDate));
-    case 'members.total': return upsertAuto(kpiId, monthDate, await computeMembersTotal(monthDate));
-    case 'persons.trained': return upsertAuto(kpiId, monthDate, await computePersonsTrained(monthDate));
+    case 'tutors.total': return upsertAuto(kpiId, monthDate, await (isHistoricalMonth ? computeHistoricalTutorsTotal(monthDate) : computeTutorsTotal(monthDate)));
+    case 'members.total': return upsertAuto(kpiId, monthDate, await (isHistoricalMonth ? computeHistoricalMembersTotal(monthDate) : computeMembersTotal(monthDate)));
+    case 'persons.trained': return upsertAuto(kpiId, monthDate, await (isHistoricalMonth ? computeHistoricalPersonsTrained(monthDate) : computePersonsTrained(monthDate)));
     case 'centres.total': return upsertAuto(kpiId, monthDate, await computeCentresTotal(monthDate));
     case 'finance.revenue.current.lakhs': return upsertAuto(kpiId, monthDate, finance!.currentRevenue);
     case 'finance.expenditure.current.lakhs': return upsertAuto(kpiId, monthDate, finance!.currentExpenditure);
@@ -123,14 +133,17 @@ export async function runKpiBackfillMonth({
   dryRun: boolean;
 }): Promise<BackfillMonthResult> {
   const monthDate = firstDayOfMonthFromYYYYMM(targetMonth);
+  const isHistoricalMonth = targetMonth < currentMonthYYYYMM();
   const definitions = await prisma.kPI.findMany({ where: { active: true }, select: { id: true, key: true } });
+  // A classroom's current section cannot reconstruct whether it was senior in
+  // an earlier month, so do not replace historical snapshots with today's data.
   const skippedKpis = definitions
-    .filter((kpi) => HISTORICAL_PROJECT_KPI_KEYS.has(kpi.key) || !SUPPORTED_KPI_KEYS.has(kpi.key))
+    .filter((kpi) => !isBackfillKpiEligible(kpi.key, isHistoricalMonth))
     .map((kpi) => ({
       key: kpi.key,
       reason: historicalKpiSkipReason(kpi.key) ?? 'No approved AUTO compute handler exists for this KPI key',
     }));
-  const eligible = definitions.filter((kpi) => SUPPORTED_KPI_KEYS.has(kpi.key));
+  const eligible = definitions.filter((kpi) => isBackfillKpiEligible(kpi.key, isHistoricalMonth));
 
   if (dryRun) {
     console.info('[KPI_BACKFILL]', { action: 'dry-run', actorId, targetMonth, eligibleKpis: eligible.map((kpi) => kpi.key), skippedKpis });
@@ -189,7 +202,7 @@ export async function runKpiBackfillMonth({
         'finance.revenue.monthly.lakhs',
         'finance.expenditure.monthly.lakhs',
       ].includes(kpi.key) && monthlyFinanceError) throw new Error('Monthly finance computation failed');
-      await writeComputedAuto(kpi.key, kpi.id, monthDate, finance, monthlyFinance);
+      await writeComputedAuto(kpi.key, kpi.id, monthDate, finance, monthlyFinance, isHistoricalMonth);
       autoKpisWritten.push(kpi.key);
     } catch (error) {
       failedKpis.push(kpi.key);

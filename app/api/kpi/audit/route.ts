@@ -94,6 +94,7 @@ export async function GET() {
         : []),
       'students.passed.x uses all legacy board-result records whose passingYear equals the KPI snapshot year.',
       'Historical project AUTO recomputation is excluded because lifecycle history is unavailable. Historical projects.past views use current COMPLETED status and the selected project year, so they are approximate.',
+      'Historical classroom senior-share AUTO recomputation is excluded because classroom section history is unavailable.',
       'entrepreneurs.created has no approved historical compute handler and is excluded from historical AUTO backfill.',
     ];
 

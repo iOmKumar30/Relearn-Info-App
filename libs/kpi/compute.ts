@@ -40,6 +40,14 @@ type InternCountClient = {
   };
 };
 
+type UserCountClient = {
+  user: { count(args: { where: Prisma.UserWhereInput }): Promise<number> };
+};
+
+type MemberCountClient = {
+  member: { count(args: { where: Prisma.MemberWhereInput }): Promise<number> };
+};
+
 type AutoValueClient = Pick<typeof prisma, 'kPIMonthlyValue'>;
 type LiveValueClient = Pick<typeof prisma, 'kPILiveValue'>;
 
@@ -152,31 +160,44 @@ export async function computeStudentsTotal(
 }
 
 export async function computeTutorsTotal(monthDate: Date): Promise<number> {
-  const { start, endExclusive } = monthWindow(monthDate);
   return withTimeout(
     prisma.user.count({
-      where: {
-        status: 'ACTIVE',
-        roleHistory: {
-          some: {
-            role: { name: 'TUTOR' },
-            startDate: { lt: endExclusive },
-            OR: [{ endDate: null }, { endDate: { gte: start } }],
-          },
-        },
-        tutorAssignments: {
-          some: {
-            startDate: { lt: endExclusive },
-            OR: [{ endDate: null }, { endDate: { gte: start } }],
-          },
-        },
-      },
+      where: { ...historicalTutorsMonthFilter(monthDate), status: 'ACTIVE' },
     }),
     KPI_COMPUTATION_TIMEOUT,
   );
 }
 
-function classroomWindowFilter(monthDate: Date) {
+export function historicalTutorsMonthFilter(monthDate: Date): Prisma.UserWhereInput {
+  const { start, endExclusive } = monthWindow(monthDate);
+  return {
+    roleHistory: {
+      some: {
+        role: { name: 'TUTOR' },
+        startDate: { lt: endExclusive },
+        OR: [{ endDate: null }, { endDate: { gte: start } }],
+      },
+    },
+    tutorAssignments: {
+      some: {
+        startDate: { lt: endExclusive },
+        OR: [{ endDate: null }, { endDate: { gte: start } }],
+      },
+    },
+  };
+}
+
+export async function computeHistoricalTutorsTotal(
+  monthDate: Date,
+  client: UserCountClient = prisma,
+): Promise<number> {
+  return withTimeout(
+    client.user.count({ where: historicalTutorsMonthFilter(monthDate) }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
+export function classroomWindowFilter(monthDate: Date): Prisma.ClassroomWhereInput {
   const { start, endExclusive } = monthWindow(monthDate);
   return {
     AND: [
@@ -211,22 +232,35 @@ export async function computeSeniorShare(monthDate: Date): Promise<number> {
 }
 
 export async function computeMembersTotal(monthDate: Date): Promise<number> {
-  const { start, endExclusive } = monthWindow(monthDate);
   return withTimeout(
     prisma.member.count({
-      where: {
-        status: 'ACTIVE',
-        joiningDate: { lt: endExclusive },
-        OR: [{ leavingDate: null }, { leavingDate: { gte: start } }],
-        typeHistory: {
-          some: {
-            memberType: { in: ['ANNUAL', 'HONORARY', 'LIFE', 'FOUNDER'] },
-            startDate: { lt: endExclusive },
-            OR: [{ endDate: null }, { endDate: { gte: start } }],
-          },
-        },
-      },
+      where: { ...historicalMembersMonthFilter(monthDate), status: 'ACTIVE' },
     }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
+export function historicalMembersMonthFilter(monthDate: Date): Prisma.MemberWhereInput {
+  const { start, endExclusive } = monthWindow(monthDate);
+  return {
+    joiningDate: { lt: endExclusive },
+    OR: [{ leavingDate: null }, { leavingDate: { gte: start } }],
+    typeHistory: {
+      some: {
+        memberType: { in: ['ANNUAL', 'HONORARY', 'LIFE', 'FOUNDER'] },
+        startDate: { lt: endExclusive },
+        OR: [{ endDate: null }, { endDate: { gte: start } }],
+      },
+    },
+  };
+}
+
+export async function computeHistoricalMembersTotal(
+  monthDate: Date,
+  client: MemberCountClient = prisma,
+): Promise<number> {
+  return withTimeout(
+    client.member.count({ where: historicalMembersMonthFilter(monthDate) }),
     KPI_COMPUTATION_TIMEOUT,
   );
 }
@@ -274,6 +308,24 @@ export async function computePersonsTrained(
     client.intern.count({
       where: personsTrainedMonthFilter(monthDate),
     }),
+    KPI_COMPUTATION_TIMEOUT,
+  );
+}
+
+export function historicalPersonsTrainedMonthFilter(monthDate: Date): Prisma.InternWhereInput {
+  const { start, endExclusive } = monthWindow(monthDate);
+  return {
+    joiningDate: { lt: endExclusive },
+    OR: [{ completionDate: null }, { completionDate: { gte: start } }],
+  };
+}
+
+export async function computeHistoricalPersonsTrained(
+  monthDate: Date,
+  client: InternCountClient = prisma,
+): Promise<number> {
+  return withTimeout(
+    client.intern.count({ where: historicalPersonsTrainedMonthFilter(monthDate) }),
     KPI_COMPUTATION_TIMEOUT,
   );
 }
@@ -404,14 +456,18 @@ export async function upsertLiveAuto(
   );
 }
 
-export async function computeCentresTotal(monthDate: Date): Promise<number> {
+export function centreMonthFilter(monthDate: Date): Prisma.CentreWhereInput {
   const { start, endExclusive } = monthWindow(monthDate);
+  return {
+    dateAssociated: { lt: endExclusive },
+    OR: [{ dateLeft: null }, { dateLeft: { gte: start } }],
+  };
+}
+
+export async function computeCentresTotal(monthDate: Date): Promise<number> {
   return withTimeout(
     prisma.centre.count({
-      where: {
-        dateAssociated: { lt: endExclusive },
-        OR: [{ dateLeft: null }, { dateLeft: { gte: start } }],
-      },
+      where: centreMonthFilter(monthDate),
     }),
     KPI_COMPUTATION_TIMEOUT,
   );

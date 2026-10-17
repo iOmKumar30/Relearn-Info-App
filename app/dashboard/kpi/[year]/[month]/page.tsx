@@ -2,11 +2,14 @@
 
 import { KpiCard, type KpiDto } from '@/components/dashboard/KpiCard';
 import { KpiSkeleton } from '@/components/dashboard/KpiSkeleton';
+import { currentMonthYYYYMM } from '@/libs/kpi/month';
+import { parseKpiYear, parseMonthInput } from '@/libs/kpi/validation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Download } from 'lucide-react';
+import { ArrowLeft, Calendar, Download, RefreshCw } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 const MONTH_NAMES = [
@@ -32,34 +35,89 @@ const MONTHLY_FINANCE_KPI_KEYS = new Set([
 
 export default function KpiMonthPage() {
   const { year, month } = useParams<{ year: string; month: string }>();
+  const { data: session } = useSession();
   const [kpis, setKpis] = useState<KpiDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const selectedMonth = `${year}-${String(month).padStart(2, '0')}`;
+  const canRefresh = session?.user?.roles?.includes('ADMIN') &&
+    parseKpiYear(year) !== null &&
+    parseMonthInput(selectedMonth) !== null &&
+    selectedMonth <= currentMonthYYYYMM();
+
+  const load = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const res = await fetch(`/api/kpi/month/${year}/${month}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const json = await res.json();
+      // Map the month route shape to KpiDto shape (add empty trend array)
+      const mapped = (json.kpis || []).map((k: any) => ({
+        ...k,
+        currentValue: k.value,
+        currentSource: k.source,
+        trend: [],
+      }));
+      setKpis(mapped);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to load KPIs');
+      return false;
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [year, month]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/kpi/month/${year}/${month}`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) throw new Error('Failed to load');
-        const json = await res.json();
-        // Map the month route shape to KpiDto shape (add empty trend array)
-        const mapped = (json.kpis || []).map((k: any) => ({
-          ...k,
-          currentValue: k.value,
-          currentSource: k.source,
-          trend: [],
-        }));
-        setKpis(mapped);
-      } catch (e: any) {
-        toast.error(e?.message || 'Failed to load KPIs');
-      } finally {
-        setLoading(false);
-      }
-    };
     load();
-  }, [year, month]);
+  }, [load]);
+
+  const handleRefresh = async () => {
+    if (!canRefresh || refreshing) return;
+    const confirmed = window.confirm(
+      `Refresh AUTO KPIs for ${monthLabel}? Only this month will be updated. Manual entries are preserved. Historical project snapshots and senior classroom share are not recomputed when their history is unavailable. Results depend on accurate source dates.`,
+    );
+    if (!confirmed) return;
+
+    setRefreshing(true);
+    const toastId = toast.loading(`Refreshing ${monthLabel} KPIs...`);
+    try {
+      const res = await fetch('/api/kpi/backfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startMonth: selectedMonth,
+          endMonth: selectedMonth,
+          includeProjects: false,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Unable to refresh KPIs');
+      }
+
+      const result = data?.results?.[0];
+      if (result?.status === 'queued') {
+        toast.error('A KPI calculation for this month is already running. Try again when it finishes.', { id: toastId });
+      } else if (result?.status === 'computed') {
+        const reloaded = await load(true);
+        if (reloaded) {
+          toast.success(`${monthLabel} KPIs refreshed. Manual entries and excluded historical values were preserved.`, { id: toastId });
+        } else {
+          toast.error('KPIs were refreshed, but the page could not reload them. Please reload the page.', { id: toastId });
+        }
+      } else {
+        await load(true);
+        toast.error('Some KPIs could not be refreshed. Other updates may have been saved; please retry or check the server logs.', { id: toastId });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to refresh KPIs', { id: toastId });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const groups = useMemo(() => {
     const g = new Map<string, KpiDto[]>();
@@ -123,19 +181,34 @@ export default function KpiMonthPage() {
               <p className="mt-1 text-sm text-gray-500">
                 KPI snapshot for {monthLabel}
               </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Historical project counts use current project status and may not reflect the selected month.
+              </p>
             </div>
           </div>
 
-          {/* Export Excel Button */}
-          {!loading && kpis.length > 0 && (
-            <button
-              onClick={handleExport}
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <Download className="h-4 w-4" />
-              Export Excel
-            </button>
-          )}
+          <div className="flex flex-wrap gap-3">
+            {canRefresh && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loading || refreshing}
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh Month'}
+              </button>
+            )}
+            {!loading && kpis.length > 0 && (
+              <button
+                onClick={handleExport}
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <Download className="h-4 w-4" />
+                Export Excel
+              </button>
+            )}
+          </div>
         </motion.div>
 
         <div className="relative min-h-[500px]">
