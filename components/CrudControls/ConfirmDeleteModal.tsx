@@ -26,7 +26,8 @@ export default function ConfirmDeleteModal({
       <ModalHeader>{title}</ModalHeader>
       <ModalBody className="max-h-[80vh] overflow-y-auto p-4 sm:p-6">
         <div className="space-y-4">
-          <p className="text-sm text-gray-700">{message}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-200">{message}</p>
+     
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button color="light" onClick={onCancel} disabled={processing}>
               Cancel
