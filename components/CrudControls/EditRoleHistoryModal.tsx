@@ -1,5 +1,6 @@
 "use client";
 
+import { displayRoleName } from "@/libs/roles";
 import {
   Button,
   Label,
@@ -53,7 +54,9 @@ export default function EditRoleHistoryModal({
             <div>
               <Label className="mb-2 block">Role</Label>
               <div className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                {rawData?.role?.name ?? roleHistory.role ?? "—"}
+                {typeof rawData?.role?.name === "string"
+                  ? displayRoleName(rawData.role.name)
+                  : roleHistory.role ?? "—"}
               </div>
             </div>
             <div>

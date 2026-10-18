@@ -6,6 +6,7 @@ import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import SearchBar from "@/components/CrudControls/SearchBar";
 import RBACGate from "@/components/RBACGate";
 import { userProfileHref } from "@/libs/breadcrumbs";
+import { displayRoleName } from "@/libs/roles";
 import { Badge, Pagination } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -106,7 +107,7 @@ export default function FacilitatorsPage() {
           name: u.name || "",
           email: u.email,
           phone: u.phone || "",
-          roles: (u.currentRoles || []).join(", "),
+          roles: (u.currentRoles || []).map(displayRoleName).join(", "),
           status: u.status,
           onboardingStatus: u.onboardingStatus,
           createdAt: u.createdAt
@@ -130,7 +131,7 @@ export default function FacilitatorsPage() {
       name: u.name || "",
       email: u.email,
       phone: u.phone || "",
-      roles: (u.currentRoles || []).join(", "),
+      roles: (u.currentRoles || []).map(displayRoleName).join(", "),
       status: u.status,
       onboardingStatus: u.onboardingStatus,
       createdAt: u.createdAt
@@ -148,7 +149,7 @@ export default function FacilitatorsPage() {
         <>
           {(u.currentRoles || []).map((r) => (
             <Badge key={r} color="info" className="mr-1 uppercase">
-              {r}
+              {displayRoleName(r)}
             </Badge>
           ))}
         </>

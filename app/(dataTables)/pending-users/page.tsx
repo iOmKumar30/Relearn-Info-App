@@ -2,6 +2,7 @@
 
 import RoleAssignModal from "@/components/CreateModals/RoleAssignModal";
 import DataTable from "@/components/CrudControls/Datatable";
+import { displayRoleName } from "@/libs/roles";
 import { Badge, Button } from "flowbite-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePendingUsers } from "./usePendingUsers";
@@ -43,7 +44,7 @@ export default function PendingUsersPage() {
         <>
           {(u.currentRoles || []).map((r: string) => (
             <Badge key={r} color="info" className="mr-1 uppercase">
-              {r}
+              {displayRoleName(r)}
             </Badge>
           ))}
         </>

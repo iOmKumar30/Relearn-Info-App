@@ -3,6 +3,7 @@ export type FilterOption = {
   label: string;
   type: "text" | "select" | "number";
   options?: string[];
+  optionLabels?: Record<string, string>;
   customRenderer?: (args: {
     value: string;
     onChange: (value: string) => void;

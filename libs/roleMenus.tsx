@@ -83,7 +83,8 @@ export const roleMenus: Record<Role, NavEntry[]> = {
         { type: "item", label: "Users", href: "/users" },
         { type: "item", label: "Facilitators", href: "/facilitators" },
         { type: "item", label: "Tutors", href: "/tutors" },
-        { type: "item", label: "Employees", href: "/employees" },
+        { type: "item", label: "Master Tutors", href: "/master-tutors" },
+        { type: "item", label: "RELF Employees", href: "/relf-employees" },
         {
           type: "item",
           label: "Pending Users",

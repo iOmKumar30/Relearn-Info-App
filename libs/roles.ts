@@ -4,7 +4,7 @@ export const ALL_ROLES = [
   "TUTOR",
   "FACILITATOR",
   "RELF_EMPLOYEE",
-  "TUTOR_OF_TUTOR",
+  "MASTER_TUTOR",
   "MEMBER",
 ] as const;
 
@@ -16,9 +16,15 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   TUTOR: "Tutor",
   FACILITATOR: "Facilitator",
   RELF_EMPLOYEE: "Employee",
-  TUTOR_OF_TUTOR: "Tutor of Tutor",
+  MASTER_TUTOR: "Master Tutor",
   MEMBER: "Member",
 };
+
+// Preserve existing role labels elsewhere while presenting the renamed role
+// consistently wherever raw backend role names are displayed.
+export function displayRoleName(role: string): string {
+  return role === "MASTER_TUTOR" ? ROLE_LABELS.MASTER_TUTOR : role;
+}
 
 export function mapBackendRolesToUi(backendRoles: string[]): string[] {
   return (backendRoles || [])

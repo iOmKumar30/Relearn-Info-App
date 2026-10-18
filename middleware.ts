@@ -32,6 +32,8 @@ const PROTECTED_ROUTES: Record<string, string[]> = {
   "/pending-users": ["ADMIN"],
   "/facilitators": ["ADMIN", "RELF_EMPLOYEE"],
   "/tutors": ["ADMIN"],
+  "/master-tutors": ["ADMIN"],
+  "/relf-employees": ["ADMIN"],
   "/admin": ["ADMIN"],
 };
 
@@ -365,6 +367,8 @@ export const config = {
     "/pending-users/:path*",
     "/facilitators/:path*",
     "/tutors/:path*",
+    "/master-tutors/:path*",
+    "/relf-employees/:path*",
     "/admin/:path*",
     "/intern-registration/:path*",
     "/pending/:path*",

@@ -89,7 +89,7 @@ export default function FilterDropdown({
                   <option value="">Any</option>
                   {f.options?.map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {f.optionLabels?.[opt] ?? opt}
                     </option>
                   ))}
                 </select>

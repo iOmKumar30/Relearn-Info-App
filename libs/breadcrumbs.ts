@@ -2,6 +2,8 @@ export const userProfileSources = {
   users: { label: "Users", href: "/users" },
   tutors: { label: "Tutors", href: "/tutors" },
   facilitators: { label: "Facilitators", href: "/facilitators" },
+  "master-tutors": { label: "Master Tutors", href: "/master-tutors" },
+  "relf-employees": { label: "RELF Employees", href: "/relf-employees" },
 } as const;
 
 export type UserProfileSource = keyof typeof userProfileSources;

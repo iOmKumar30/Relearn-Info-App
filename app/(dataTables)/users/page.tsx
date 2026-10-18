@@ -96,6 +96,7 @@ export default function UsersPage() {
       key: "role",
       label: "Role",
       type: "select",
+      optionLabels: { MASTER_TUTOR: "Master Tutor", RELF_EMPLOYEE: "RELF Employee" },
       options: [
         "ADMIN",
         "FACILITATOR",
@@ -106,7 +107,7 @@ export default function UsersPage() {
         "INTERN",
         "TUTOR",
         "RELF_EMPLOYEE",
-        "TUTOR_OF_TUTOR",
+        "MASTER_TUTOR",
         "PENDING",
       ],
     },

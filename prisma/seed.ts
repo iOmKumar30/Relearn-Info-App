@@ -18,6 +18,7 @@ async function main() {
     "FACILITATOR",
     "TUTOR",
     "RELF_EMPLOYEE",
+    "MASTER_TUTOR",
     "PENDING",
   ];
 

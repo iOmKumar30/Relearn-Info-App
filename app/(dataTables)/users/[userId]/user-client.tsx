@@ -8,6 +8,7 @@ import EditRoleHistoryModal from "@/components/CrudControls/EditRoleHistoryModal
 import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { getUserProfileSource } from "@/libs/breadcrumbs";
+import { displayRoleName } from "@/libs/roles";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -437,7 +438,7 @@ export default function UserProfileClient({
       id: entry.id,
       role: (
         <Badge color="info" className="uppercase inline-block">
-          {entry.role?.name ?? "—"}
+          {entry.role?.name ? displayRoleName(entry.role.name) : "—"}
         </Badge>
       ),
       start: entry.startDate
@@ -748,7 +749,7 @@ export default function UserProfileClient({
                 color="info"
                 className="mr-1 uppercase inline-block"
               >
-                {r}
+                {displayRoleName(r)}
               </Badge>
             ))}
           </div>

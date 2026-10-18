@@ -20,8 +20,8 @@ export async function GET(req: Request) {
     Math.max(1, Number(searchParams.get("pageSize") || 20)),
   );
   const q = (searchParams.get("q") || "").trim();
-  if (!roleParam) {
-    return new NextResponse("role query param is required, e.g. role=TUTOR", {
+  if (!Object.values(RoleName).includes(roleParam)) {
+    return new NextResponse("A valid role query parameter is required", {
       status: 400,
     });
   }
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
     prisma.user.count({ where }),
     prisma.user.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
@@ -97,6 +97,7 @@ export async function GET(req: Request) {
       phone: u.phone,
       address: u.address,
       status: u.status,
+      onboardingStatus: u.onboardingStatus,
       createdAt: u.createdAt,
       currentRoles: roleNames,
     };
