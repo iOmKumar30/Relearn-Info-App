@@ -174,7 +174,7 @@ export default function FounderMemberCreateModal({
     });
 
     try {
-      const payload = { ...form, fees };
+      const payload = { ...form, fees, expectedFinanceFeeRevision: initialValues?.financeFeeRevision ?? 0 };
       if (mode === "create" && onCreate) {
         await onCreate(payload);
       } else if (mode === "edit" && onUpdate && initialValues?.id) {

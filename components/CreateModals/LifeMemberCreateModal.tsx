@@ -257,6 +257,7 @@ export default function LifeMemberCreateModal({
     }));
 
     const payload = {
+      expectedFinanceFeeRevision: initialValues?.financeFeeRevision ?? 0,
       ...form,
       fees: feePayload,
       typeHistory: historyPayload,

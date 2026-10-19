@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE "Transaction"
+ADD COLUMN "comment" TEXT NOT NULL DEFAULT '';
+
+COMMIT;

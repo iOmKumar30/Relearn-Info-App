@@ -3,6 +3,17 @@
 import { toUTCDate } from "@/libs/finance-utils";
 import prisma from "@/libs/prismadb";
 import { isCurrentUserAdmin } from "@/libs/server-auth";
+import {
+  creditFinanceDonation,
+  DonationCreditInput,
+  mergeFinanceStatement,
+  removeFinanceTransactions,
+  saveFinanceTransaction,
+  transactionDetailsInclude,
+} from "@/libs/finance-transaction-service";
+import { FinanceValidationError } from "@/libs/finance-transactions";
+import { authOptions } from "@/libs/authOptions";
+import { getServerSession } from "next-auth";
 import { MonthlyStatement, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
@@ -118,6 +129,7 @@ export async function getMonthDetails(monthId: string) {
         financialYear: true,
         transactions: {
           orderBy: { txnDate: "asc" },
+          include: transactionDetailsInclude,
         },
       },
     });
@@ -239,50 +251,27 @@ export async function uploadMonthlyStatement(
       });
     }
 
-    await prisma.monthlyStatement.update({
-      where: { id: statementId },
-      data: {
+    await mergeFinanceStatement(
+      prisma,
+      statementId,
+      {
         dataPopulatedDate: toUTCDate(popDateRaw) || new Date(),
         startDate: toUTCDate(startDateRaw),
         endDate: toUTCDate(endDateRaw),
         startBalance: Number(startBalanceRaw || 0),
         endBalance: lastRunningBalance,
       },
-    });
+      transactionsToCreate,
+    );
 
-    for (const txn of transactionsToCreate) {
-      if (txn.txnId) {
-        const existing = await prisma.transaction.findFirst({
-          where: {
-            statementId,
-            txnId: txn.txnId,
-          },
-        });
-
-        if (existing) {
-          await prisma.transaction.update({
-            where: { id: existing.id },
-            data: {
-              txnDate: txn.txnDate,
-              valueDate: txn.valueDate,
-              amount: txn.amount,
-              runningBalance: txn.runningBalance,
-              description: txn.description,
-            },
-          });
-        } else {
-          await prisma.transaction.create({ data: txn as any });
-        }
-      } else {
-        await prisma.transaction.create({ data: txn as any });
-      }
-    }
-
-    revalidatePath(`/admin/finance`);
+    revalidatePath("/admin/finance", "layout");
     return { success: true, message: "Statement processed successfully" };
   } catch (error) {
     console.error("Upload Error:", error);
-    return { success: false, error: "Failed to process Excel file" };
+    return {
+      success: false,
+      error: financeError(error, "Failed to process Excel file"),
+    };
   }
 }
 export async function updateMonthlyBalances(
@@ -312,23 +301,15 @@ export async function clearMonthlyData(statementId: string) {
   if (!(await isCurrentUserAdmin()))
     return { success: false, error: "Unauthorized" };
   try {
-    await prisma.transaction.deleteMany({
-      where: { statementId },
-    });
+    await removeFinanceTransactions(prisma, statementId);
 
-    await prisma.monthlyStatement.update({
-      where: { id: statementId },
-      data: {
-        startBalance: 0,
-        endBalance: 0,
-        dataPopulatedDate: null,
-      },
-    });
-
-    revalidatePath(`/admin/finance`);
+    revalidatePath("/admin/finance", "layout");
     return { success: true, message: "All transactions cleared" };
   } catch (error) {
-    return { success: false, error: "Failed to clear data" };
+    return {
+      success: false,
+      error: financeError(error, "Failed to clear data"),
+    };
   }
 }
 
@@ -336,54 +317,106 @@ export async function upsertTransaction(data: any) {
   if (!(await isCurrentUserAdmin()))
     return { success: false, error: "Unauthorized" };
   try {
-    const { id, statementId, ...fields } = data;
+    await saveFinanceTransaction(prisma, data);
 
-    const {
-      reasonOption,
-      customReason,
-      partyOption,
-      customParty,
-      ...dbFields
-    } = fields;
-
-    const cleanData = {
-      ...dbFields,
-      txnDate: toUTCDate(dbFields.txnDate),
-      valueDate: toUTCDate(dbFields.valueDate),
-      amount: Number(dbFields.amount),
-      runningBalance: Number(dbFields.runningBalance),
-    };
-
-    if (id) {
-      await prisma.transaction.update({
-        where: { id },
-        data: cleanData,
-      });
-    } else {
-      await prisma.transaction.create({
-        data: {
-          statementId,
-          ...cleanData,
-        },
-      });
-    }
-
-    revalidatePath(`/admin/finance`);
+    revalidatePath("/admin/finance", "layout");
     return { success: true };
   } catch (error) {
     console.error("Upsert Transaction Error:", error);
-    return { success: false, error: "Failed to save transaction" };
+    return {
+      success: false,
+      error: financeError(error, "Failed to save transaction"),
+    };
   }
 }
 export async function deleteTransaction(id: string) {
   if (!(await isCurrentUserAdmin()))
     return { success: false, error: "Unauthorized" };
   try {
-    await prisma.transaction.delete({ where: { id } });
-    revalidatePath(`/admin/finance`);
+    const transaction = await prisma.transaction.findUnique({
+      where: { id },
+      select: { statementId: true },
+    });
+    if (!transaction) return { success: false, error: "Transaction not found" };
+    await removeFinanceTransactions(prisma, transaction.statementId, id);
+    revalidatePath("/admin/finance", "layout");
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Failed to delete" };
+    return { success: false, error: financeError(error, "Failed to delete") };
+  }
+}
+
+function financeError(error: unknown, fallback: string) {
+  if (error instanceof FinanceValidationError) return error.message;
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2028"
+  ) {
+    return "The database is busy. Please try again; no partial changes were saved.";
+  }
+  return fallback;
+}
+
+export async function getMemberDonationYears() {
+  if (!(await isCurrentUserAdmin()))
+    return { success: false, error: "Unauthorized", years: [] as string[] };
+  try {
+    const { memberFiscalLabel } = await import("@/libs/finance-transactions");
+    const years = await prisma.financialYear.findMany({
+      select: { startDate: true },
+    });
+    const currentYear = new Date().getFullYear();
+    const labels = Array.from(
+      { length: Math.max(0, currentYear - 2020 + 1) },
+      (_, i) => `${2020 + i}-${2021 + i}`,
+    );
+    return {
+      success: true,
+      years: [
+        ...new Set([
+          ...labels,
+          ...years.map((year) => memberFiscalLabel(year.startDate)),
+        ]),
+      ]
+        .sort()
+        .reverse(),
+    };
+  } catch (error) {
+    console.error("MEMBER_DONATION_YEARS_ERROR", error);
+    return {
+      success: false,
+      error: "Could not load financial years. Please try again.",
+      years: [] as string[],
+    };
+  }
+}
+
+export async function addTransactionToMemberDonation(
+  input: DonationCreditInput,
+): Promise<{
+  success: boolean;
+  error?: string;
+  alreadyCredited?: boolean;
+  fiscalLabel?: string;
+}> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || !session.user.roles?.includes("ADMIN"))
+    return { success: false, error: "Unauthorized" };
+  try {
+    const result = await creditFinanceDonation(prisma, input, session.user.id);
+    revalidatePath("/admin/finance", "layout");
+    for (const type of ["annual", "life", "honorary", "founder"])
+      revalidatePath(`/members/${type}`);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error("FINANCE_MEMBER_DONATION_ERROR", error);
+    return {
+      success: false,
+      error: financeError(
+        error,
+        "Failed to add member donation. Refresh to check its status before trying again.",
+      ),
+    };
   }
 }
 
@@ -392,7 +425,12 @@ type YearWithAnalyticsData = Prisma.FinancialYearGetPayload<{
     months: {
       include: {
         transactions: {
-          select: { amount: true; type: true; reason: true };
+          select: {
+            amount: true;
+            type: true;
+            reason: true;
+            splits: { select: { amount: true; reason: true } };
+          };
         };
       };
     };
@@ -409,7 +447,12 @@ export async function getYearlyAnalytics(yearId: string) {
         months: {
           include: {
             transactions: {
-              select: { amount: true, type: true, reason: true },
+              select: {
+                amount: true,
+                type: true,
+                reason: true,
+                splits: { select: { amount: true, reason: true } },
+              },
             },
           },
           orderBy: { month: "asc" },
@@ -450,9 +493,16 @@ export async function getYearlyAnalytics(yearId: string) {
 
     year.months.forEach((m) => {
       m.transactions.forEach((t) => {
-        if (t.type === "DEBIT" && t.reason) {
-          const key = t.reason.trim();
-          categoryMap.set(key, (categoryMap.get(key) || 0) + Number(t.amount));
+        if (t.type === "DEBIT") {
+          const allocations = t.splits.length ? t.splits : [t];
+          for (const allocation of allocations) {
+            if (!allocation.reason) continue;
+            const key = allocation.reason.trim();
+            categoryMap.set(
+              key,
+              (categoryMap.get(key) || 0) + Number(allocation.amount),
+            );
+          }
         }
       });
     });
@@ -480,8 +530,10 @@ export async function getYearlyAnalytics(yearId: string) {
   }
 }
 
-
-export async function toggleFinancialYearStatus(yearId: string, isActive: boolean) {
+export async function toggleFinancialYearStatus(
+  yearId: string,
+  isActive: boolean,
+) {
   if (!(await isCurrentUserAdmin()))
     return { success: false, error: "Unauthorized" };
   try {

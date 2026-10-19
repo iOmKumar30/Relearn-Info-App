@@ -1,15 +1,18 @@
 "use server";
 
 import prisma from "@/libs/prismadb";
+import { isCurrentUserAdmin } from "@/libs/server-auth";
 
 export type PartyResult = {
   id: string;
   name: string;
   type: "MEMBER" | "INTERN";
   code?: string;
+  userId?: string;
 };
 
 export async function searchParties(query: string): Promise<PartyResult[]> {
+  if (!(await isCurrentUserAdmin())) return [];
   if (!query || query.trim().length < 2) return [];
 
   const search = query.trim();
@@ -25,6 +28,7 @@ export async function searchParties(query: string): Promise<PartyResult[]> {
     select: {
       id: true,
       memberId: true,
+      userId: true,
       user: { select: { name: true } },
     },
   });
@@ -41,6 +45,7 @@ export async function searchParties(query: string): Promise<PartyResult[]> {
     select: {
       id: true,
       memberId: true,
+      userId: true,
       user: { select: { name: true } },
     },
   });
@@ -76,6 +81,7 @@ export async function searchParties(query: string): Promise<PartyResult[]> {
       name: isMember ? item.m.user?.name || "Unknown" : item.m.name,
       type: item.type as "MEMBER" | "INTERN",
       code: isMember ? item.m.memberId || undefined : undefined,
+      userId: isMember ? item.m.userId : undefined,
     };
   });
 

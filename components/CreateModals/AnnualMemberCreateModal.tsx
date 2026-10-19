@@ -258,6 +258,7 @@ export default function AnnualMemberCreateModal({
     }));
 
     const payload = {
+      expectedFinanceFeeRevision: initialValues?.financeFeeRevision ?? 0,
       ...form,
       fees: feePayload,
       typeHistory: historyPayload,

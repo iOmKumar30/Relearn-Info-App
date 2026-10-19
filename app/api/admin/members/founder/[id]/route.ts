@@ -1,6 +1,8 @@
 import { authOptions } from "@/libs/authOptions";
 import { isAdmin } from "@/libs/isAdmin";
 import prisma from "@/libs/prismadb";
+import { assertFinanceFeeRevision } from "@/libs/finance-transaction-service";
+import { FinanceValidationError } from "@/libs/finance-transactions";
 import { toUTCDate } from "@/libs/toUTCDate";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -66,6 +68,7 @@ export async function PUT(
 
     await prisma.$transaction(
       async (tx) => {
+        await assertFinanceFeeRevision(tx, id, body.expectedFinanceFeeRevision);
         // 1. Check existence
         const member = await tx.member.findUnique({
           where: { id },
@@ -130,6 +133,7 @@ export async function PUT(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("UPDATE_FOUNDER_MEMBER_ERROR", error);
+    if (error instanceof FinanceValidationError) return new NextResponse(error.message, { status: 409 });
     return new NextResponse(
       error.message || "Failed to update founder member",
       {

@@ -1,26 +1,26 @@
 import {
   getFinancialYearDetails,
   getYearlyAnalytics,
-} from "@/app/actions/finance";
-import Breadcrumbs from "@/components/Breadcrumbs";
-import { AnalyticsDashboardLoader } from "@/components/finance/AnalyticsDashboardLoader";
-import { YearStatusToggle } from "@/components/finance/year-status-toggle";
-import { YearlyExportButton } from "@/components/finance/yearly-export-button"; // <-- NEW IMPORT
+} from '@/app/actions/finance';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import { AnalyticsDashboardLoader } from '@/components/finance/AnalyticsDashboardLoader';
+import { YearStatusToggle } from '@/components/finance/year-status-toggle';
+import { YearlyExportButton } from '@/components/finance/yearly-export-button'; // <-- NEW IMPORT
 import {
   AlertCircle,
   ArrowLeft,
   Calendar,
   TrendingDown,
   TrendingUp,
-} from "lucide-react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+} from 'lucide-react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 // Helper to format currency
 const formatCurrency = (amount: any) => {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
     maximumFractionDigits: 0,
   }).format(Number(amount) || 0);
 };
@@ -29,22 +29,24 @@ const formatCurrency = (amount: any) => {
 const getMonthName = (monthNumber: number) => {
   const date = new Date();
   date.setMonth(monthNumber - 1);
-  return date.toLocaleString("default", { month: "long" });
+  return date.toLocaleString('default', { month: 'long' });
 };
 
 const exportColumns = [
-  { key: "serialNo", label: "SI No" },
-  { key: "txnDate", label: "Txn Date" },
-  { key: "valueDate", label: "Value Date" },
-  { key: "description", label: "Description" },
-  { key: "txnId", label: "Txn ID" },
-  { key: "refNo", label: "Ref No / Cheque No" },
-  { key: "branchCode", label: "Branch Code" },
-  { key: "type", label: "Type" },
-  { key: "amount", label: "Amount" },
-  { key: "runningBalance", label: "Balance" },
-  { key: "reason", label: "Reason (Why?)" },
-  { key: "partyName", label: "Person Received/Paid" },
+  { key: 'serialNo', label: 'SI No' },
+  { key: 'txnDate', label: 'Txn Date' },
+  { key: 'valueDate', label: 'Value Date' },
+  { key: 'description', label: 'Description' },
+  { key: 'comment', label: 'Comment' },
+  { key: 'txnId', label: 'Txn ID' },
+  { key: 'refNo', label: 'Ref No / Cheque No' },
+  { key: 'branchCode', label: 'Branch Code' },
+  { key: 'type', label: 'Type' },
+  { key: 'amount', label: 'Amount' },
+  { key: 'runningBalance', label: 'Balance' },
+  { key: 'reason', label: 'Reason (Why?)' },
+  { key: 'partyName', label: 'Person Received/Paid' },
+  { key: 'breakdown', label: 'Sub-transactions (included in parent amount)' },
 ];
 
 export default async function FinancialYearDetail({
@@ -83,13 +85,13 @@ export default async function FinancialYearDetail({
   const netSurplus = totalIncome - totalExpense;
 
   const prefaceData = [
-    { Label: "Starting Balance", Value: openingBalance },
-    { Label: "Closing Balance", Value: closingBalance },
-    { Label: "", Value: "" },
-    { Label: "Total Income", Value: totalIncome },
-    { Label: "Total Expenses", Value: totalExpense },
-    { Label: "Net Surplus", Value: netSurplus },
-    { Label: "", Value: "" },
+    { Label: 'Starting Balance', Value: openingBalance },
+    { Label: 'Closing Balance', Value: closingBalance },
+    { Label: '', Value: '' },
+    { Label: 'Total Income', Value: totalIncome },
+    { Label: 'Total Expenses', Value: totalExpense },
+    { Label: 'Net Surplus', Value: netSurplus },
+    { Label: '', Value: '' },
   ];
 
   return (
@@ -109,23 +111,23 @@ export default async function FinancialYearDetail({
           </h1>
           <Breadcrumbs
             items={[
-              { label: "Finance", href: "/admin/finance" },
+              { label: 'Finance', href: '/admin/finance' },
               { label: year.name },
             ]}
           />
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Calendar className="w-4 h-4" />
             <span>
-              {new Date(year.startDate).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}{" "}
-              —{" "}
-              {new Date(year.endDate).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
+              {new Date(year.startDate).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}{' '}
+              —{' '}
+              {new Date(year.endDate).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
               })}
             </span>
           </div>

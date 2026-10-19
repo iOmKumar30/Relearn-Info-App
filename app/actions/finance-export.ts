@@ -1,7 +1,8 @@
-"use server";
+'use server';
 
-import prisma from "@/libs/prismadb";
-import { isCurrentUserAdmin } from "@/libs/server-auth";
+import prisma from '@/libs/prismadb';
+import { isCurrentUserAdmin } from '@/libs/server-auth';
+import { formatTransactionBreakdown } from '@/libs/finance-transactions';
 
 export async function getYearlyExportTransactions(yearId: string) {
   if (!(await isCurrentUserAdmin())) return [];
@@ -11,7 +12,8 @@ export async function getYearlyExportTransactions(yearId: string) {
       months: {
         include: {
           transactions: {
-            orderBy: [{ txnDate: "asc" }, { createdAt: "asc" }],
+            orderBy: [{ txnDate: 'asc' }, { createdAt: 'asc' }],
+            include: { splits: { orderBy: { position: 'asc' } } },
           },
         },
       },
@@ -36,17 +38,17 @@ export async function getYearlyExportTransactions(yearId: string) {
     month.transactions.forEach((txn: any) => {
       // Serial Number format (e.g., 1-C1, 2-D3)
       // month.month is the actual calendar month (1 = Jan, 2 = Feb, etc.)
-      const isCredit = txn.type === "CREDIT";
+      const isCredit = txn.type === 'CREDIT';
       const serialNo = isCredit
         ? `${month.month}-C${++creditCount}`
         : `${month.month}-D${++debitCount}`;
 
-      let finalTxnId = txn.txnId || "";
-      let finalRefNo = txn.refNo || "";
+      let finalTxnId = txn.txnId || '';
+      let finalRefNo = txn.refNo || '';
 
       if (!isCredit && finalRefNo) {
         // Look for the index of "TRANSFER TO"
-        const transferIndex = finalRefNo.indexOf("TRANSFER TO");
+        const transferIndex = finalRefNo.indexOf('TRANSFER TO');
 
         if (transferIndex !== -1) {
           // Extract the Txn ID (Everything before "TRANSFER TO", trimmed of extra spaces)
@@ -70,20 +72,22 @@ export async function getYearlyExportTransactions(yearId: string) {
       const formattedTxn = {
         serialNo,
         txnDate: txn.txnDate
-          ? new Date(txn.txnDate).toLocaleDateString("en-GB")
-          : "",
+          ? new Date(txn.txnDate).toLocaleDateString('en-GB')
+          : '',
         valueDate: txn.valueDate
-          ? new Date(txn.valueDate).toLocaleDateString("en-GB")
-          : "",
-        description: txn.description || "",
+          ? new Date(txn.valueDate).toLocaleDateString('en-GB')
+          : '',
+        description: txn.description || '',
+        comment: txn.comment || '',
         txnId: finalTxnId,
         refNo: finalRefNo,
-        branchCode: txn.branchCode || "",
+        branchCode: txn.branchCode || '',
         type: txn.type,
         amount: Number(txn.amount),
         runningBalance: Number(txn.runningBalance),
-        reason: txn.reason || "",
-        partyName: txn.partyName || "",
+        reason: txn.reason || '',
+        partyName: txn.partyName || '',
+        breakdown: formatTransactionBreakdown(txn.splits),
       };
 
       if (isCredit) {

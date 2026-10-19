@@ -1,4 +1,5 @@
 import { getMonthDetails } from "@/app/actions/finance";
+import { transactionDetailsInclude } from "@/libs/finance-transaction-service";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { ClearDataButton } from "@/components/finance/clear-button";
 import { EditableBalances } from "@/components/finance/editable-balance";
@@ -20,6 +21,7 @@ type MonthlyStatementWithDetails = Prisma.MonthlyStatementGetPayload<{
     financialYear: true;
     transactions: {
       orderBy: { txnDate: "asc" };
+      include: typeof transactionDetailsInclude;
     };
   };
 }>;
@@ -32,7 +34,7 @@ export default async function MonthDetailPage({
   const { monthId, yearId } = await params;
 
   const statement = (await getMonthDetails(
-    monthId
+    monthId,
   )) as unknown as MonthlyStatementWithDetails | null;
 
   if (!statement) return notFound();
@@ -41,6 +43,20 @@ export default async function MonthDetailPage({
     ...txn,
     amount: Number(txn.amount),
     runningBalance: Number(txn.runningBalance),
+    donationCredits: txn.donationCredits.map((credit) => ({
+      ...credit,
+      amount: Number(credit.amount),
+    })),
+    splits: txn.splits.map((split) => ({
+      ...split,
+      amount: Number(split.amount),
+      donationCredit: split.donationCredit
+        ? {
+            ...split.donationCredit,
+            amount: Number(split.donationCredit.amount),
+          }
+        : null,
+    })),
   }));
 
   const totalIncome = serializedTransactions
@@ -160,7 +176,7 @@ export default async function MonthDetailPage({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <TransactionManager
           transactions={serializedTransactions}
           statementId={statement.id}
