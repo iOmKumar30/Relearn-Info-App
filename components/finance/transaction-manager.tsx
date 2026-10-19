@@ -1,6 +1,7 @@
 'use client';
 
 import { deleteTransaction, upsertTransaction } from '@/app/actions/finance';
+import { useDebounce } from '@/app/hooks/useDebounce';
 import {
   createDonationFromTxn,
   createGstReceiptFromTxn,
@@ -9,6 +10,7 @@ import {
 import { TRANSACTION_REASONS } from '@/app/admin/finance/_constants/finance-options';
 import PartySelect from '@/components/finance/party-select';
 import { toLocalDateInput } from '@/libs/finance-utils';
+import { matchesFinanceTransactionSearch } from '@/libs/finance-transaction-search';
 import {
   formatFinanceAmount,
   formatTransactionBreakdown,
@@ -32,6 +34,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import ExportXlsxButton from '../CrudControls/ExportXlsxButton';
+import SearchBar from '../CrudControls/SearchBar';
 import { ActionDropdown } from './ActionDropdown';
 import {
   MemberDonationDialog,
@@ -66,6 +69,8 @@ export function TransactionManager({
   const [donationSource, setDonationSource] =
     useState<MemberDonationSource | null>(null);
   const [localCredits, setLocalCredits] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   // --- 1. PROCESS DATA ---
   const processedData = useMemo(() => {
@@ -89,12 +94,23 @@ export function TransactionManager({
     });
   }, [transactions]);
 
-  const credits = processedData.filter((t) => t.type === 'CREDIT');
-  const debits = processedData.filter((t) => t.type === 'DEBIT');
+  const matchingTransactions = useMemo(
+    () =>
+      processedData.filter(
+        (transaction) =>
+          transaction.id === editingId ||
+          matchesFinanceTransactionSearch(transaction, debouncedSearch),
+      ),
+    [debouncedSearch, editingId, processedData],
+  );
+  const credits = matchingTransactions.filter((t) => t.type === 'CREDIT');
+  const debits = matchingTransactions.filter((t) => t.type === 'DEBIT');
+  const allCredits = processedData.filter((t) => t.type === 'CREDIT');
+  const allDebits = processedData.filter((t) => t.type === 'DEBIT');
 
   // --- 2. CALCULATE TOTALS ---
-  const totalIncome = credits.reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpense = debits.reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalIncome = allCredits.reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpense = allDebits.reduce((sum, t) => sum + Number(t.amount), 0);
   const closingBalance =
     transactions.length > 0
       ? Number(transactions[transactions.length - 1].runningBalance)
@@ -654,31 +670,48 @@ export function TransactionManager({
   // --- 8. MAIN RENDER ---
   return (
     <div>
-      <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center bg-gray-50 gap-4">
-        <h3 className="font-semibold text-gray-700">Transactions Log</h3>
+      <div className="space-y-3 border-b border-gray-100 bg-gray-50 p-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h3 className="font-semibold text-gray-700">Transactions Log</h3>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          <div className="flex-1 sm:flex-none">
-            <ExportXlsxButton
-              fileName={getExportFileName()}
-              visibleRows={processedData}
-              fetchAll={getExportData}
-              columns={exportColumns}
-              preface={exportPreface}
-            />
+          <div className="flex w-full gap-2 sm:w-auto">
+            <div className="flex-1 sm:flex-none">
+              <ExportXlsxButton
+                fileName={getExportFileName()}
+                visibleRows={processedData}
+                fetchAll={getExportData}
+                columns={exportColumns}
+                preface={exportPreface}
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                setIsCreating(true);
+                setEditingId(null);
+                setFormData(initialFormState);
+              }}
+              disabled={saving}
+              className="flex-1 sm:flex-none justify-center bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" /> Add Manually
+            </button>
           </div>
+        </div>
 
-          <button
-            onClick={() => {
-              setIsCreating(true);
-              setEditingId(null);
-              setFormData(initialFormState);
-            }}
-            disabled={saving}
-            className="flex-1 sm:flex-none justify-center bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" /> Add Manually
-          </button>
+        <div className="max-w-xl">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search amount, party, reason, or sub-transaction..."
+          />
+          {search.trim() && (
+            <p className="mt-1 text-xs text-gray-500" aria-live="polite">
+              {search.trim() !== debouncedSearch.trim()
+                ? 'Searching…'
+                : `${matchingTransactions.length} matching transaction${matchingTransactions.length === 1 ? '' : 's'}`}
+            </p>
+          )}
         </div>
       </div>
 
@@ -705,6 +738,14 @@ export function TransactionManager({
           No transactions found for this month.
         </div>
       )}
+      {transactions.length > 0 &&
+        debouncedSearch.trim() &&
+        matchingTransactions.length === 0 && (
+          <div className="p-12 text-center text-gray-500 text-sm">
+            No transactions or sub-transactions match “{debouncedSearch.trim()}
+            ”.
+          </div>
+        )}
       {donationSource && (
         <MemberDonationDialog
           source={donationSource}
