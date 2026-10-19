@@ -1,6 +1,7 @@
 import { authOptions } from '@/libs/authOptions';
 import getFinancialYear from '@/libs/getFinancialYear';
 import { isAdmin } from '@/libs/isAdmin';
+import { isDonationMemberFeeSyncEnabled } from '@/libs/donation-sync-config';
 import prisma from '@/libs/prismadb';
 import { syncDonationQueueTask } from '@/trigger/donation-sync';
 import { Donation, Prisma } from '@prisma/client';
@@ -72,10 +73,16 @@ export async function POST(req: Request) {
     const created = createdRows[0];
     if (!created) throw new Error('Donation receipt was not created');
 
-    try {
-      await syncDonationQueueTask.trigger({ donationId: created.id });
-    } catch (triggerError) {
-      console.error('DONATION_SYNC_TRIGGER_ERROR', triggerError);
+    if (isDonationMemberFeeSyncEnabled()) {
+      try {
+        await syncDonationQueueTask.trigger({ donationId: created.id });
+      } catch (triggerError) {
+        // The database outbox is durable; the recovery task can process the
+        // pending item after a transient Trigger.dev dispatch failure.
+        console.error('DONATION_SYNC_TRIGGER_ERROR', triggerError);
+      }
+    } else {
+      console.info('DONATION_SYNC_PAUSED', { donationId: created.id });
     }
 
     return NextResponse.json(created, { status: 201 });

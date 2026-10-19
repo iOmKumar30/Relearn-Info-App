@@ -1,5 +1,6 @@
-import prisma from "@/libs/prismadb";
-import { schedules, task } from "@trigger.dev/sdk/v3";
+import prisma from '@/libs/prismadb';
+import { isDonationMemberFeeSyncEnabled } from '@/libs/donation-sync-config';
+import { schedules, task } from '@trigger.dev/sdk/v3';
 
 const BATCH_SIZE = 50;
 const STALE_PROCESSING_MS = 15 * 60 * 1000;
@@ -12,21 +13,34 @@ function fiscalLabelForDonation(date: Date): string {
 }
 
 export const syncDonationQueueTask = task({
-  id: "sync-donation-outbox",
+  id: 'sync-donation-outbox',
   maxDuration: 300,
   run: async (payload: { donationId?: string } = {}) => {
+    // This check intentionally occurs before the first Prisma query. It makes
+    // the recovery schedule harmless while automatic member-fee sync is paused.
+    if (!isDonationMemberFeeSyncEnabled()) {
+      return {
+        paused: true,
+        fetched: 0,
+        processed: 0,
+        skippedNonMembers: 0,
+        failed: 0,
+        alreadyClaimed: 0,
+      };
+    }
+
     const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
     await prisma.donationSyncQueue.updateMany({
-      where: { status: "PROCESSING", updatedAt: { lt: staleBefore } },
-      data: { status: "PENDING" },
+      where: { status: 'PROCESSING', updatedAt: { lt: staleBefore } },
+      data: { status: 'PENDING' },
     });
 
     const pending = await prisma.donationSyncQueue.findMany({
       where: {
-        status: "PENDING",
+        status: 'PENDING',
         ...(payload.donationId ? { donationId: payload.donationId } : {}),
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
       take: BATCH_SIZE,
       select: { id: true, donationId: true },
     });
@@ -41,8 +55,8 @@ export const syncDonationQueueTask = task({
 
     for (const queueItem of pending) {
       const claim = await prisma.donationSyncQueue.updateMany({
-        where: { id: queueItem.id, status: "PENDING" },
-        data: { status: "PROCESSING" },
+        where: { id: queueItem.id, status: 'PENDING' },
+        data: { status: 'PROCESSING' },
       });
       if (claim.count !== 1) {
         result.alreadyClaimed += 1;
@@ -55,13 +69,13 @@ export const syncDonationQueueTask = task({
           select: { email: true, amount: true, date: true, reason: true },
         });
         if (!donation) {
-          throw new Error("Donation record was not found");
+          throw new Error('Donation record was not found');
         }
 
-        if (!/membership|member fee/i.test(donation.reason || "")) {
+        if (!/membership|member fee/i.test(donation.reason || '')) {
           await prisma.donationSyncQueue.update({
             where: { id: queueItem.id },
-            data: { status: "PROCESSED" },
+            data: { status: 'PROCESSED' },
           });
           continue;
         }
@@ -74,7 +88,7 @@ export const syncDonationQueueTask = task({
         if (!user?.member) {
           await prisma.donationSyncQueue.update({
             where: { id: queueItem.id },
-            data: { status: "PROCESSED" },
+            data: { status: 'PROCESSED' },
           });
           result.skippedNonMembers += 1;
           continue;
@@ -115,21 +129,21 @@ export const syncDonationQueueTask = task({
           });
           await tx.donationSyncQueue.update({
             where: { id: queueItem.id },
-            data: { status: "PROCESSED" },
+            data: { status: 'PROCESSED' },
           });
         });
         result.processed += 1;
       } catch (error) {
         result.failed += 1;
-        console.error("[DONATION_SYNC] Failed queue item", {
+        console.error('[DONATION_SYNC] Failed queue item', {
           queueId: queueItem.id,
           donationId: queueItem.donationId,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         await prisma.donationSyncQueue
           .updateMany({
-            where: { id: queueItem.id, status: "PROCESSING" },
-            data: { status: "FAILED" },
+            where: { id: queueItem.id, status: 'PROCESSING' },
+            data: { status: 'FAILED' },
           })
           .catch(() => undefined);
       }
@@ -143,9 +157,9 @@ export const syncDonationQueueTask = task({
 // protects the durable outbox from a transient Trigger.dev dispatch failure
 // without keeping Neon awake throughout the day.
 export const dailyDonationSyncRecovery = schedules.task({
-  id: "sync-donation-outbox-recovery",
+  id: 'sync-donation-outbox-recovery',
   // 20:45 UTC = 02:15 IST; deliberately offset from the KPI schedule.
-  cron: "45 20 * * *",
+  cron: '45 20 * * *',
   run: async () => {
     await syncDonationQueueTask.trigger({});
   },
