@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   ArrowsUpDownIcon,
@@ -6,16 +6,16 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   PencilSquareIcon,
-} from "@heroicons/react/24/outline";
-import { useState } from "react";
+} from '@heroicons/react/24/outline';
+import { useState } from 'react';
 
-import { useDebounce } from "@/app/hooks/useDebounce";
-import Breadcrumbs from "@/components/Breadcrumbs";
-import ExportXlsxButton from "@/components/CrudControls/ExportXlsxButton";
-import SearchBar from "@/components/CrudControls/SearchBar";
-import AddClassModal from "./AddClassModal";
-import AttendanceToggle from "./AttendanceToggle";
-import DeleteClassButton from "./DeleteClassButton";
+import { useDebounce } from '@/app/hooks/useDebounce';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import ExportXlsxButton from '@/components/CrudControls/ExportXlsxButton';
+import SearchBar from '@/components/CrudControls/SearchBar';
+import AddClassModal from './AddClassModal';
+import AttendanceToggle from './AttendanceToggle';
+import DeleteClassButton from './DeleteClassButton';
 
 export default function MonthlyAttendanceClient({
   year,
@@ -23,17 +23,19 @@ export default function MonthlyAttendanceClient({
   monthName,
   initialData,
   currentRates,
+  masterTutors,
 }: {
   year: number;
   month: number;
   monthName: string;
   initialData: any;
   currentRates: any;
+  masterTutors: { id: string; name: string; email: string }[];
 }) {
   const { classes, tutors, facilitatorSummary } = initialData;
-  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const filteredTutors = tutors.filter((tutor: any) =>
@@ -41,35 +43,35 @@ export default function MonthlyAttendanceClient({
   );
 
   const sortedTutors = [...filteredTutors].sort((a, b) => {
-    if (sortOrder === "asc") return a.score - b.score;
-    if (sortOrder === "desc") return b.score - a.score;
+    if (sortOrder === 'asc') return a.score - b.score;
+    if (sortOrder === 'desc') return b.score - a.score;
     return 0;
   });
 
   const toggleSort = () => {
     setSortOrder((prev) =>
-      prev === "none" ? "desc" : prev === "desc" ? "asc" : "none",
+      prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none',
     );
   };
 
   // Excel export
   const tutorExportColumns = [
-    { label: "Classroom Code(s)", key: "classroomCodes" },
-    { label: "Tutor Name", key: "name" },
-    { label: "Facilitator Name", key: "facilitatorName" },
+    { label: 'Classroom Code(s)', key: 'classroomCodes' },
+    { label: 'Tutor Name', key: 'name' },
+    { label: 'Facilitator Name', key: 'facilitatorName' },
     ...classes.map((cls: any) => {
-      const formattedDate = new Date(cls.date).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
+      const formattedDate = new Date(cls.date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
       });
       return {
         label: `${formattedDate} (${cls.trainingBy})`,
         key: `class_${cls.id}`,
       };
     }),
-    { label: "Score %", key: "score" },
-    { label: "Total Payout (₹)", key: "totalPayout" },
+    { label: 'Score %', key: 'score' },
+    { label: 'Total Payout (₹)', key: 'totalPayout' },
   ];
 
   const tutorExportRows = sortedTutors.map((tutor: any) => {
@@ -82,16 +84,16 @@ export default function MonthlyAttendanceClient({
     };
 
     classes.forEach((cls: any) => {
-      row[`class_${cls.id}`] = tutor.attendanceMap[cls.id] || "-";
+      row[`class_${cls.id}`] = tutor.attendanceMap[cls.id] || '-';
     });
 
     return row;
   });
 
   const facilitatorExportColumns = [
-    { label: "S.No", key: "sno" },
-    { label: "Facilitator Name", key: "name" },
-    { label: "Total Amount (₹)", key: "totalAmount" },
+    { label: 'S.No', key: 'sno' },
+    { label: 'Facilitator Name', key: 'name' },
+    { label: 'Total Amount (₹)', key: 'totalAmount' },
   ];
 
   const facilitatorExportRows = facilitatorSummary.map(
@@ -116,7 +118,7 @@ export default function MonthlyAttendanceClient({
             <Breadcrumbs
               className="mt-1"
               items={[
-                { label: "Tutor Attendance", href: "/tutor-attendance" },
+                { label: 'Tutor Attendance', href: '/tutor-attendance' },
                 { label: String(year), href: `/tutor-attendance/${year}` },
                 { label: monthName },
               ]}
@@ -126,7 +128,12 @@ export default function MonthlyAttendanceClient({
             </p>
           </div>
         </div>
-        <AddClassModal year={year} month={month} existingClasses={classes} />
+        <AddClassModal
+          year={year}
+          month={month}
+          existingClasses={classes}
+          masterTutors={masterTutors}
+        />
       </div>
 
       <div className="flex flex-col gap-3 rounded-t-2xl border border-b-0 border-gray-100 bg-white p-4 shadow-[0_2px_10px_rgb(0,0,0,0.02)] md:flex-row md:items-center md:justify-between">
@@ -137,8 +144,8 @@ export default function MonthlyAttendanceClient({
         />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:justify-end">
           <div className="text-sm text-gray-500 font-medium">
-            Showing {sortedTutors.length}{" "}
-            {sortedTutors.length === 1 ? "tutor" : "tutors"}
+            Showing {sortedTutors.length}{' '}
+            {sortedTutors.length === 1 ? 'tutor' : 'tutors'}
           </div>
           <ExportXlsxButton
             fileName={`${monthName}-${year}-Tutor-Attendance`}
@@ -171,7 +178,7 @@ export default function MonthlyAttendanceClient({
                 <span>
                   {debouncedSearch
                     ? `No tutors found matching "${debouncedSearch}"`
-                    : "No active tutors found for this month."}
+                    : 'No active tutors found for this month.'}
                 </span>
               </div>
             </div>
@@ -213,10 +220,10 @@ export default function MonthlyAttendanceClient({
                       className="min-w-0 border-t border-gray-100 pt-3"
                     >
                       <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        {new Date(cls.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                        })}{" "}
+                        {new Date(cls.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}{' '}
                         (By: {cls.trainingBy})
                       </dt>
                       <dd className="mt-0.5 text-sm text-gray-800">
@@ -281,6 +288,7 @@ export default function MonthlyAttendanceClient({
                             trainingBy: cls.trainingBy,
                           }}
                           existingClasses={classes}
+                          masterTutors={masterTutors}
                           trigger={
                             <button
                               type="button"
@@ -302,9 +310,9 @@ export default function MonthlyAttendanceClient({
                         Class {i + 1}
                       </span>
                       <span className="text-gray-900">
-                        {new Date(cls.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
+                        {new Date(cls.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
                         })}
                       </span>
                       <span className="text-xs font-medium text-gray-400 mt-0.5">
@@ -320,9 +328,9 @@ export default function MonthlyAttendanceClient({
                 >
                   <div className="flex items-center gap-2 text-indigo-600">
                     Score %
-                    {sortOrder === "none" ? (
+                    {sortOrder === 'none' ? (
                       <ArrowsUpDownIcon className="w-4 h-4" />
-                    ) : sortOrder === "desc" ? (
+                    ) : sortOrder === 'desc' ? (
                       <ChevronDownIcon className="w-4 h-4 stroke-2" />
                     ) : (
                       <ChevronUpIcon className="w-4 h-4 stroke-2" />
@@ -343,7 +351,7 @@ export default function MonthlyAttendanceClient({
                   >
                     {debouncedSearch
                       ? `No tutors found matching "${debouncedSearch}"`
-                      : "No active tutors found for this month."}
+                      : 'No active tutors found for this month.'}
                   </td>
                 </tr>
               ) : (

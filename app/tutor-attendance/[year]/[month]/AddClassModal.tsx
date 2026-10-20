@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { Modal } from "flowbite-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import { HiPlus, HiXMark } from "react-icons/hi2";
-import { addTrainingClass, updateTrainingClass } from "../../actions";
+import { Modal } from 'flowbite-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { HiPlus, HiXMark } from 'react-icons/hi2';
+import { addTrainingClass, updateTrainingClass } from '../../actions';
 
-type Mode = "create" | "edit";
+type Mode = 'create' | 'edit';
 
 type InitialClass = {
   id: string;
@@ -15,12 +15,21 @@ type InitialClass = {
   trainingBy: string;
 };
 
+type MasterTutorOption = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+const OTHER_TRAINER_VALUE = '__OTHER_TRAINER__';
+
 export default function AddClassModal({
   year,
   month,
-  mode = "create",
+  mode = 'create',
   initialClass,
   existingClasses = [],
+  masterTutors,
   trigger,
 }: {
   year: number;
@@ -28,19 +37,21 @@ export default function AddClassModal({
   mode?: Mode;
   initialClass?: InitialClass;
   existingClasses?: InitialClass[];
+  masterTutors: MasterTutorOption[];
   trigger?: React.ReactNode;
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [trainingBy, setTrainingBy] = useState("");
+  const [date, setDate] = useState('');
+  const [trainingBy, setTrainingBy] = useState('');
+  const [isOtherTrainer, setIsOtherTrainer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
   const formatDateForInput = (d: string | Date) => {
-    const dt = typeof d === "string" ? new Date(d) : d;
+    const dt = typeof d === 'string' ? new Date(d) : d;
     const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, "0");
-    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
   const isDateInCurrentMonthYear = (value: string) => {
@@ -53,41 +64,45 @@ export default function AddClassModal({
     return selectedYear === year && selectedMonth === month;
   };
   const getDateError = (value: string) => {
-    if (!value) return "Please choose a date.";
+    if (!value) return 'Please choose a date.';
     if (!isDateInCurrentMonthYear(value)) {
-      return "Choose a date within the selected month and year.";
+      return 'Choose a date within the selected month and year.';
     }
     const hasDuplicate = existingClasses.some(
       (trainingClass) =>
         trainingClass.id !== initialClass?.id &&
         formatDateForInput(trainingClass.date) === value,
     );
-    return hasDuplicate ? "A training class already exists for this date." : null;
+    return hasDuplicate
+      ? 'A training class already exists for this date.'
+      : null;
   };
   useEffect(() => {
     if (isOpen) {
-      if (mode === "edit" && initialClass) {
+      if (mode === 'edit' && initialClass) {
         setDate(formatDateForInput(initialClass.date));
         setTrainingBy(initialClass.trainingBy);
+        setIsOtherTrainer(false);
       } else {
-        setDate("");
-        setTrainingBy("");
+        setDate('');
+        setTrainingBy('');
+        setIsOtherTrainer(false);
       }
     }
   }, [isOpen, mode, initialClass]);
 
   const handleSubmit = async () => {
     if (!date || !trainingBy.trim())
-      return toast.error("Please fill all fields");
+      return toast.error('Please fill all fields');
 
     setIsSubmitting(true);
     const toastId = toast.loading(
-      mode === "create" ? "Adding class..." : "Updating class...",
+      mode === 'create' ? 'Adding class...' : 'Updating class...',
     );
 
     try {
       const result =
-        mode === "create"
+        mode === 'create'
           ? await addTrainingClass(year, month, new Date(date), trainingBy)
           : await updateTrainingClass(
               year,
@@ -99,18 +114,18 @@ export default function AddClassModal({
 
       if (result.success) {
         toast.success(
-          mode === "create"
-            ? "Class added successfully!"
-            : "Class updated successfully!",
+          mode === 'create'
+            ? 'Class added successfully!'
+            : 'Class updated successfully!',
           { id: toastId },
         );
         setIsOpen(false);
         router.refresh();
       } else {
-        toast.error(result.error || "Error", { id: toastId });
+        toast.error(result.error || 'Error', { id: toastId });
       }
     } catch (e) {
-      toast.error("Unexpected error", { id: toastId });
+      toast.error('Unexpected error', { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,6 +135,9 @@ export default function AddClassModal({
     !!trainingBy.trim() &&
     isDateInCurrentMonthYear(date) &&
     !dateError;
+  const hasHistoricalTrainerValue =
+    !!trainingBy &&
+    !masterTutors.some((masterTutor) => masterTutor.name === trainingBy);
   return (
     <>
       {trigger ? (
@@ -147,14 +165,14 @@ export default function AddClassModal({
         theme={{
           content: {
             inner:
-              "relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col w-full",
+              'relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col w-full',
           },
         }}
       >
         <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <div className="mb-6 flex items-center justify-between gap-3">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-              {mode === "create" ? "Add Training Class" : "Edit Training Class"}
+              {mode === 'create' ? 'Add Training Class' : 'Edit Training Class'}
             </h3>
             <button
               onClick={() => setIsOpen(false)}
@@ -203,13 +221,55 @@ export default function AddClassModal({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Training By
               </label>
-              <input
-                type="text"
-                placeholder="Name of trainer"
-                value={trainingBy}
-                onChange={(e) => setTrainingBy(e.target.value)}
+              <select
+                value={isOtherTrainer ? OTHER_TRAINER_VALUE : trainingBy}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === OTHER_TRAINER_VALUE) {
+                    setIsOtherTrainer(true);
+                    setTrainingBy('');
+                    return;
+                  }
+                  setIsOtherTrainer(false);
+                  setTrainingBy(value);
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
+              >
+                <option value="" disabled>
+                  {masterTutors.length
+                    ? 'Select a Master Tutor'
+                    : 'No active Master Tutors available'}
+                </option>
+                {hasHistoricalTrainerValue && (
+                  <option value={trainingBy}>
+                    {trainingBy} (historical value)
+                  </option>
+                )}
+                {masterTutors.map((masterTutor) => (
+                  <option key={masterTutor.id} value={masterTutor.name}>
+                    {masterTutor.name} — {masterTutor.email}
+                  </option>
+                ))}
+                <option value={OTHER_TRAINER_VALUE}>
+                  Other / Guest Trainer
+                </option>
+              </select>
+              {isOtherTrainer && (
+                <input
+                  type="text"
+                  value={trainingBy}
+                  onChange={(e) => setTrainingBy(e.target.value)}
+                  placeholder="Enter guest trainer's name"
+                  autoFocus
+                  className="mt-2 w-full px-4 py-2 border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-blue-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              )}
+              {masterTutors.length === 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Assign the active Master Tutor role to a user before adding a
+                  new training class.
+                </p>
+              )}
             </div>
             <button
               onClick={handleSubmit}
@@ -217,12 +277,12 @@ export default function AddClassModal({
               className="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting
-                ? mode === "create"
-                  ? "Adding..."
-                  : "Updating..."
-                : mode === "create"
-                  ? "Add Class"
-                  : "Save Changes"}
+                ? mode === 'create'
+                  ? 'Adding...'
+                  : 'Updating...'
+                : mode === 'create'
+                  ? 'Add Class'
+                  : 'Save Changes'}
             </button>
           </div>
         </div>

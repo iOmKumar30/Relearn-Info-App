@@ -1,9 +1,13 @@
-import { ChevronLeftIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { getMonthlyTrainingData, getPayoutRates } from "../../actions";
-import MonthlyAttendanceClient from "./MonthlyAttendanceClient";
+import { ChevronLeftIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
+import {
+  getActiveMasterTutorOptions,
+  getMonthlyTrainingData,
+  getPayoutRates,
+} from '../../actions';
+import MonthlyAttendanceClient from './MonthlyAttendanceClient';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export default async function MonthPage({
   params,
@@ -15,24 +19,27 @@ export default async function MonthPage({
   const month = parseInt(rawMonth);
 
   const monthNames = [
-    "",
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    '',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   const monthName = monthNames[month];
 
-  const data = await getMonthlyTrainingData(year, month);
-  const currentRates = await getPayoutRates();
+  const [data, currentRates, masterTutors] = await Promise.all([
+    getMonthlyTrainingData(year, month),
+    getPayoutRates(),
+    getActiveMasterTutorOptions(),
+  ]);
   return (
     <div className="mx-auto min-h-[calc(100vh-100px)] max-w-[1600px] bg-gray-50/30 p-0 sm:p-2">
       <div className="mb-6">
@@ -50,7 +57,8 @@ export default async function MonthPage({
         month={month}
         monthName={monthName}
         initialData={data}
-        currentRates = {currentRates}
+        currentRates={currentRates}
+        masterTutors={masterTutors}
       />
     </div>
   );

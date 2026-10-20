@@ -1,16 +1,51 @@
-"use server";
+'use server';
 
-import prisma from "@/libs/prismadb";
-import { revalidatePath } from "next/cache";
+import prisma from '@/libs/prismadb';
+import { revalidatePath } from 'next/cache';
 
 export type TrainingAttendanceStatus =
-  | "ABSENT"
-  | "PRESENT"
-  | "PRESENT_RESPONDED";
+  | 'ABSENT'
+  | 'PRESENT'
+  | 'PRESENT_RESPONDED';
+
+export type MasterTutorOption = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+/**
+ * The class model stores a historical display name rather than a user foreign
+ * key. Return current, active Master Tutors for new selections without
+ * rewriting older free-text trainingBy values.
+ */
+export async function getActiveMasterTutorOptions(): Promise<
+  MasterTutorOption[]
+> {
+  const users = await prisma.user.findMany({
+    where: {
+      status: 'ACTIVE',
+      roleHistory: {
+        some: {
+          endDate: null,
+          role: { name: 'MASTER_TUTOR' },
+        },
+      },
+    },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: 'asc' }, { email: 'asc' }],
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name?.trim() || user.email,
+    email: user.email,
+  }));
+}
 
 export async function getTutorTrainingYears() {
   const years = await prisma.tutorTrainingYear.findMany({
-    orderBy: { year: "desc" },
+    orderBy: { year: 'desc' },
   });
   return years.map((y) => y.year);
 }
@@ -22,10 +57,10 @@ export async function createTutorTrainingYear(year: number) {
       update: {},
       create: { year, isActive: true },
     });
-    revalidatePath("/tutor-attendance");
+    revalidatePath('/tutor-attendance');
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Failed to create year" };
+    return { success: false, error: 'Failed to create year' };
   }
 }
 
@@ -33,7 +68,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
   // Fetch all classes for this month
   const classes = await prisma.tutorTrainingClass.findMany({
     where: { yearId: year, month },
-    orderBy: { date: "asc" },
+    orderBy: { date: 'asc' },
   });
 
   const totalClasses = classes.length;
@@ -41,13 +76,13 @@ export async function getMonthlyTrainingData(year: number, month: number) {
 
   // NEW: Fetch the current active payout rates to calculate the maxPossiblePayout
   let currentRates = await prisma.trainingPayoutRate.findUnique({
-    where: { id: "default_rate" },
+    where: { id: 'default_rate' },
   });
 
   // Fallback just in case they haven't set the rates yet
   if (!currentRates) {
     currentRates = {
-      id: "default_rate",
+      id: 'default_rate',
       absentAmount: 0,
       presentAmount: 50,
       presentResponded: 75,
@@ -65,21 +100,15 @@ export async function getMonthlyTrainingData(year: number, month: number) {
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
     where: {
       role: {
-        name: "TUTOR",
+        name: 'TUTOR',
       },
       startDate: { lt: firstDayOfNextMonth },
-      OR: [
-        { endDate: null },
-        { endDate: { gte: firstDayOfMonth } },
-      ],
+      OR: [{ endDate: null }, { endDate: { gte: firstDayOfMonth } }],
       user: {
         tutorAssignments: {
           some: {
             startDate: { lt: firstDayOfNextMonth },
-            OR: [
-              { endDate: null },
-              { endDate: { gte: firstDayOfMonth } },
-            ],
+            OR: [{ endDate: null }, { endDate: { gte: firstDayOfMonth } }],
           },
         },
       },
@@ -92,10 +121,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
           tutorAssignments: {
             where: {
               startDate: { lt: firstDayOfNextMonth },
-              OR: [
-                { endDate: null },
-                { endDate: { gte: firstDayOfMonth } },
-              ],
+              OR: [{ endDate: null }, { endDate: { gte: firstDayOfMonth } }],
             },
             select: {
               classroom: { select: { centreId: true, code: true } },
@@ -156,7 +182,7 @@ export async function getMonthlyTrainingData(year: number, month: number) {
     if (fac.user) {
       centreToFacilitatorMap[fac.centreId] = {
         id: fac.user.id,
-        name: fac.user.name || "Unassigned",
+        name: fac.user.name || 'Unassigned',
       };
     }
   });
@@ -175,13 +201,16 @@ export async function getMonthlyTrainingData(year: number, month: number) {
       new Set(
         tutor.tutorAssignments
           ?.map((assignment: any) => assignment.classroom?.code)
-          .filter((code: unknown): code is string => typeof code === "string" && code.length > 0),
+          .filter(
+            (code: unknown): code is string =>
+              typeof code === 'string' && code.length > 0,
+          ),
       ),
-    ).join(", ");
+    ).join(', ');
     const facilitator = centreId ? centreToFacilitatorMap[centreId] : null;
 
-    const facilitatorName = facilitator?.name || "Unassigned";
-    const facilitatorId = facilitator?.id || "unassigned";
+    const facilitatorName = facilitator?.name || 'Unassigned';
+    const facilitatorId = facilitator?.id || 'unassigned';
 
     let totalPayout = 0;
     const attendanceMap: Record<string, TrainingAttendanceStatus> = {};
@@ -204,8 +233,8 @@ export async function getMonthlyTrainingData(year: number, month: number) {
 
     tutorList.push({
       id: tutor.id,
-      name: tutor.name || "Unknown Tutor",
-      classroomCodes: classroomCodes || "—",
+      name: tutor.name || 'Unknown Tutor',
+      classroomCodes: classroomCodes || '—',
       facilitatorName,
       attendanceMap,
       totalPayout,
@@ -243,7 +272,7 @@ export async function addTrainingClass(
 ) {
   try {
     if (Number.isNaN(date.getTime())) {
-      return { success: false, error: "Choose a valid class date" };
+      return { success: false, error: 'Choose a valid class date' };
     }
     const normalizedDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
@@ -252,14 +281,20 @@ export async function addTrainingClass(
       normalizedDate.getUTCFullYear() !== year ||
       normalizedDate.getUTCMonth() + 1 !== month
     ) {
-      return { success: false, error: "Choose a date within the selected month and year" };
+      return {
+        success: false,
+        error: 'Choose a date within the selected month and year',
+      };
     }
     const existingClass = await prisma.tutorTrainingClass.findFirst({
       where: { yearId: year, date: normalizedDate },
       select: { id: true },
     });
     if (existingClass) {
-      return { success: false, error: "A training class already exists for this date" };
+      return {
+        success: false,
+        error: 'A training class already exists for this date',
+      };
     }
 
     await prisma.tutorTrainingClass.create({
@@ -274,11 +309,14 @@ export async function addTrainingClass(
     revalidatePath(`/tutor-attendance/${year}/${month}`);
     return { success: true };
   } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      return { success: false, error: "A training class already exists for this date" };
+    if ((error as { code?: string })?.code === 'P2002') {
+      return {
+        success: false,
+        error: 'A training class already exists for this date',
+      };
     }
-    console.error("Failed to add class:", error);
-    return { success: false, error: "Failed to create training class" };
+    console.error('Failed to add class:', error);
+    return { success: false, error: 'Failed to create training class' };
   }
 }
 export async function updateTrainingClass(
@@ -290,7 +328,7 @@ export async function updateTrainingClass(
 ) {
   try {
     if (Number.isNaN(date.getTime())) {
-      return { success: false, error: "Choose a valid class date" };
+      return { success: false, error: 'Choose a valid class date' };
     }
     const normalizedDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
@@ -299,14 +337,20 @@ export async function updateTrainingClass(
       normalizedDate.getUTCFullYear() !== year ||
       normalizedDate.getUTCMonth() + 1 !== month
     ) {
-      return { success: false, error: "Choose a date within the selected month and year" };
+      return {
+        success: false,
+        error: 'Choose a date within the selected month and year',
+      };
     }
     const existingClass = await prisma.tutorTrainingClass.findFirst({
       where: { yearId: year, date: normalizedDate, id: { not: classId } },
       select: { id: true },
     });
     if (existingClass) {
-      return { success: false, error: "A training class already exists for this date" };
+      return {
+        success: false,
+        error: 'A training class already exists for this date',
+      };
     }
 
     await prisma.tutorTrainingClass.update({
@@ -316,11 +360,14 @@ export async function updateTrainingClass(
     revalidatePath(`/tutor-attendance/${year}/${month}`);
     return { success: true };
   } catch (error) {
-    if ((error as { code?: string })?.code === "P2002") {
-      return { success: false, error: "A training class already exists for this date" };
+    if ((error as { code?: string })?.code === 'P2002') {
+      return {
+        success: false,
+        error: 'A training class already exists for this date',
+      };
     }
-    console.error("Failed to update class:", error);
-    return { success: false, error: "Failed to update training class" };
+    console.error('Failed to update class:', error);
+    return { success: false, error: 'Failed to update training class' };
   }
 }
 export async function deleteTrainingClass(
@@ -333,14 +380,14 @@ export async function deleteTrainingClass(
       where: { id: classId },
       select: { id: true, yearId: true, month: true },
     });
-    if (!cls) return { success: false as const, error: "Class not found" };
+    if (!cls) return { success: false as const, error: 'Class not found' };
 
     await prisma.tutorTrainingClass.delete({ where: { id: classId } });
     revalidatePath(`/tutor-attendance/${year}/${month}`);
     return { success: true as const };
   } catch (error) {
-    console.error("Failed to delete class:", error);
-    return { success: false, error: "Failed to delete training class" };
+    console.error('Failed to delete class:', error);
+    return { success: false, error: 'Failed to delete training class' };
   }
 }
 export async function saveTutorAttendance(
@@ -352,9 +399,9 @@ export async function saveTutorAttendance(
     const rates = await getPayoutRates();
 
     let amount = 0;
-    if (status === "ABSENT") amount = rates.absentAmount;
-    if (status === "PRESENT") amount = rates.presentAmount;
-    if (status === "PRESENT_RESPONDED") amount = rates.presentResponded;
+    if (status === 'ABSENT') amount = rates.absentAmount;
+    if (status === 'PRESENT') amount = rates.presentAmount;
+    if (status === 'PRESENT_RESPONDED') amount = rates.presentResponded;
 
     await prisma.tutorTrainingAttendance.upsert({
       where: {
@@ -366,7 +413,7 @@ export async function saveTutorAttendance(
 
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Failed to save attendance" };
+    return { success: false, error: 'Failed to save attendance' };
   }
 }
 
@@ -380,12 +427,9 @@ export async function getQuarterlyReportData(
   const activeTutorRoles: any = await prisma.userRoleHistory.findMany({
     where: {
       startDate: { lt: firstDayAfterEndMonth },
-      OR: [
-        { endDate: null },
-        { endDate: { gte: firstDayOfStartMonth } },
-      ],
+      OR: [{ endDate: null }, { endDate: { gte: firstDayOfStartMonth } }],
       role: {
-        name: "TUTOR",
+        name: 'TUTOR',
       },
     },
     include: {
@@ -453,7 +497,7 @@ export async function getQuarterlyReportData(
     if (fac.user) {
       centreToFacilitatorMap[fac.centreId] = {
         id: fac.user.id,
-        name: fac.user.name || "Unassigned",
+        name: fac.user.name || 'Unassigned',
       };
     }
   });
@@ -468,8 +512,8 @@ export async function getQuarterlyReportData(
     const centreId = tutor.tutorAssignments?.[0]?.classroom?.centreId;
     const facilitator = centreId ? centreToFacilitatorMap[centreId] : null;
 
-    const facilitatorName = facilitator?.name || "Unassigned";
-    const facilitatorId = facilitator?.id || "unassigned";
+    const facilitatorName = facilitator?.name || 'Unassigned';
+    const facilitatorId = facilitator?.id || 'unassigned';
 
     let totalPayout = 0;
 
@@ -480,7 +524,7 @@ export async function getQuarterlyReportData(
 
     tutorList.push({
       id: tutor.id,
-      name: tutor.name || "Unknown Tutor",
+      name: tutor.name || 'Unknown Tutor',
       facilitatorName,
       totalPayout,
     });
@@ -508,13 +552,13 @@ export async function getQuarterlyReportData(
 
 export async function getPayoutRates() {
   let rates = await prisma.trainingPayoutRate.findUnique({
-    where: { id: "default_rate" },
+    where: { id: 'default_rate' },
   });
 
   if (!rates) {
     rates = await prisma.trainingPayoutRate.create({
       data: {
-        id: "default_rate",
+        id: 'default_rate',
         absentAmount: 0,
         presentAmount: 50,
         presentResponded: 75,
@@ -531,14 +575,14 @@ export async function updatePayoutRates(data: {
 }) {
   try {
     await prisma.trainingPayoutRate.upsert({
-      where: { id: "default_rate" },
+      where: { id: 'default_rate' },
       update: data,
-      create: { id: "default_rate", ...data },
+      create: { id: 'default_rate', ...data },
     });
 
-    revalidatePath("/tutor-attendance");
+    revalidatePath('/tutor-attendance');
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Failed to update rates" };
+    return { success: false, error: 'Failed to update rates' };
   }
 }
