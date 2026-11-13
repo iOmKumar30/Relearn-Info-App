@@ -3,9 +3,7 @@
 import {
   BarChart3,
   CalendarDays,
-  ChevronRight,
   History,
-  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -51,7 +49,8 @@ export default function KpiEntryCard() {
         </div>
       </div>
 
-      <div className="relative grid grid-cols-1 gap-4 bg-slate-50/60 p-4 sm:grid-cols-2 sm:p-5">
+      <div className="relative flex justify-center bg-slate-50/60 p-4 sm:p-5">
+        {/*
         <Link
           href="/dashboard/kpi"
           className="group relative flex min-h-56 flex-col justify-between overflow-hidden rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/10 focus-visible:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:p-6"
@@ -90,42 +89,36 @@ export default function KpiEntryCard() {
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </span>
         </Link>
+        */}
 
         <Link
           href="/dashboard/kpi/historical"
-          className="group relative flex min-h-56 flex-col justify-between overflow-hidden rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-900/10 focus-visible:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:p-6"
+          className="group relative flex w-full min-h-52 flex-col items-center justify-center overflow-hidden rounded-2xl border border-indigo-100 bg-white px-6 py-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-900/10 focus-visible:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:min-h-44 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:px-8 sm:py-7 sm:text-left"
         >
           <div
             className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-100/70 transition-transform duration-500 group-hover:scale-150"
             aria-hidden="true"
           />
 
-          <div className="relative">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition-transform duration-300 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white">
-                <History className="h-5 w-5" aria-hidden="true" />
-              </div>
-
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-all duration-300 group-hover:bg-indigo-600 group-hover:text-white">
-                <ChevronRight
-                  className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </span>
+          <div className="relative flex w-full flex-col items-center sm:flex-row sm:items-center sm:gap-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition-transform duration-300 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white">
+              <History className="h-5 w-5" aria-hidden="true" />
             </div>
 
-            <h3 className="mt-6 text-lg font-bold tracking-tight text-slate-900">
-              Historical KPI
-            </h3>
+            <div className="mt-5 min-w-0 sm:mt-0">
+              <h3 className="text-lg font-bold tracking-tight text-slate-900 text-center sm:text-left">
+                KPI
+              </h3>
 
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Browse KPI years, open year-to-date or completed-year summaries,
-              and inspect individual monthly snapshots.
-            </p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                Browse KPI years, open year-to-date or completed-year summaries,
+                and inspect individual monthly snapshots.
+              </p>
+            </div>
           </div>
 
-          <span className="relative mt-6 inline-flex w-fit items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
-            Browse KPI history
+          <span className="relative mt-6 inline-flex shrink-0 items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition-colors group-hover:bg-indigo-600 group-hover:text-white sm:mt-0">
+            Browse KPIs
             <CalendarDays className="h-4 w-4" aria-hidden="true" />
           </span>
         </Link>
