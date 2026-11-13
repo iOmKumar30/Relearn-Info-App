@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3000",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "flowbite": "^3.1.2",
     "flowbite-react": "^0.12.13",

@@ -39,6 +39,7 @@ export default function KpiMonthPage() {
   const [kpis, setKpis] = useState<KpiDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const selectedMonth = `${year}-${String(month).padStart(2, '0')}`;
   const canRefresh = session?.user?.roles?.includes('ADMIN') &&
     parseKpiYear(year) !== null &&
@@ -134,25 +135,16 @@ export default function KpiMonthPage() {
   const monthLabel = `${MONTH_NAMES[parseInt(month)]} ${year}`;
 
   const handleExport = async () => {
-    if (!kpis.length) return;
-    const { exportToExcel, formatKpiValueForExcel } = await import('@/libs/kpi/excel');
-
-    const exportData = kpis.map((k) => ({
-      Category: k.category || 'General',
-      'KPI Name': k.label,
-      Value:
-        k.currentValue !== null
-          ? formatKpiValueForExcel(k.currentValue, k.unit)
-          : 'No snapshot',
-      'Unit/Format': k.unit,
-      Source: k.currentSource || 'Manual',
-    }));
-
-    exportToExcel(
-      `KPI_${MONTH_NAMES[parseInt(month)]}_${year}`,
-      'Monthly KPIs',
-      exportData,
-    );
+    if (!kpis.length || exporting) return;
+    setExporting(true);
+    try {
+      const { downloadKpiReport } = await import('@/libs/kpi/download-report');
+      await downloadKpiReport(year, month);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to export KPI report');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -202,10 +194,11 @@ export default function KpiMonthPage() {
             {!loading && kpis.length > 0 && (
               <button
                 onClick={handleExport}
+                disabled={exporting}
                 className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <Download className="h-4 w-4" />
-                Export Excel
+                {exporting ? 'Exporting...' : 'Export Excel'}
               </button>
             )}
           </div>

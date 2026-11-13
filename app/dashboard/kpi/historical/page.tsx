@@ -26,7 +26,8 @@ type YearRow = {
 export default function KpiHistoricalPage() {
   const router = useRouter();
   const [rows, setRows] = useState<YearRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [yearInput, setYearInput] = useState("");
@@ -36,12 +37,15 @@ export default function KpiHistoricalPage() {
   const fetchYears = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await fetch("/api/kpi/years", { cache: "no-store" });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       setRows(json.rows || []);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to load KPI years");
+    } catch {
+      const message = "Failed to load KPI years. Please try again.";
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -117,6 +121,13 @@ export default function KpiHistoricalPage() {
         {loading ? (
           <div className="flex min-h-[260px] items-center justify-center">
             <ClipLoader size={36} />
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="rounded-xl border border-red-200 bg-white p-8 text-center">
+            <p className="text-red-600">{loadError}</p>
+            <Button color="light" className="mx-auto mt-4" onClick={fetchYears}>
+              Retry
+            </Button>
           </div>
         ) : rows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">

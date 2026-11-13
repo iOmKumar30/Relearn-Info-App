@@ -109,6 +109,7 @@ export default function KpiYearPage() {
   const [monthStatuses, setMonthStatuses] = useState<MonthStatus[]>([]);
   const [rangeKpis, setRangeKpis] = useState<RangeKpi[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -185,34 +186,16 @@ export default function KpiYearPage() {
   }
 
   const handleExport = async () => {
-    if (!summary) return;
-    const { exportToExcel, formatKpiValueForExcel } = await import('@/libs/kpi/excel');
-
-    const exportData = summary.kpis.map((k) => ({
-      Category: k.category || 'General',
-      'KPI Name': k.label,
-      Value:
-        k.aggregatedValue !== null
-          ? formatKpiValueForExcel(k.aggregatedValue, k.unit)
-          : 'No snapshot',
-      'Unit/Format': k.unit,
-      Notes:
-        k.historicalAvailability === 'MANUAL_ENTRY_REQUIRED'
-          ? 'Manual entry required'
-          : k.historicalAvailability === 'HISTORICAL_DATA_UNAVAILABLE'
-            ? 'Historical data unavailable'
-            : k.aggregatedValue === null
-              ? 'No snapshot'
-              : k.unit === 'PERCENT'
-                ? summary.isCurrentYear
-                  ? 'Average across completed months'
-                  : `Average across ${k.monthsCovered} months`
-                : summary.isCurrentYear
-                  ? `Latest completed month: ${formatMonthLabel(summary.latestCompletedMonth)}`
-                  : `Latest available month: ${formatMonthLabel(k.latestAvailableMonth)}`,
-    }));
-
-    exportToExcel(`KPI_YTD_${year}`, 'YTD KPIs', exportData);
+    if (!summary || exporting) return;
+    setExporting(true);
+    try {
+      const { downloadKpiReport } = await import('@/libs/kpi/download-report');
+      await downloadKpiReport(year);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to export KPI report');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -256,10 +239,11 @@ export default function KpiYearPage() {
         {!loading && summary && (
           <button
             onClick={handleExport}
+            disabled={exporting}
             className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <Download className="h-4 w-4" />
-            Export YTD Excel
+            {exporting ? 'Exporting...' : 'Export YTD Excel'}
           </button>
         )}
       </div>
