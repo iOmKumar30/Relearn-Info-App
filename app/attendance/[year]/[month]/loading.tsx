@@ -14,8 +14,8 @@ export default function LoadingMonthAttendance() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden"

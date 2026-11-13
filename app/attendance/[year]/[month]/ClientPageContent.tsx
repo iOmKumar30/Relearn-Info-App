@@ -23,6 +23,7 @@ import {
   HiDocumentDownload,
   HiTrash,
   HiUpload,
+  HiUserGroup,
   HiXCircle,
 } from "react-icons/hi";
 import {
@@ -152,11 +153,22 @@ export default function ClientPageContent({
   const metrics = useMemo(() => {
     let total = 0;
     let submitted = 0;
+    let totalStudents = 0;
     initialData.forEach((centre) => {
       total += centre.classrooms.length;
-      submitted += centre.classrooms.filter((c: any) => c.isSubmitted).length;
+      centre.classrooms.forEach((classroom) => {
+        if (!classroom.isSubmitted) return;
+
+        submitted += 1;
+        totalStudents += Number(classroom.totalStudentsEnrolled) || 0;
+      });
     });
-    return { total, submitted, missing: total - submitted };
+    return {
+      total,
+      submitted,
+      missing: total - submitted,
+      totalStudents,
+    };
   }, [initialData]);
   const handleClearMonth = async () => {
     if (metrics.submitted === 0) {
@@ -497,7 +509,7 @@ export default function ClientPageContent({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-2 -mt-2"></div>
           <div className="flex items-center gap-4 relative z-10">
@@ -510,6 +522,23 @@ export default function ClientPageContent({
               </p>
               <p className="text-3xl font-bold text-gray-900 mt-1">
                 {metrics.total}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-2 -mt-2"></div>
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+              <HiUserGroup className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Total Students
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {metrics.totalStudents}
               </p>
             </div>
           </div>
