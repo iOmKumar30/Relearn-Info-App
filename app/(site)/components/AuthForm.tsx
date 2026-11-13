@@ -1,20 +1,20 @@
-"use client";
+'use client';
 
-import axios from "axios";
-import { signIn } from "next-auth/react";
-import Script from "next/script";
-import { BsGoogle } from "react-icons/bs";
+import axios from 'axios';
+import { signIn } from 'next-auth/react';
+import Script from 'next/script';
+import { BsGoogle } from 'react-icons/bs';
 
-import Button from "@/components/Button";
-import Input from "@/components/Inputs/Input";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FieldValues, SubmitHandler, useForm } from "react-hook-form";
-import toast from "react-hot-toast";
-import AuthSocialButton from "./AuthSocialButton";
+import Button from '@/components/Button';
+import Input from '@/components/Inputs/Input';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
+import toast from 'react-hot-toast';
+import AuthSocialButton from './AuthSocialButton';
 
-type Variant = "LOGIN" | "REGISTER";
+type Variant = 'LOGIN' | 'REGISTER';
 
 declare global {
   interface Window {
@@ -24,9 +24,9 @@ declare global {
         options: {
           sitekey: string;
           callback?: (token: string) => void;
-          "expired-callback"?: () => void;
-          "error-callback"?: () => void;
-          theme?: "light" | "dark" | "auto";
+          'expired-callback'?: () => void;
+          'error-callback'?: () => void;
+          theme?: 'light' | 'dark' | 'auto';
         },
       ) => string;
       reset: (widgetId?: string) => void;
@@ -38,10 +38,11 @@ declare global {
 export function AuthForm() {
   const router = useRouter();
 
-  const [variant, setVariant] = useState<Variant>("LOGIN");
+  const [variant, setVariant] = useState<Variant>('LOGIN');
   const [isLoading, setIsLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
 
   const turnstileRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -50,25 +51,42 @@ export function AuthForm() {
     if (!window.turnstile || !turnstileRef.current) return;
     if (widgetIdRef.current) return;
 
-    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-      sitekey: process.env.NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY!,
-      theme: "auto",
-      callback: (token: string) => {
-        setTurnstileToken(token);
-      },
-      "expired-callback": () => {
-        setTurnstileToken("");
-        toast.error("Verification expired. Please verify again.");
-      },
-      "error-callback": () => {
-        setTurnstileToken("");
-        toast.error("Verification failed. Please try again.");
-      },
-    });
+    const sitekey = process.env.NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY;
+    if (!sitekey) {
+      setTurnstileError('Verification is unavailable. Please contact support.');
+      console.error('NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY is not configured.');
+      return;
+    }
+
+    try {
+      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+        sitekey,
+        theme: 'auto',
+        callback: (token: string) => {
+          setTurnstileError(null);
+          setTurnstileToken(token);
+        },
+        'expired-callback': () => {
+          setTurnstileToken('');
+          toast.error('Verification expired. Please verify again.');
+        },
+        'error-callback': () => {
+          setTurnstileToken('');
+          setTurnstileError(
+            'Verification failed. Please reload the page to try again.',
+          );
+        },
+      });
+    } catch (error) {
+      console.error('Turnstile could not be rendered:', error);
+      setTurnstileError(
+        'Verification could not load. Please reload the page to try again.',
+      );
+    }
   }, []);
 
   const resetTurnstile = useCallback(() => {
-    setTurnstileToken("");
+    setTurnstileToken('');
 
     if (window.turnstile && widgetIdRef.current) {
       window.turnstile.reset(widgetIdRef.current);
@@ -76,7 +94,7 @@ export function AuthForm() {
   }, []);
 
   const toggleVariant = useCallback(() => {
-    setVariant((current) => (current === "LOGIN" ? "REGISTER" : "LOGIN"));
+    setVariant((current) => (current === 'LOGIN' ? 'REGISTER' : 'LOGIN'));
     resetTurnstile();
   }, [resetTurnstile]);
 
@@ -86,15 +104,27 @@ export function AuthForm() {
     formState: { errors },
   } = useForm<FieldValues>({
     defaultValues: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
     },
   });
 
   useEffect(() => {
+    if (window.turnstile) {
+      setTurnstileReady(true);
+    }
+
     if (turnstileReady) {
       renderTurnstile();
     }
+
+    // clean up for react strict mode double mount and unmount
+    return () => {
+      if (window.turnstile && widgetIdRef.current) {
+        window.turnstile.remove?.(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
   }, [turnstileReady, renderTurnstile]);
 
   const getAxiosErrorMessage = (error: any) => {
@@ -103,68 +133,67 @@ export function AuthForm() {
       error?.response?.data?.error || error?.response?.data || error?.message;
 
     if (status === 429) {
-      const retryAfter = error?.response?.headers?.["retry-after"];
+      const retryAfter = error?.response?.headers?.['retry-after'];
       return retryAfter
         ? `Too many attempts. Please wait ${retryAfter} seconds and try again.`
-        : "Too many attempts. Please try again later.";
+        : 'Too many attempts. Please try again later.';
     }
 
     if (status === 403) {
-      return "Bot verification failed. Please complete the verification and try again.";
+      return 'Bot verification failed. Please complete the verification and try again.';
     }
 
     if (status === 400) {
-      if (typeof serverMessage === "string") return serverMessage;
-      return "Invalid request. Please check your details and try again.";
+      if (typeof serverMessage === 'string') return serverMessage;
+      return 'Invalid request. Please check your details and try again.';
     }
 
     if (status === 500) {
-      return "Server error. Please try again after some time.";
+      return 'Server error. Please try again after some time.';
     }
 
-    return typeof serverMessage === "string"
+    return typeof serverMessage === 'string'
       ? serverMessage
-      : "Something went wrong. Please try again.";
+      : 'Something went wrong. Please try again.';
   };
 
   const onSubmit: SubmitHandler<FieldValues> = async (data) => {
     if (!turnstileToken) {
-      toast.error("Please complete the verification first.");
+      toast.error('Please complete the verification first.');
       return;
     }
 
     setIsLoading(true);
 
-    if (variant === "REGISTER") {
-      const loadingToast = toast.loading("Creating your account...");
+    if (variant === 'REGISTER') {
+      const loadingToast = toast.loading('Creating your account...');
 
       try {
-        await axios.post("/api/register", {
+        await axios.post('/api/register', {
           ...data,
           cfToken: turnstileToken,
         });
         const tokenSnapshot = turnstileToken;
-        toast.success("Registration successful! Signing you in...", {
+        toast.success('Registration successful! Signing you in...', {
           id: loadingToast,
         });
 
         resetTurnstile();
 
-        const callback = await signIn("credentials", {
+        const callback = await signIn('credentials', {
           ...data,
-          cfToken: tokenSnapshot,
           redirect: false,
         });
 
         if (callback?.error) {
           toast.error(
-            "Account created, but automatic sign-in failed. Please sign in manually.",
+            'Account created, but automatic sign-in failed. Please sign in manually.',
           );
           return;
         }
 
-        toast.success("Logged in successfully!");
-        router.push("/dashboard");
+        toast.success('Logged in successfully!');
+        router.push('/dashboard');
       } catch (error: any) {
         toast.error(getAxiosErrorMessage(error), { id: loadingToast });
         resetTurnstile();
@@ -173,11 +202,11 @@ export function AuthForm() {
       }
     }
 
-    if (variant === "LOGIN") {
-      const loadingToast = toast.loading("Signing you in...");
+    if (variant === 'LOGIN') {
+      const loadingToast = toast.loading('Signing you in...');
 
       try {
-        const callback = await signIn("credentials", {
+        const callback = await signIn('credentials', {
           ...data,
           cfToken: turnstileToken,
           redirect: false,
@@ -185,7 +214,7 @@ export function AuthForm() {
 
         if (callback?.error) {
           toast.error(
-            "Invalid credentials or verification failed. Please try again.",
+            'Invalid credentials or verification failed. Please try again.',
             { id: loadingToast },
           );
           resetTurnstile();
@@ -193,17 +222,17 @@ export function AuthForm() {
         }
 
         if (callback?.ok) {
-          toast.success("Logged in successfully!", { id: loadingToast });
-          router.push("/dashboard");
+          toast.success('Logged in successfully!', { id: loadingToast });
+          router.push('/dashboard');
           return;
         }
 
-        toast.error("Could not sign you in. Please try again.", {
+        toast.error('Could not sign you in. Please try again.', {
           id: loadingToast,
         });
         resetTurnstile();
       } catch (error: any) {
-        toast.error("Login failed. Please try again shortly.", {
+        toast.error('Login failed. Please try again shortly.', {
           id: loadingToast,
         });
         resetTurnstile();
@@ -215,12 +244,12 @@ export function AuthForm() {
 
   const socialAction = async (action: string) => {
     if (!turnstileToken) {
-      toast.error("Please complete the verification first.");
+      toast.error('Please complete the verification first.');
       return;
     }
 
     setIsLoading(true);
-    const loadingToast = toast.loading("Redirecting to Google...");
+    const loadingToast = toast.loading('Redirecting to Google...');
 
     try {
       const callback = await signIn(action, {
@@ -229,7 +258,7 @@ export function AuthForm() {
       });
 
       if (callback?.error) {
-        toast.error("Google sign-in failed. Please try again.", {
+        toast.error('Google sign-in failed. Please try again.', {
           id: loadingToast,
         });
         resetTurnstile();
@@ -237,10 +266,10 @@ export function AuthForm() {
       }
 
       if (callback?.ok) {
-        toast.success("Redirecting...", { id: loadingToast });
+        toast.success('Redirecting...', { id: loadingToast });
       }
     } catch (error) {
-      toast.error("Social login failed. Please try again later.", {
+      toast.error('Social login failed. Please try again later.', {
         id: loadingToast,
       });
       resetTurnstile();
@@ -253,9 +282,14 @@ export function AuthForm() {
     <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        async
-        defer
-        onLoad={() => setTurnstileReady(true)}
+        strategy="afterInteractive"
+        onReady={() => setTurnstileReady(true)}
+        onError={() => {
+          setTurnstileToken('');
+          setTurnstileError(
+            'Verification could not load. Please check your connection and reload the page.',
+          );
+        }}
       />
 
       <div className="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
@@ -269,10 +303,10 @@ export function AuthForm() {
             label="Email address"
             type="email"
             validation={{
-              required: "Email is required",
+              required: 'Email is required',
               pattern: {
                 value: /\S+@\S+\.\S+/,
-                message: "Invalid email address",
+                message: 'Invalid email address',
               },
             }}
           />
@@ -287,7 +321,7 @@ export function AuthForm() {
             type="password"
           />
 
-          {variant === "LOGIN" && (
+          {variant === 'LOGIN' && (
             <div className="-mt-3 flex justify-end">
               <Link
                 href="/forgot-password"
@@ -301,11 +335,17 @@ export function AuthForm() {
           <div className="space-y-2">
             <div ref={turnstileRef} />
 
-            {!turnstileToken && (
-              <p className="text-sm text-gray-500">
-                Please complete the verification before continuing.
+            {turnstileError ? (
+              <p role="alert" className="text-sm text-red-600">
+                {turnstileError}
               </p>
-            )}
+            ) : !turnstileToken ? (
+              <p role="status" className="text-sm text-gray-500">
+                {turnstileReady
+                  ? 'Please complete the verification before continuing.'
+                  : 'Loading verification...'}
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -314,7 +354,7 @@ export function AuthForm() {
               fullWidth
               type="submit"
             >
-              {variant === "LOGIN" ? "Sign in" : "Register"}
+              {variant === 'LOGIN' ? 'Sign in' : 'Register'}
             </Button>
           </div>
         </form>
@@ -335,23 +375,23 @@ export function AuthForm() {
           <div className="mt-6 flex gap-2">
             <AuthSocialButton
               icon={BsGoogle}
-              onClick={() => socialAction("google")}
+              onClick={() => socialAction('google')}
             />
           </div>
         </div>
 
         <div className="mt-6 flex justify-center gap-2 px-2 text-sm text-gray-500">
           <div>
-            {variant === "LOGIN"
+            {variant === 'LOGIN'
               ? "Don't have an account?"
-              : "Already have an account?"}
+              : 'Already have an account?'}
           </div>
 
           <div
             className="cursor-pointer text-gray-500 underline"
             onClick={toggleVariant}
           >
-            {variant === "LOGIN" ? "Create an account" : "Login"}
+            {variant === 'LOGIN' ? 'Create an account' : 'Login'}
           </div>
         </div>
       </div>

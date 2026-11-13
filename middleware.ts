@@ -41,21 +41,24 @@ const PENDING_PATH = "/pending";
 const ALLOW_PENDING_ONLY = new Set<string>([PENDING_PATH]);
 
 function contentSecurityPolicy(nonce: string): string {
+  const isDevelopment = process.env.NODE_ENV === "development";
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' https://checkout.razorpay.com https://challenges.cloudflare.com https://va.vercel-scripts.com`,
+    // Match the fallback policy: eval is needed only by the dev runtime.
+    `script-src 'self' 'nonce-${nonce}'${isDevelopment ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com https://challenges.cloudflare.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://challenges.cloudflare.com https://*.razorpay.com https://*.uploadthing.com https://*.ingest.uploadthing.com https://*.ufs.sh https://utfs.io https://*.utfs.io https://va.vercel-scripts.com https://*.vercel-insights.com",
+    `connect-src 'self'${isDevelopment ? " ws: wss:" : ""} https://challenges.cloudflare.com https://*.razorpay.com https://*.uploadthing.com https://*.ingest.uploadthing.com https://*.ufs.sh https://utfs.io https://*.utfs.io https://va.vercel-scripts.com https://*.vercel-insights.com`,
     "frame-src https://challenges.cloudflare.com https://*.razorpay.com https://drive.google.com https://docs.google.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
