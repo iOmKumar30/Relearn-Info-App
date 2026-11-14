@@ -1,22 +1,28 @@
-"use server";
+'use server';
 
-import { toUTCDate } from "@/libs/finance-utils";
-import prisma from "@/libs/prismadb";
-import { isCurrentUserAdmin } from "@/libs/server-auth";
+import { toUTCDate } from '@/libs/finance-utils';
+import prisma from '@/libs/prismadb';
+import { isCurrentUserAdmin } from '@/libs/server-auth';
 import {
   creditFinanceDonation,
   DonationCreditInput,
+  DonationUndoInput,
+  undoFinanceDonation,
   mergeFinanceStatement,
   removeFinanceTransactions,
   saveFinanceTransaction,
   transactionDetailsInclude,
-} from "@/libs/finance-transaction-service";
-import { FinanceValidationError } from "@/libs/finance-transactions";
-import { authOptions } from "@/libs/authOptions";
-import { getServerSession } from "next-auth";
-import { MonthlyStatement, Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
-import * as XLSX from "xlsx";
+} from '@/libs/finance-transaction-service';
+import {
+  FinanceValidationError,
+  FinanceDonationStatus,
+  buildFinanceExpenseBreakdown,
+} from '@/libs/finance-transactions';
+import { authOptions } from '@/libs/authOptions';
+import { getServerSession } from 'next-auth';
+import { MonthlyStatement, Prisma } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
+import * as XLSX from 'xlsx';
 
 export type FinancialYearWithCount = Prisma.FinancialYearGetPayload<{
   include: {
@@ -34,10 +40,10 @@ export type FinancialYearWithMonths = Prisma.FinancialYearGetPayload<{
 
 export async function getFinancialYears() {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     const years = await prisma.financialYear.findMany({
-      orderBy: { startDate: "desc" },
+      orderBy: { startDate: 'desc' },
       include: {
         _count: {
           select: { months: true },
@@ -46,13 +52,13 @@ export async function getFinancialYears() {
     });
     return { success: true, data: years as FinancialYearWithCount[] };
   } catch (error) {
-    return { success: false, error: "Failed to fetch financial years" };
+    return { success: false, error: 'Failed to fetch financial years' };
   }
 }
 
 export async function createFinancialYear(startYear: number) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     const name = `FY ${startYear}-${(startYear + 1).toString().slice(-2)}`;
     const startDate = new Date(Date.UTC(startYear, 3, 1));
@@ -60,28 +66,28 @@ export async function createFinancialYear(startYear: number) {
 
     const existing = await prisma.financialYear.findUnique({ where: { name } });
     if (existing)
-      return { success: false, error: "Financial Year already exists" };
+      return { success: false, error: 'Financial Year already exists' };
 
     await prisma.financialYear.create({
       data: { name, startDate, endDate, isActive: true },
     });
 
-    revalidatePath("/admin/finance");
-    return { success: true, message: "Financial Year created successfully" };
+    revalidatePath('/admin/finance');
+    return { success: true, message: 'Financial Year created successfully' };
   } catch (error) {
-    return { success: false, error: "Failed to create financial year" };
+    return { success: false, error: 'Failed to create financial year' };
   }
 }
 
 export async function getFinancialYearDetails(yearId: string) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     const rawYear = await prisma.financialYear.findUnique({
       where: { id: yearId },
       include: {
         months: {
-          orderBy: { month: "asc" },
+          orderBy: { month: 'asc' },
           include: {
             _count: {
               select: { transactions: true },
@@ -91,7 +97,7 @@ export async function getFinancialYearDetails(yearId: string) {
       },
     });
 
-    if (!rawYear) return { success: false, error: "Financial Year not found" };
+    if (!rawYear) return { success: false, error: 'Financial Year not found' };
 
     const year = rawYear as FinancialYearWithMonths;
 
@@ -117,7 +123,7 @@ export async function getFinancialYearDetails(yearId: string) {
 
     return { success: true, data: sortMonthsFiscal(year) };
   } catch (error) {
-    return { success: false, error: "Failed to fetch year details" };
+    return { success: false, error: 'Failed to fetch year details' };
   }
 }
 export async function getMonthDetails(monthId: string) {
@@ -128,14 +134,14 @@ export async function getMonthDetails(monthId: string) {
       include: {
         financialYear: true,
         transactions: {
-          orderBy: { txnDate: "asc" },
+          orderBy: { txnDate: 'asc' },
           include: transactionDetailsInclude,
         },
       },
     });
     return statement;
   } catch (error) {
-    console.error("Get Month Details Error:", error);
+    console.error('Get Month Details Error:', error);
     return null;
   }
 }
@@ -189,13 +195,13 @@ export async function uploadMonthlyStatement(
   statementId: string,
 ) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
-    const file = formData.get("file") as File;
-    if (!file) return { success: false, error: "No file uploaded" };
+    const file = formData.get('file') as File;
+    if (!file) return { success: false, error: 'No file uploaded' };
 
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
@@ -214,7 +220,7 @@ export async function uploadMonthlyStatement(
 
     for (let i = 19; i < rows.length; i++) {
       const row = rows[i];
-      if (!row || row[0] === undefined || row[0] === null || row[0] === "") {
+      if (!row || row[0] === undefined || row[0] === null || row[0] === '') {
         break;
       }
 
@@ -222,7 +228,7 @@ export async function uploadMonthlyStatement(
       const valueDate = toUTCDate(row[1]);
       const description = row[2] as string;
       const refNo = row[3] as string;
-      const branchCode = String(row[4] || "");
+      const branchCode = String(row[4] || '');
       const debit = Number(row[5] || 0);
       const credit = Number(row[6] || 0);
       const balance = Number(row[7] || 0);
@@ -231,7 +237,7 @@ export async function uploadMonthlyStatement(
 
       let txnId = null;
       if (description) {
-        const parts = description.split("*");
+        const parts = description.split('*');
         if (parts.length >= 3) {
           txnId = parts[2].trim();
         }
@@ -245,7 +251,7 @@ export async function uploadMonthlyStatement(
         txnId,
         refNo,
         branchCode,
-        type: debit > 0 ? "DEBIT" : "CREDIT",
+        type: debit > 0 ? 'DEBIT' : 'CREDIT',
         amount: debit > 0 ? debit : credit,
         runningBalance: balance,
       });
@@ -264,13 +270,13 @@ export async function uploadMonthlyStatement(
       transactionsToCreate,
     );
 
-    revalidatePath("/admin/finance", "layout");
-    return { success: true, message: "Statement processed successfully" };
+    revalidatePath('/admin/finance', 'layout');
+    return { success: true, message: 'Statement processed successfully' };
   } catch (error) {
-    console.error("Upload Error:", error);
+    console.error('Upload Error:', error);
     return {
       success: false,
-      error: financeError(error, "Failed to process Excel file"),
+      error: financeError(error, 'Failed to process Excel file'),
     };
   }
 }
@@ -280,7 +286,7 @@ export async function updateMonthlyBalances(
   endBalance: number,
 ) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     await prisma.monthlyStatement.update({
       where: { id: statementId },
@@ -291,58 +297,58 @@ export async function updateMonthlyBalances(
     });
 
     revalidatePath(`/admin/finance`);
-    return { success: true, message: "Balances updated successfully" };
+    return { success: true, message: 'Balances updated successfully' };
   } catch (error) {
-    console.error("Update Balance Error:", error);
-    return { success: false, error: "Failed to update balances" };
+    console.error('Update Balance Error:', error);
+    return { success: false, error: 'Failed to update balances' };
   }
 }
 export async function clearMonthlyData(statementId: string) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     await removeFinanceTransactions(prisma, statementId);
 
-    revalidatePath("/admin/finance", "layout");
-    return { success: true, message: "All transactions cleared" };
+    revalidatePath('/admin/finance', 'layout');
+    return { success: true, message: 'All transactions cleared' };
   } catch (error) {
     return {
       success: false,
-      error: financeError(error, "Failed to clear data"),
+      error: financeError(error, 'Failed to clear data'),
     };
   }
 }
 
 export async function upsertTransaction(data: any) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     await saveFinanceTransaction(prisma, data);
 
-    revalidatePath("/admin/finance", "layout");
+    revalidatePath('/admin/finance', 'layout');
     return { success: true };
   } catch (error) {
-    console.error("Upsert Transaction Error:", error);
+    console.error('Upsert Transaction Error:', error);
     return {
       success: false,
-      error: financeError(error, "Failed to save transaction"),
+      error: financeError(error, 'Failed to save transaction'),
     };
   }
 }
 export async function deleteTransaction(id: string) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     const transaction = await prisma.transaction.findUnique({
       where: { id },
       select: { statementId: true },
     });
-    if (!transaction) return { success: false, error: "Transaction not found" };
+    if (!transaction) return { success: false, error: 'Transaction not found' };
     await removeFinanceTransactions(prisma, transaction.statementId, id);
-    revalidatePath("/admin/finance", "layout");
+    revalidatePath('/admin/finance', 'layout');
     return { success: true };
   } catch (error) {
-    return { success: false, error: financeError(error, "Failed to delete") };
+    return { success: false, error: financeError(error, 'Failed to delete') };
   }
 }
 
@@ -350,18 +356,18 @@ function financeError(error: unknown, fallback: string) {
   if (error instanceof FinanceValidationError) return error.message;
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2028"
+    error.code === 'P2028'
   ) {
-    return "The database is busy. Please try again; no partial changes were saved.";
+    return 'The database is busy. Please try again; no partial changes were saved.';
   }
   return fallback;
 }
 
 export async function getMemberDonationYears() {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized", years: [] as string[] };
+    return { success: false, error: 'Unauthorized', years: [] as string[] };
   try {
-    const { memberFiscalLabel } = await import("@/libs/finance-transactions");
+    const { memberFiscalLabel } = await import('@/libs/finance-transactions');
     const years = await prisma.financialYear.findMany({
       select: { startDate: true },
     });
@@ -382,10 +388,10 @@ export async function getMemberDonationYears() {
         .reverse(),
     };
   } catch (error) {
-    console.error("MEMBER_DONATION_YEARS_ERROR", error);
+    console.error('MEMBER_DONATION_YEARS_ERROR', error);
     return {
       success: false,
-      error: "Could not load financial years. Please try again.",
+      error: 'Could not load financial years. Please try again.',
       years: [] as string[],
     };
   }
@@ -398,23 +404,51 @@ export async function addTransactionToMemberDonation(
   error?: string;
   alreadyCredited?: boolean;
   fiscalLabel?: string;
+  status?: FinanceDonationStatus;
 }> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !session.user.roles?.includes("ADMIN"))
-    return { success: false, error: "Unauthorized" };
+  if (!session?.user?.id || !session.user.roles?.includes('ADMIN'))
+    return { success: false, error: 'Unauthorized' };
   try {
     const result = await creditFinanceDonation(prisma, input, session.user.id);
-    revalidatePath("/admin/finance", "layout");
-    for (const type of ["annual", "life", "honorary", "founder"])
+    revalidatePath('/admin/finance', 'layout');
+    for (const type of ['annual', 'life', 'honorary', 'founder'])
       revalidatePath(`/members/${type}`);
     return { success: true, ...result };
   } catch (error) {
-    console.error("FINANCE_MEMBER_DONATION_ERROR", error);
+    console.error('FINANCE_MEMBER_DONATION_ERROR', error);
     return {
       success: false,
       error: financeError(
         error,
-        "Failed to add member donation. Refresh to check its status before trying again.",
+        'Failed to add member donation. Refresh to check its status before trying again.',
+      ),
+    };
+  }
+}
+
+export async function undoTransactionMemberDonation(
+  input: DonationUndoInput,
+): Promise<
+  | { success: true; alreadyUndone: boolean; status: FinanceDonationStatus }
+  | { success: false; error: string }
+> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || !session.user.roles?.includes('ADMIN'))
+    return { success: false, error: 'Unauthorized' };
+  try {
+    const result = await undoFinanceDonation(prisma, input, session.user.id);
+    revalidatePath('/admin/finance', 'layout');
+    for (const type of ['annual', 'life', 'honorary', 'founder'])
+      revalidatePath(`/members/${type}`);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('FINANCE_MEMBER_DONATION_UNDO_ERROR', error);
+    return {
+      success: false,
+      error: financeError(
+        error,
+        'Could not undo the donation. Refresh to check its status before trying again.',
       ),
     };
   }
@@ -439,7 +473,7 @@ type YearWithAnalyticsData = Prisma.FinancialYearGetPayload<{
 
 export async function getYearlyAnalytics(yearId: string) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     const rawYear = await prisma.financialYear.findUnique({
       where: { id: yearId },
@@ -455,12 +489,12 @@ export async function getYearlyAnalytics(yearId: string) {
               },
             },
           },
-          orderBy: { month: "asc" },
+          orderBy: { month: 'asc' },
         },
       },
     });
 
-    if (!rawYear) return { success: false, error: "Year not found" };
+    if (!rawYear) return { success: false, error: 'Year not found' };
 
     const year = rawYear as YearWithAnalyticsData;
 
@@ -472,16 +506,16 @@ export async function getYearlyAnalytics(yearId: string) {
 
     const trendData = sortedMonths.map((m) => {
       const income = m.transactions
-        .filter((t) => t.type === "CREDIT")
+        .filter((t) => t.type === 'CREDIT')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const expense = m.transactions
-        .filter((t) => t.type === "DEBIT")
+        .filter((t) => t.type === 'DEBIT')
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
-        name: new Date(0, m.month - 1).toLocaleString("default", {
-          month: "short",
+        name: new Date(0, m.month - 1).toLocaleString('default', {
+          month: 'short',
         }),
         Income: income,
         Expense: expense,
@@ -489,30 +523,9 @@ export async function getYearlyAnalytics(yearId: string) {
       };
     });
 
-    const categoryMap = new Map<string, number>();
-
-    year.months.forEach((m) => {
-      m.transactions.forEach((t) => {
-        if (t.type === "DEBIT") {
-          const allocations = t.splits.length ? t.splits : [t];
-          for (const allocation of allocations) {
-            if (!allocation.reason) continue;
-            const key = allocation.reason.trim();
-            categoryMap.set(
-              key,
-              (categoryMap.get(key) || 0) + Number(allocation.amount),
-            );
-          }
-        }
-      });
-    });
-
-    const expenseBreakdown = Array.from(categoryMap, ([name, value]) => ({
-      name,
-      value,
-    }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+    const expenseBreakdown = buildFinanceExpenseBreakdown(
+      year.months.flatMap((month) => month.transactions),
+    );
 
     const totalIncome = trendData.reduce((sum, d) => sum + d.Income, 0);
     const totalExpense = trendData.reduce((sum, d) => sum + d.Expense, 0);
@@ -526,7 +539,7 @@ export async function getYearlyAnalytics(yearId: string) {
       },
     };
   } catch (error) {
-    return { success: false, error: "Failed to calculate analytics" };
+    return { success: false, error: 'Failed to calculate analytics' };
   }
 }
 
@@ -535,7 +548,7 @@ export async function toggleFinancialYearStatus(
   isActive: boolean,
 ) {
   if (!(await isCurrentUserAdmin()))
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: 'Unauthorized' };
   try {
     await prisma.financialYear.update({
       where: { id: yearId },
@@ -546,7 +559,7 @@ export async function toggleFinancialYearStatus(
     revalidatePath(`/admin/finance/${yearId}`);
     return { success: true };
   } catch (error) {
-    console.error("Toggle Status Error:", error);
-    return { success: false, error: "Failed to update financial year status" };
+    console.error('Toggle Status Error:', error);
+    return { success: false, error: 'Failed to update financial year status' };
   }
 }

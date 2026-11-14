@@ -817,6 +817,27 @@ model FinanceDonationCredit {
   @@index([memberId, fiscalLabel])
 }
 
+// Permanent snapshot of a credit removed by Undo. IDs are intentionally stored
+// without relations so correcting/deleting the source cannot erase this audit.
+model FinanceDonationReversal {
+  creditId         String   @id
+  sourceKey        String
+  transactionId    String
+  splitId          String?
+  memberId         String
+  fiscalLabel      String
+  amount           Decimal  @db.Decimal(12, 2)
+  partyName        String
+  paidOn           DateTime
+  creditedById     String
+  creditedAt       DateTime
+  reversedById     String
+  reversedAt       DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([memberId, fiscalLabel])
+}
+
 model TutorTrainingAttendance {
   id        String                   @id @default(uuid())
   classId   String                   @map("class_id")

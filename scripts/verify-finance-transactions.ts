@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import {
   assertFinanceFeeRevision,
   creditFinanceDonation,
+  undoFinanceDonation,
   financeTransaction,
   mergeFinanceStatement,
   removeFinanceTransactions,
@@ -18,6 +19,8 @@ import {
   moneyToPaise,
   paiseToDecimal,
   validateSplits,
+  buildFinanceExpenseBreakdown,
+  formatTransactionBreakdown,
 } from '../libs/finance-transactions';
 
 // This suite creates a disposable in-memory PostgreSQL instance. It never
@@ -52,7 +55,62 @@ async function main() {
     () => validateSplits([split('49.99'), split('50')], '100'),
     /exactly/,
   );
-  assert.throws(() => validateSplits([split('0')], '100'), /greater than zero/);
+  assert.throws(() => validateSplits([split('0')], '100'), /non-zero/);
+  assert.throws(() => validateSplits([split('-0.00')], '100'), /non-zero/);
+  assert.deepEqual(
+    validateSplits([split('1000'), split('-20')], '980').map(
+      (row) => row.amount,
+    ),
+    ['1000.00', '-20.00'],
+  );
+  assert.throws(
+    () => validateSplits([split('1000'), split('-19.99')], '980'),
+    /exactly/,
+  );
+  assert.throws(
+    () => validateSplits([split('1000'), split('-20.001')], '980'),
+    /two decimal/,
+  );
+  // Large opposing allocations must cancel exactly even beyond Number's
+  // safe intermediate sum, while each individual amount remains valid.
+  validateSplits(
+    [
+      ...Array.from({ length: 10 }, () => split('9999999999999.99')),
+      ...Array.from({ length: 10 }, () => split('-9999999999999.99')),
+      split('0.01'),
+    ],
+    '0.01',
+  );
+  assert.deepEqual(
+    buildFinanceExpenseBreakdown([
+      {
+        type: 'CREDIT',
+        amount: 980,
+        reason: 'Payout',
+        splits: [
+          { amount: 1000, reason: 'Donation' },
+          { amount: -20, reason: 'Razorpay charges' },
+        ],
+      },
+      {
+        type: 'DEBIT',
+        amount: 100,
+        splits: [
+          { amount: 120, reason: 'Materials' },
+          { amount: -20, reason: 'Materials' },
+        ],
+      },
+      {
+        type: 'DEBIT',
+        amount: 0,
+        splits: [{ amount: -5, reason: 'Refund only' }],
+      },
+    ]),
+    [
+      { name: 'Materials', value: 100 },
+      { name: 'Razorpay charges', value: 20 },
+    ],
+  );
 
   const db = await PGlite.create();
   const server = new PGLiteSocketServer({
@@ -116,9 +174,46 @@ async function main() {
         'utf8',
       ),
     );
+    await db.exec(
+      await readFile(
+        new URL(
+          '../prisma/migrations/20261114120000_add_finance_donation_reversals/migration.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
     const migratedRows = (
       await db.query<Record<string, unknown>>(`SELECT * FROM "Transaction"`)
     ).rows;
+    // The signed-amount migration must also preserve existing allocations.
+    await db.exec(`INSERT INTO "TransactionSplit" ("id", "transactionId", "partyName", "reason", "amount", "position", "updatedAt")
+      VALUES ('migration-split', 'legacy', 'Historic allocation', 'Original reason', 600, 0, NOW());`);
+    const oldSplit = (
+      await db.query(
+        `SELECT * FROM "TransactionSplit" WHERE "id"='migration-split'`,
+      )
+    ).rows;
+    await db.exec(
+      await readFile(
+        new URL(
+          '../prisma/migrations/20261115120000_allow_signed_transaction_splits/migration.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+    assert.deepEqual(
+      (
+        await db.query(
+          `SELECT * FROM "TransactionSplit" WHERE "id"='migration-split'`,
+        )
+      ).rows,
+      oldSplit,
+    );
+    await db.exec(
+      `DELETE FROM "TransactionSplit" WHERE "id"='migration-split'`,
+    );
     assert.deepEqual(
       migratedRows.map(({ partyMemberId, comment, ...rest }) => rest),
       beforeTransactions,
@@ -167,16 +262,18 @@ async function main() {
       splitId?: string,
       fiscalLabel = '2026-2027',
     ) =>
-      creditFinanceDonation(
-        client!,
-        {
-          transactionId: row.id,
-          splitId,
-          fiscalLabel,
-          expectedUpdatedAt: row.updatedAt.toISOString(),
-          confirmed: true,
-        },
-        'admin',
+      record(row.id).then((latest) =>
+        creditFinanceDonation(
+          client!,
+          {
+            transactionId: row.id,
+            splitId,
+            fiscalLabel,
+            expectedUpdatedAt: latest.updatedAt.toISOString(),
+            confirmed: true,
+          },
+          'admin',
+        ),
       );
 
     // Legacy entry gets a breakdown without changing the original bank row or total.
@@ -265,7 +362,7 @@ async function main() {
         where: { memberId: 'member-AM' },
       })
     ).paidOn;
-    assert.equal(originalPaidOn.toISOString().slice(0, 10), '2026-04-02');
+    assert.equal(originalPaidOn.toISOString().slice(0, 10), '2026-10-10');
     legacy = await record('legacy');
     await assert.rejects(
       saveFinanceTransaction(
@@ -490,6 +587,274 @@ async function main() {
     );
     await db.exec(
       `DROP TRIGGER fail_test_credit ON "FinanceDonationCredit"; DROP FUNCTION fail_test_credit();`,
+    );
+
+    // Undo targets the saved audit, never client-supplied amounts or members.
+    legacy = await record('legacy');
+    const originalCredit = legacy.donationCredits.find(
+      (item) => item.splitId === legacy.splits[0].id,
+    )!;
+    const beforeUndoFee = await client.memberFee.findFirstOrThrow({
+      where: { memberId: 'member-AM' },
+    });
+    const undoInput = {
+      transactionId: legacy.id,
+      creditId: originalCredit.id,
+      confirmed: true,
+    };
+    await assert.rejects(
+      undoFinanceDonation(client, { ...undoInput, confirmed: false }, 'admin'),
+    );
+    await client.memberFee.update({
+      where: { id: beforeUndoFee.id },
+      data: { amount: 1 },
+    });
+    await assert.rejects(
+      undoFinanceDonation(client, undoInput, 'admin'),
+      /reduced below/,
+    );
+    assert.equal(await client.financeDonationReversal.count(), 0);
+    await client.memberFee.update({
+      where: { id: beforeUndoFee.id },
+      data: { amount: beforeUndoFee.amount },
+    });
+
+    // Failure to preserve the reversal audit rolls back the subtraction too.
+    await db.exec(`CREATE FUNCTION fail_test_reversal() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Test reversal failure'; END; $$;
+      CREATE TRIGGER fail_test_reversal BEFORE INSERT ON "FinanceDonationReversal" FOR EACH ROW EXECUTE FUNCTION fail_test_reversal();`);
+    await assert.rejects(undoFinanceDonation(client, undoInput, 'admin'));
+    assert.equal(
+      String(
+        (
+          await client.memberFee.findUniqueOrThrow({
+            where: { id: beforeUndoFee.id },
+          })
+        ).amount,
+      ),
+      String(beforeUndoFee.amount),
+    );
+    assert(
+      await client.financeDonationCredit.findUnique({
+        where: { id: originalCredit.id },
+      }),
+    );
+    await db.exec(
+      `DROP TRIGGER fail_test_reversal ON "FinanceDonationReversal"; DROP FUNCTION fail_test_reversal();`,
+    );
+
+    const undone = await Promise.all([
+      undoFinanceDonation(client, undoInput, 'admin'),
+      undoFinanceDonation(client, undoInput, 'another-admin'),
+    ]);
+    assert.equal(undone.filter((result) => !result.alreadyUndone).length, 1);
+    const afterUndoFee = await client.memberFee.findUniqueOrThrow({
+      where: { id: beforeUndoFee.id },
+    });
+    assert.equal(
+      moneyToPaise(afterUndoFee.amount),
+      moneyToPaise(beforeUndoFee.amount) - 20000,
+    );
+    assert.equal(
+      afterUndoFee.paidOn.toISOString(),
+      beforeUndoFee.paidOn.toISOString(),
+    );
+    const archived = await client.financeDonationReversal.findUniqueOrThrow({
+      where: { creditId: originalCredit.id },
+    });
+    assert.equal(archived.memberId, originalCredit.memberId);
+    assert.equal(String(archived.amount), '200');
+    assert.equal(archived.creditedById, originalCredit.creditedById);
+    await assert.rejects(
+      financeTransaction(client, (tx) =>
+        assertFinanceFeeRevision(tx, 'member-AM', 2),
+      ),
+      /after you opened/,
+    );
+
+    // A delayed original Add request must not re-credit a source just undone.
+    await assert.rejects(
+      creditFinanceDonation(
+        client,
+        {
+          transactionId: legacy.id,
+          splitId: originalCredit.splitId!,
+          fiscalLabel: originalCredit.fiscalLabel,
+          expectedUpdatedAt: legacy.updatedAt.toISOString(),
+          confirmed: true,
+        },
+        'admin',
+      ),
+      /has changed/,
+    );
+    legacy = await record('legacy');
+    await saveFinanceTransaction(
+      client,
+      payload(legacy, {
+        splits: legacy.splits.map((item, index) => ({
+          ...item,
+          amount: String(item.amount),
+          ...(index === 0
+            ? { partyName: 'Honorary Member', partyMemberId: 'member-HM' }
+            : {}),
+        })),
+      }),
+    );
+    legacy = await record('legacy');
+    const corrected = await credit(legacy, legacy.splits[0].id, '2025-2026');
+    const correctedCredit = corrected.status.credits.find(
+      (item) => item.splitId === legacy.splits[0].id,
+    )!;
+    assert.notEqual(correctedCredit.id, originalCredit.id);
+    await undoFinanceDonation(client, undoInput, 'admin'); // Old retry cannot undo the new credit.
+    assert(
+      await client.financeDonationCredit.findUnique({
+        where: { id: correctedCredit.id },
+      }),
+    );
+    await undoFinanceDonation(
+      client,
+      { ...undoInput, creditId: correctedCredit.id },
+      'admin',
+    );
+    assert.equal(
+      String(
+        (
+          await client.memberFee.findFirstOrThrow({
+            where: { memberId: 'member-HM', fiscalLabel: '2025-2026' },
+          })
+        ).amount,
+      ),
+      '0',
+    );
+    assert.equal(await client.financeDonationReversal.count(), 2);
+
+    // Backdated credits retain a newer paid-on date; parent Undo also works.
+    const backdated = await saveFinanceTransaction(client, {
+      statementId: 'empty-statement',
+      txnDate: '2026-06-05',
+      type: 'CREDIT',
+      amount: '10',
+      runningBalance: 10,
+      partyMemberId: 'member-AM',
+      partyName: 'Annual',
+      splits: [],
+    });
+    const creditedBackdate = await credit(await record(backdated.id));
+    assert.equal(
+      (
+        await client.memberFee.findUniqueOrThrow({
+          where: { id: beforeUndoFee.id },
+        })
+      ).paidOn.toISOString(),
+      beforeUndoFee.paidOn.toISOString(),
+    );
+    const parentCredit = creditedBackdate.status.credits[0];
+    await undoFinanceDonation(
+      client,
+      {
+        transactionId: backdated.id,
+        creditId: parentCredit.id,
+        confirmed: true,
+      },
+      'admin',
+    );
+    assert.equal(
+      String(
+        (
+          await client.memberFee.findUniqueOrThrow({
+            where: { id: beforeUndoFee.id },
+          })
+        ).amount,
+      ),
+      String(afterUndoFee.amount),
+    );
+    await removeFinanceTransactions(client, 'empty-statement', backdated.id);
+    assert(
+      await client.financeDonationReversal.findUnique({
+        where: { creditId: parentCredit.id },
+      }),
+    );
+    // Net payout: gross donation and withheld charge are signed allocations.
+    const payout = await saveFinanceTransaction(client, {
+      statementId: 'empty-statement',
+      txnDate: '2026-10-15',
+      type: 'CREDIT',
+      amount: '980',
+      runningBalance: 980,
+      txnId: 'razorpay-payout',
+      splits: [
+        split('1000'),
+        {
+          ...split('-20', 'member-HM'),
+          partyName: 'Razorpay',
+          reason: 'Razorpay charges',
+        },
+      ],
+    });
+    let payoutRow = await record(payout.id);
+    assert.equal(String(payoutRow.splits[1].amount), '-20');
+    assert.match(formatTransactionBreakdown(payoutRow.splits), /-.*20\.00/);
+    assert.equal(String(payoutRow.amount), '980');
+    await assert.rejects(
+      credit(payoutRow, payoutRow.splits[1].id),
+      /Only positive/,
+    );
+    await assert.rejects(db.query(
+      `INSERT INTO "TransactionSplit" ("id", "transactionId", "partyName", "reason", "amount", "position", "updatedAt") VALUES ('zero-test', $1, 'Zero', 'Invalid', 0, 2, NOW())`,
+      [payout.id],
+    ));
+    const payoutFeeBefore = await client.memberFee.findFirstOrThrow({
+      where: { memberId: 'member-AM', fiscalLabel: '2026-2027' },
+    });
+    const payoutCredit = await credit(payoutRow, payoutRow.splits[0].id);
+    assert.equal(
+      moneyToPaise(
+        (
+          await client.memberFee.findUniqueOrThrow({
+            where: { id: payoutFeeBefore.id },
+          })
+        ).amount,
+      ),
+      moneyToPaise(payoutFeeBefore.amount) + 100000,
+    );
+    payoutRow = await record(payout.id);
+    // Saving an unchanged credited payout, including its negative charge,
+    // and re-importing its bank row must preserve both allocations and audit.
+    await saveFinanceTransaction(client, payload(payoutRow));
+    await mergeFinanceStatement(
+      client,
+      'empty-statement',
+      { endBalance: 980 },
+      [
+        {
+          statementId: 'empty-statement',
+          txnId: 'razorpay-payout',
+          type: 'CREDIT',
+          amount: 980,
+          runningBalance: 980,
+          txnDate: payoutRow.txnDate,
+        },
+      ],
+    );
+    assert.equal(String((await record(payout.id)).splits[1].amount), '-20');
+    await undoFinanceDonation(
+      client,
+      {
+        transactionId: payout.id,
+        creditId: payoutCredit.status.credits[0].id,
+        confirmed: true,
+      },
+      'admin',
+    );
+    assert.equal(
+      String(
+        (
+          await client.memberFee.findUniqueOrThrow({
+            where: { id: payoutFeeBefore.id },
+          })
+        ).amount,
+      ),
+      String(payoutFeeBefore.amount),
     );
     console.log(
       'Finance verification passed: migration retention, exact totals, all four member types, cumulative and once-only credits, imports, stale edits and deletion protection. No external database was accessed.',

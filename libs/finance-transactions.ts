@@ -4,12 +4,26 @@ export const MAX_MEMBER_FEE_PAISE = 999_999_999_999;
 
 export class FinanceValidationError extends Error {}
 
+export type FinanceDonationStatus = {
+  transactionId: string;
+  updatedAt: string;
+  credits: {
+    id: string;
+    sourceKey: string;
+    splitId: string | null;
+    fiscalLabel: string;
+    amount: string;
+    partyName: string;
+    memberId: string;
+  }[];
+};
+
 export function moneyToPaise(
   value: unknown,
-  label = "Amount",
+  label = 'Amount',
   allowNegative = false,
 ): number {
-  const text = String(value ?? "").trim();
+  const text = String(value ?? '').trim();
   if (
     !(allowNegative ? /^-?\d+(\.\d{1,2})?$/ : /^\d+(\.\d{1,2})?$/).test(text)
   ) {
@@ -17,9 +31,9 @@ export function moneyToPaise(
       `${label} must be a valid amount with at most two decimal places.`,
     );
   }
-  const negative = text.startsWith("-");
-  const [whole, fraction = ""] = text.replace(/^-/, "").split(".");
-  const paise = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  const negative = text.startsWith('-');
+  const [whole, fraction = ''] = text.replace(/^-/, '').split('.');
+  const paise = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
   if (!Number.isSafeInteger(paise) || paise > 999_999_999_999_999) {
     throw new FinanceValidationError(`${label} is too large.`);
   }
@@ -28,11 +42,11 @@ export function moneyToPaise(
 
 export function paiseToDecimal(paise: number): string {
   const absolute = Math.abs(paise);
-  return `${paise < 0 ? "-" : ""}${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, "0")}`;
+  return `${paise < 0 ? '-' : ''}${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, '0')}`;
 }
 
 export function isCoreMemberCode(code?: string | null): boolean {
-  return /^(FM|LM|HM|AM)\d+$/i.test(code ?? "");
+  return /^(FM|LM|HM|AM)\d+$/i.test(code ?? '');
 }
 
 export type TransactionSplitInput = {
@@ -53,13 +67,13 @@ export function validateSplits(
     );
   }
   const seen = new Set<string>();
-  let total = 0;
+  let total = BigInt(0);
   const splits = value.map((raw, index) => {
-    if (!raw || typeof raw !== "object")
-      throw new FinanceValidationError("Invalid sub-transaction.");
+    if (!raw || typeof raw !== 'object')
+      throw new FinanceValidationError('Invalid sub-transaction.');
     const row = raw as Record<string, unknown>;
-    const partyName = String(row.partyName ?? "").trim();
-    const reason = String(row.reason ?? "").trim();
+    const partyName = String(row.partyName ?? '').trim();
+    const reason = String(row.reason ?? '').trim();
     if (
       !partyName ||
       !reason ||
@@ -73,15 +87,16 @@ export function validateSplits(
     const paise = moneyToPaise(
       row.amount,
       `Sub-transaction ${index + 1} amount`,
+      true,
     );
-    if (paise <= 0)
+    if (paise === 0)
       throw new FinanceValidationError(
-        "Each sub-transaction amount must be greater than zero.",
+        'Each sub-transaction amount must be non-zero.',
       );
-    total += paise;
-    const id = typeof row.id === "string" && row.id ? row.id : undefined;
+    total += BigInt(paise);
+    const id = typeof row.id === 'string' && row.id ? row.id : undefined;
     if (id && seen.has(id))
-      throw new FinanceValidationError("Duplicate sub-transaction ID.");
+      throw new FinanceValidationError('Duplicate sub-transaction ID.');
     if (id) seen.add(id);
     return {
       id,
@@ -89,17 +104,59 @@ export function validateSplits(
       reason,
       amount: paiseToDecimal(paise),
       partyMemberId:
-        typeof row.partyMemberId === "string" && row.partyMemberId
+        typeof row.partyMemberId === 'string' && row.partyMemberId
           ? row.partyMemberId
           : null,
     };
   });
-  if (splits.length && total !== moneyToPaise(parentAmount)) {
+  if (splits.length && total !== BigInt(moneyToPaise(parentAmount))) {
     throw new FinanceValidationError(
-      "Sub-transaction amounts must add up exactly to the parent amount.",
+      'Sub-transaction amounts must add up exactly to the parent amount.',
     );
   }
   return splits;
+}
+
+// Bank summaries remain net cash movements. Category reporting can also show
+// fees withheld from a CREDIT payout, while signed DEBIT allocations can offset
+// expenses (e.g. a refund). Pie charts receive only positive category totals.
+export function buildFinanceExpenseBreakdown(
+  transactions: {
+    type: string;
+    amount: unknown;
+    reason?: string | null;
+    splits: { amount: unknown; reason?: string | null }[];
+  }[],
+) {
+  const categories = new Map<string, bigint>();
+  for (const transaction of transactions) {
+    const allocations = transaction.splits.length
+      ? transaction.splits
+      : [transaction];
+    for (const allocation of allocations) {
+      const reason = allocation.reason?.trim();
+      if (!reason) continue;
+      const amount = moneyToPaise(
+        allocation.amount ?? 0,
+        'Allocation amount',
+        true,
+      );
+      const expense =
+        transaction.type === 'DEBIT' ? amount : amount < 0 ? -amount : 0;
+      if (expense)
+        categories.set(
+          reason,
+          (categories.get(reason) ?? BigInt(0)) + BigInt(expense),
+        );
+    }
+  }
+  return Array.from(categories, ([name, value]) => ({
+    name,
+    value: Number(value) / 100,
+  }))
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 }
 
 export function memberFiscalLabel(startDate: Date): string {
@@ -108,9 +165,9 @@ export function memberFiscalLabel(startDate: Date): string {
 }
 
 export function formatFinanceAmount(value: unknown): string {
-  return Number(value ?? 0).toLocaleString("en-IN", {
-    style: "currency",
-    currency: "INR",
+  return Number(value ?? 0).toLocaleString('en-IN', {
+    style: 'currency',
+    currency: 'INR',
     minimumFractionDigits: 2,
   });
 }
@@ -123,5 +180,5 @@ export function formatTransactionBreakdown(
       (split, index) =>
         `${index + 1}. ${split.partyName} — ${split.reason} — ${formatFinanceAmount(split.amount)}`,
     )
-    .join("\n");
+    .join('\n');
 }

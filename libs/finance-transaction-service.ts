@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import {
   FinanceValidationError,
+  FinanceDonationStatus,
   MAX_MEMBER_FEE_PAISE,
   isCoreMemberCode,
   memberFiscalLabel,
@@ -26,6 +27,40 @@ export const transactionDetailsInclude = {
 export type DetailedTransaction = Prisma.TransactionGetPayload<{
   include: typeof transactionDetailsInclude;
 }>;
+
+function donationStatus(
+  transaction: Pick<
+    DetailedTransaction,
+    'id' | 'updatedAt' | 'donationCredits'
+  >,
+): FinanceDonationStatus {
+  return {
+    transactionId: transaction.id,
+    updatedAt: transaction.updatedAt.toISOString(),
+    credits: transaction.donationCredits.map((credit) => ({
+      id: credit.id,
+      sourceKey: credit.sourceKey,
+      splitId: credit.splitId,
+      fiscalLabel: credit.fiscalLabel,
+      amount: credit.amount.toString(),
+      partyName: credit.partyName,
+      memberId: credit.memberId,
+    })),
+  };
+}
+
+async function touchDonationSource(
+  tx: Prisma.TransactionClient,
+  transactionId: string,
+) {
+  // Advance at least one millisecond: old credit requests must become stale
+  // after Undo, even when both operations run in the same clock millisecond.
+  const [row] = await tx.$queryRaw<{ updatedAt: Date }[]>(Prisma.sql`
+    UPDATE "Transaction" SET "updatedAt" = GREATEST(clock_timestamp(), "updatedAt" + INTERVAL '1 millisecond')
+    WHERE "id" = ${transactionId} RETURNING "updatedAt"
+  `);
+  return row.updatedAt;
+}
 
 // Every finance mutation locks its statement first. An import/clear/edit/credit
 // cannot race another mutation of the same bank entry. Transactions stay short.
@@ -103,7 +138,8 @@ function assertCreditedValuesUnchanged(
       !nextSplit ||
       nextSplit.partyMemberId !== old.partyMemberId ||
       nextSplit.partyName !== old.partyName ||
-      moneyToPaise(nextSplit.amount) !== moneyToPaise(old.amount)
+      moneyToPaise(nextSplit.amount, 'Sub-transaction amount', true) !==
+        moneyToPaise(old.amount, 'Sub-transaction amount', true)
     ) {
       throw new FinanceValidationError(
         'A credited sub-transaction cannot be removed or have its party or amount changed.',
@@ -311,6 +347,7 @@ export async function creditFinanceDonation(
       return {
         alreadyCredited: true,
         fiscalLabel: alreadyCredited.fiscalLabel,
+        status: donationStatus(transaction),
       };
     assertFresh(transaction, input.expectedUpdatedAt);
     if (transaction.type !== 'CREDIT')
@@ -340,8 +377,12 @@ export async function creditFinanceDonation(
     `);
     if (!member || !isCoreMemberCode(member.memberId))
       throw new FinanceValidationError('This party is not an eligible member.');
-    const amountPaise = moneyToPaise(source.amount);
-    if (amountPaise <= 0 || amountPaise > MAX_MEMBER_FEE_PAISE)
+    const amountPaise = moneyToPaise(source.amount, 'Donation amount', true);
+    if (amountPaise <= 0)
+      throw new FinanceValidationError(
+        'Only positive amounts can be added to member donations.',
+      );
+    if (amountPaise > MAX_MEMBER_FEE_PAISE)
       throw new FinanceValidationError(
         'Donation amount is outside the supported member total range.',
       );
@@ -379,15 +420,16 @@ export async function creditFinanceDonation(
       );
     const decimalAmount = paiseToDecimal(amountPaise);
     // Single atomic upsert handles NULL legacy amounts and concurrent increments
-    // across different statements. Keep the existing paidOn date when present.
+    // across different statements. Backdated credits cannot move paidOn back.
     await tx.$executeRaw(Prisma.sql`
       INSERT INTO "MemberFee" ("id", "memberId", "fiscalLabel", "paidOn", "amount", "createdAt", "updatedAt")
       VALUES (${randomUUID()}, ${member.id}, ${input.fiscalLabel}, ${transaction.txnDate}, ${decimalAmount}::numeric, NOW(), NOW())
       ON CONFLICT ("memberId", "fiscalLabel") DO UPDATE SET
         "amount" = COALESCE("MemberFee"."amount", 0) + EXCLUDED."amount",
+        "paidOn" = GREATEST("MemberFee"."paidOn", EXCLUDED."paidOn"),
         "updatedAt" = NOW()
     `);
-    await tx.financeDonationCredit.create({
+    const credit = await tx.financeDonationCredit.create({
       data: {
         sourceKey,
         transactionId: transaction.id,
@@ -403,7 +445,117 @@ export async function creditFinanceDonation(
     await tx.$executeRaw(
       Prisma.sql`UPDATE "Member" SET "financeFeeRevision" = "financeFeeRevision" + 1 WHERE "id" = ${member.id}`,
     );
-    return { alreadyCredited: false, fiscalLabel: input.fiscalLabel };
+    const updatedAt = await touchDonationSource(tx, transaction.id);
+    return {
+      alreadyCredited: false,
+      fiscalLabel: input.fiscalLabel,
+      status: donationStatus({
+        ...transaction,
+        updatedAt,
+        donationCredits: [...transaction.donationCredits, credit],
+      }),
+    };
+  });
+}
+
+export type DonationUndoInput = {
+  transactionId: string;
+  creditId: string;
+  confirmed: boolean;
+};
+
+export async function undoFinanceDonation(
+  client: PrismaClient,
+  input: DonationUndoInput,
+  actorId: string,
+) {
+  if (!input.confirmed)
+    throw new FinanceValidationError(
+      'Confirm the donation undo before continuing.',
+    );
+  const entry = await client.transaction.findUnique({
+    where: { id: input.transactionId },
+    select: { statementId: true },
+  });
+  if (!entry) throw new FinanceValidationError('Transaction not found.');
+  return financeTransaction(client, async (tx) => {
+    await lockFinanceStatement(tx, entry.statementId);
+    const transaction = await tx.transaction.findUnique({
+      where: { id: input.transactionId },
+      include: transactionDetailsInclude,
+    });
+    if (!transaction)
+      throw new FinanceValidationError('Transaction not found.');
+    const previous = await tx.financeDonationReversal.findUnique({
+      where: { creditId: input.creditId },
+    });
+    if (previous?.transactionId === transaction.id)
+      return { alreadyUndone: true, status: donationStatus(transaction) };
+    const credit = transaction.donationCredits.find(
+      (item) => item.id === input.creditId,
+    );
+    if (!credit)
+      throw new FinanceValidationError(
+        'This credit is no longer active. Refresh before continuing.',
+      );
+
+    // Same locking order as Add donation and member management: statement,
+    // member, then yearly fee. Use the saved audit amount/member/year only.
+    const members = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT "id" FROM "Member" WHERE "id" = ${credit.memberId} FOR UPDATE
+    `);
+    if (!members.length)
+      throw new FinanceValidationError(
+        'Member not found. Reconcile this credit before undoing.',
+      );
+    const fees = await tx.$queryRaw<
+      { amount: Prisma.Decimal | null }[]
+    >(Prisma.sql`
+      SELECT "amount" FROM "MemberFee"
+      WHERE "memberId" = ${credit.memberId} AND "fiscalLabel" = ${credit.fiscalLabel} FOR UPDATE
+    `);
+    if (
+      !fees.length ||
+      moneyToPaise(fees[0].amount ?? 0) < moneyToPaise(credit.amount)
+    )
+      throw new FinanceValidationError(
+        'The member fee was removed or reduced below this credit. Reconcile the yearly total before undoing.',
+      );
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "MemberFee" SET "amount" = "amount" - ${credit.amount}::numeric, "updatedAt" = NOW()
+      WHERE "memberId" = ${credit.memberId} AND "fiscalLabel" = ${credit.fiscalLabel}
+    `);
+    await tx.financeDonationReversal.create({
+      data: {
+        creditId: credit.id,
+        sourceKey: credit.sourceKey,
+        transactionId: credit.transactionId,
+        splitId: credit.splitId,
+        memberId: credit.memberId,
+        fiscalLabel: credit.fiscalLabel,
+        amount: credit.amount,
+        partyName: credit.partyName,
+        paidOn: credit.paidOn,
+        creditedById: credit.creditedById,
+        creditedAt: credit.createdAt,
+        reversedById: actorId,
+      },
+    });
+    await tx.financeDonationCredit.delete({ where: { id: credit.id } });
+    await tx.$executeRaw(
+      Prisma.sql`UPDATE "Member" SET "financeFeeRevision" = "financeFeeRevision" + 1 WHERE "id" = ${credit.memberId}`,
+    );
+    const updatedAt = await touchDonationSource(tx, transaction.id);
+    return {
+      alreadyUndone: false,
+      status: donationStatus({
+        ...transaction,
+        updatedAt,
+        donationCredits: transaction.donationCredits.filter(
+          (item) => item.id !== credit.id,
+        ),
+      }),
+    };
   });
 }
 
@@ -420,7 +572,7 @@ export async function assertFinanceFeeRevision(
   if (!rows.length) throw new FinanceValidationError('Member not found.');
   if (rows[0].financeFeeRevision !== Number(expected ?? 0)) {
     throw new FinanceValidationError(
-      'A donation was added to this member after you opened the form. Refresh the member list and reopen the form before saving.',
+      'A finance donation changed after you opened the form. Refresh the member list and reopen the form before saving.',
     );
   }
 }

@@ -3,6 +3,7 @@ import {
   getYearlyAnalytics,
 } from '@/app/actions/finance';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import { YearTransactionSearch } from '@/components/finance/year-transaction-search';
 import { AnalyticsDashboardLoader } from '@/components/finance/AnalyticsDashboardLoader';
 import { YearStatusToggle } from '@/components/finance/year-status-toggle';
 import { YearlyExportButton } from '@/components/finance/yearly-export-button'; // <-- NEW IMPORT
@@ -146,6 +147,8 @@ export default async function FinancialYearDetail({
           </div>
         </div>
       </div>
+
+      <YearTransactionSearch key={year.id} yearId={year.id} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {year.months.map((statement: any) => {

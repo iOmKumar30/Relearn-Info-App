@@ -5,7 +5,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -84,42 +83,57 @@ export function AnalyticsDashboard({ data }: { data: any }) {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="min-w-0 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <h3 className="text-sm font-bold text-gray-700 mb-2">
             Top Expenses (by Reason)
           </h3>
-          <div className="h-[300px] w-full">
+          <div className="min-h-[300px] w-full">
             {expenseBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={expenseBreakdown}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {expenseBreakdown.map((entry: any, index: number) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
+              <>
+                <div className="h-[240px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expenseBreakdown}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {expenseBreakdown.map((entry: any, index: number) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(val: number) =>
+                          `₹${val.toLocaleString("en-IN")}`
+                        }
                       />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: number) =>
-                      `₹${val.toLocaleString("en-IN")}`
-                    }
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={36}
-                    iconType="circle"
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-2 text-center text-sm">
+                  {expenseBreakdown.map((entry: any, index: number) => (
+                    <li
+                      key={`legend-${index}`}
+                      className="min-w-0 max-w-full [overflow-wrap:anywhere]"
+                      style={{ color: COLORS[index % COLORS.length] }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mr-1 inline-block h-3 w-3 rounded-full align-middle"
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      />
+                      {entry.name}
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
-              <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+              <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm">
                 No expense data available
               </div>
             )}

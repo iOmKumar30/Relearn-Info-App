@@ -13,6 +13,7 @@ import { toLocalDateInput } from '@/libs/finance-utils';
 import { matchesFinanceTransactionSearch } from '@/libs/finance-transaction-search';
 import {
   formatFinanceAmount,
+  FinanceDonationStatus,
   formatTransactionBreakdown,
   isCoreMemberCode,
   validateSplits,
@@ -33,7 +34,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import ExportXlsxButton from '../CrudControls/ExportXlsxButton';
+import { MonthlyExportButton } from './monthly-export-button';
 import SearchBar from '../CrudControls/SearchBar';
 import { ActionDropdown } from './ActionDropdown';
 import {
@@ -41,6 +42,10 @@ import {
   MemberDonationSource,
 } from './member-donation-dialog';
 import { SplitDraft, TransactionBreakdown } from './transaction-breakdown';
+import {
+  DonationUndoSource,
+  UndoMemberDonationDialog,
+} from './undo-member-donation-dialog';
 // --- HELPER: FORMAT DATE ---
 const formatDateDisplay = (dateStr: string | Date) => {
   if (!dateStr) return '-';
@@ -68,7 +73,11 @@ export function TransactionManager({
   const savingRef = useRef(false);
   const [donationSource, setDonationSource] =
     useState<MemberDonationSource | null>(null);
-  const [localCredits, setLocalCredits] = useState<Record<string, string>>({});
+  const [donationStatuses, setDonationStatuses] = useState<
+    Record<string, FinanceDonationStatus>
+  >({});
+  const [undoSource, setUndoSource] = useState<DonationUndoSource | null>(null);
+  const [savedFormSnapshot, setSavedFormSnapshot] = useState('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
@@ -86,13 +95,29 @@ export function TransactionManager({
         debitCount++;
         sno = `D${debitCount}`;
       }
+      const status = donationStatuses[t.id];
+      // Server refreshes may contain later edits by another admin. Only apply
+      // our local response until that version (or a newer version) arrives.
+      const useLocal =
+        status &&
+        new Date(status.updatedAt).getTime() >= new Date(t.updatedAt).getTime();
+      const donationCredits = useLocal ? status.credits : t.donationCredits;
       return {
         ...t,
+        updatedAt: useLocal ? status.updatedAt : t.updatedAt,
+        donationCredits,
+        splits: (t.splits ?? []).map((split: any) => ({
+          ...split,
+          donationCredit:
+            donationCredits?.find(
+              (credit: any) => credit.splitId === split.id,
+            ) ?? null,
+        })),
         serialNo: sno,
         breakdown: formatTransactionBreakdown(t.splits),
       };
     });
-  }, [transactions]);
+  }, [transactions, donationStatuses]);
 
   const matchingTransactions = useMemo(
     () =>
@@ -105,18 +130,6 @@ export function TransactionManager({
   );
   const credits = matchingTransactions.filter((t) => t.type === 'CREDIT');
   const debits = matchingTransactions.filter((t) => t.type === 'DEBIT');
-  const allCredits = processedData.filter((t) => t.type === 'CREDIT');
-  const allDebits = processedData.filter((t) => t.type === 'DEBIT');
-
-  // --- 2. CALCULATE TOTALS ---
-  const totalIncome = allCredits.reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpense = allDebits.reduce((sum, t) => sum + Number(t.amount), 0);
-  const closingBalance =
-    transactions.length > 0
-      ? Number(transactions[transactions.length - 1].runningBalance)
-      : 0;
-  const openingBalance = closingBalance - totalIncome + totalExpense;
-
   // --- 3. FORM STATE ---
   const initialFormState = {
     txnDate: '',
@@ -206,7 +219,7 @@ export function TransactionManager({
       const partyOption = existingParty;
       const customParty = '';
 
-      setFormData({
+      const nextForm = {
         txnDate: toLocalDateInput(txn.txnDate),
         valueDate: toLocalDateInput(txn.valueDate),
         description: txn.description || '',
@@ -233,23 +246,16 @@ export function TransactionManager({
           partyMemberCode: split.partyMember?.memberId,
           reason: split.reason,
           amount: String(split.amount),
-          donationCredit:
-            split.donationCredit ??
-            (localCredits[`split:${split.id}`]
-              ? { fiscalLabel: localCredits[`split:${split.id}`] }
-              : null),
+          donationCredit: split.donationCredit ?? null,
         })),
         expectedUpdatedAt: new Date(txn.updatedAt).toISOString(),
-        parentCredited:
-          !!txn.donationCredits?.some((credit: any) => !credit.splitId) ||
-          !!localCredits[`transaction:${txn.id}`],
-        hasCredits:
-          !!txn.donationCredits?.length ||
-          !!localCredits[`transaction:${txn.id}`] ||
-          (txn.splits ?? []).some(
-            (split: any) => !!localCredits[`split:${split.id}`],
-          ),
-      });
+        parentCredited: !!txn.donationCredits?.some(
+          (credit: any) => !credit.splitId,
+        ),
+        hasCredits: !!txn.donationCredits?.length,
+      };
+      setFormData(nextForm);
+      setSavedFormSnapshot(JSON.stringify(nextForm));
     } catch (error) {
       console.error('Error editing transaction:', error);
     }
@@ -335,15 +341,30 @@ export function TransactionManager({
   const renderDonationAction = (txn: any, split?: any) => {
     const source = split ?? txn;
     if (txn.type !== 'CREDIT' || (!split && txn.splits?.length)) return null;
-    const key = split ? `split:${split.id}` : `transaction:${txn.id}`;
     const credit = split
       ? split.donationCredit
       : txn.donationCredits?.find((item: any) => !item.splitId);
-    const creditedYear = credit?.fiscalLabel ?? localCredits[key];
+    const creditedYear = credit?.fiscalLabel;
     if (creditedYear)
       return (
-        <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-100 bg-green-50 px-2.5 py-2 text-xs font-medium text-green-700">
-          <HeartHandshake className="h-4 w-4" /> Credited · {creditedYear}
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-100 bg-green-50 px-2.5 py-2 text-xs font-medium text-green-700">
+            <HeartHandshake className="h-4 w-4" /> Credited · {creditedYear}
+          </span>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              setUndoSource({
+                ...credit,
+                transactionId: txn.id,
+                amount: String(credit.amount),
+              })
+            }
+            className="min-h-10 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+          >
+            Undo donation
+          </button>
         </span>
       );
     if (
@@ -393,6 +414,7 @@ export function TransactionManager({
           {list.map((txn: any) => (
             <div
               key={txn.id}
+              id={`transaction-${txn.id}`}
               className="group transition-colors md:hover:bg-gray-50 bg-white border border-gray-200 shadow-sm rounded-xl md:border-none md:shadow-none md:rounded-none md:bg-transparent"
             >
               {editingId !== txn.id ? (
@@ -536,13 +558,7 @@ export function TransactionManager({
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      disabled={
-                        !!txn.donationCredits?.length ||
-                        !!localCredits[`transaction:${txn.id}`] ||
-                        (txn.splits ?? []).some(
-                          (split: any) => !!localCredits[`split:${split.id}`],
-                        )
-                      }
+                      disabled={!!txn.donationCredits?.length}
                       title={
                         txn.donationCredits?.length
                           ? 'Credited donations must be preserved'
@@ -568,6 +584,21 @@ export function TransactionManager({
                     onSave={() => handleSave(txn.id)}
                     onCancel={() => setEditingId(null)}
                     saving={saving}
+                    renderSplitDonationAction={(split: SplitDraft) => {
+                      if (!split.id) return null;
+                      if (JSON.stringify(formData) !== savedFormSnapshot)
+                        return (
+                          <p className="mt-2 text-xs text-gray-500">
+                            Save changes before adding or undoing a donation.
+                          </p>
+                        );
+                      const savedSplit = txn.splits?.find(
+                        (item: any) => item.id === split.id,
+                      );
+                      return savedSplit
+                        ? renderDonationAction(txn, savedSplit)
+                        : null;
+                    }}
                   />
                 </div>
               )}
@@ -604,7 +635,7 @@ export function TransactionManager({
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
                           <span
-                            className={`text-sm font-bold tabular-nums ${txn.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}
+                            className={`text-sm font-bold tabular-nums ${(txn.type === 'CREDIT') === Number(split.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}
                           >
                             {formatFinanceAmount(split.amount)}
                           </span>
@@ -622,51 +653,6 @@ export function TransactionManager({
     );
   };
 
-  // --- 7. EXPORT SETUP ---
-  const exportColumns = [
-    { key: 'serialNo', label: 'SI No' },
-    { key: 'txnDate', label: 'Txn Date' },
-    { key: 'valueDate', label: 'Value Date' },
-    { key: 'description', label: 'Description' },
-    { key: 'comment', label: 'Comment' },
-    { key: 'txnId', label: 'Txn ID' },
-    { key: 'refNo', label: 'Ref No / Cheque No' },
-    { key: 'branchCode', label: 'Branch Code' },
-    { key: 'type', label: 'Type' },
-    { key: 'amount', label: 'Amount' },
-    { key: 'runningBalance', label: 'Balance' },
-    { key: 'reason', label: 'Reason (Why?)' },
-    { key: 'partyName', label: 'Person Received/Paid' },
-    { key: 'breakdown', label: 'Sub-transactions (included in parent amount)' },
-  ];
-
-  const getExportData = async () => {
-    return processedData.map((t) => ({
-      ...t,
-      txnDate: new Date(t.txnDate),
-      amount: Number(t.amount),
-      runningBalance: Number(t.runningBalance),
-      breakdown: formatTransactionBreakdown(t.splits),
-    }));
-  };
-
-  const exportPreface = [
-    { Label: 'Generated On', Value: new Date().toLocaleDateString() },
-    { Label: '', Value: '' },
-    { Label: 'Opening Balance', Value: openingBalance },
-    { Label: 'Total Income (Credits)', Value: totalIncome },
-    { Label: 'Total Expense (Debits)', Value: totalExpense },
-    { Label: 'Closing Balance', Value: closingBalance },
-  ];
-
-  const getExportFileName = () => {
-    const dateRef =
-      transactions.length > 0 ? new Date(transactions[0].txnDate) : new Date();
-    const monthName = dateRef.toLocaleString('default', { month: 'long' });
-    const year = dateRef.getFullYear();
-    return `RELF ${monthName}-${year}`;
-  };
-
   // --- 8. MAIN RENDER ---
   return (
     <div>
@@ -676,12 +662,9 @@ export function TransactionManager({
 
           <div className="flex w-full gap-2 sm:w-auto">
             <div className="flex-1 sm:flex-none">
-              <ExportXlsxButton
-                fileName={getExportFileName()}
-                visibleRows={processedData}
-                fetchAll={getExportData}
-                columns={exportColumns}
-                preface={exportPreface}
+              <MonthlyExportButton
+                statementId={statementId}
+                query={debouncedSearch}
               />
             </div>
 
@@ -750,15 +733,32 @@ export function TransactionManager({
         <MemberDonationDialog
           source={donationSource}
           onClose={() => setDonationSource(null)}
-          onCredited={(fiscalLabel) => {
-            const key = donationSource.splitId
-              ? `split:${donationSource.splitId}`
-              : `transaction:${donationSource.transactionId}`;
-            setLocalCredits((previous) => ({
+          onCredited={(_fiscalLabel, status) => {
+            setDonationStatuses((previous) => ({
               ...previous,
-              [key]: fiscalLabel,
+              [status.transactionId]: status,
             }));
             setDonationSource(null);
+            setEditingId((current) =>
+              current === status.transactionId ? null : current,
+            );
+            router.refresh();
+          }}
+        />
+      )}
+      {undoSource && (
+        <UndoMemberDonationDialog
+          source={undoSource}
+          onClose={() => setUndoSource(null)}
+          onUndone={(status) => {
+            setDonationStatuses((previous) => ({
+              ...previous,
+              [status.transactionId]: status,
+            }));
+            setUndoSource(null);
+            setEditingId((current) =>
+              current === status.transactionId ? null : current,
+            );
             router.refresh();
           }}
         />
@@ -768,7 +768,14 @@ export function TransactionManager({
 }
 
 // --- SUB-COMPONENT: FORM ---
-function TransactionForm({ data, onChange, onSave, onCancel, saving }: any) {
+function TransactionForm({
+  data,
+  onChange,
+  onSave,
+  onCancel,
+  saving,
+  renderSplitDonationAction,
+}: any) {
   const handleChange = (field: string, value: any) => {
     onChange({ ...data, [field]: value });
   };
@@ -1014,6 +1021,7 @@ function TransactionForm({ data, onChange, onSave, onCancel, saving }: any) {
       </div>
 
       <TransactionBreakdown
+        renderDonationAction={renderSplitDonationAction}
         splits={data.splits}
         amount={data.amount}
         onChange={(splits) => handleChange('splits', splits)}

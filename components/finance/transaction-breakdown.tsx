@@ -1,15 +1,16 @@
-"use client";
+'use client';
 
-import { TRANSACTION_REASONS } from "@/app/admin/finance/_constants/finance-options";
+import { TRANSACTION_REASONS } from '@/app/admin/finance/_constants/finance-options';
 import {
   formatFinanceAmount,
   isCoreMemberCode,
   MAX_SPLITS,
   moneyToPaise,
-} from "@/libs/finance-transactions";
-import { Plus, Split, Trash2 } from "lucide-react";
-import { useId } from "react";
-import PartySelect from "./party-select";
+} from '@/libs/finance-transactions';
+import { Plus, Split, Trash2 } from 'lucide-react';
+import { useId } from 'react';
+import type { ReactNode } from 'react';
+import PartySelect from './party-select';
 
 export type SplitDraft = {
   id?: string;
@@ -30,6 +31,7 @@ export function TransactionBreakdown({
   parentCredited,
   defaultParty,
   defaultReason,
+  renderDonationAction,
 }: {
   splits: SplitDraft[];
   amount: string | number;
@@ -38,13 +40,23 @@ export function TransactionBreakdown({
   parentCredited: boolean;
   defaultParty: { name: string; memberId: string | null; code?: string | null };
   defaultReason: string;
+  renderDonationAction?: (split: SplitDraft) => ReactNode;
 }) {
   const prefix = useId();
   let remainder: number | null = null;
   try {
-    remainder =
-      moneyToPaise(amount) -
-      splits.reduce((sum, split) => sum + moneyToPaise(split.amount || 0), 0);
+    const signedRemainder =
+      BigInt(moneyToPaise(amount)) -
+      splits.reduce(
+        (sum, split) =>
+          sum +
+          BigInt(
+            moneyToPaise(split.amount || 0, 'Sub-transaction amount', true),
+          ),
+        BigInt(0),
+      );
+    const remaining = Number(signedRemainder);
+    remainder = Number.isSafeInteger(remaining) ? remaining : null;
   } catch {
     /* Incomplete inputs are checked again on save. */
   }
@@ -68,7 +80,7 @@ export function TransactionBreakdown({
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500">
             Optional. Divide this bank entry between parties or reasons.
             Sub-transactions must equal the parent amount; bank totals stay the
-            same.
+            same. Use a negative amount for deductions, such as payout charges.
           </p>
         </div>
         <button
@@ -79,11 +91,11 @@ export function TransactionBreakdown({
               ...splits,
               {
                 clientKey: crypto.randomUUID(),
-                partyName: splits.length ? "" : defaultParty.name,
+                partyName: splits.length ? '' : defaultParty.name,
                 partyMemberId: splits.length ? null : defaultParty.memberId,
                 partyMemberCode: splits.length ? null : defaultParty.code,
-                reason: splits.length ? "" : defaultReason,
-                amount: splits.length ? "" : String(amount),
+                reason: splits.length ? '' : defaultReason,
+                amount: splits.length ? '' : String(amount),
               },
             ])
           }
@@ -143,12 +155,12 @@ export function TransactionBreakdown({
                       update(split.clientKey, {
                         partyName: name,
                         partyMemberId:
-                          party?.type === "MEMBER" &&
+                          party?.type === 'MEMBER' &&
                           isCoreMemberCode(party.code)
                             ? party.id
                             : null,
                         partyMemberCode:
-                          party?.type === "MEMBER" ? party.code : null,
+                          party?.type === 'MEMBER' ? party.code : null,
                       })
                     }
                   />
@@ -169,7 +181,7 @@ export function TransactionBreakdown({
                     id={`${prefix}-${split.clientKey}-reason`}
                     disabled={disabled}
                     value={
-                      knownReason ? split.reason : split.reason ? "Others" : ""
+                      knownReason ? split.reason : split.reason ? 'Others' : ''
                     }
                     onChange={(event) =>
                       update(split.clientKey, { reason: event.target.value })
@@ -182,20 +194,20 @@ export function TransactionBreakdown({
                         {reason}
                       </option>
                     ))}
-                    {!TRANSACTION_REASONS.includes("Others") && (
+                    {!TRANSACTION_REASONS.includes('Others') && (
                       <option value="Others">Others</option>
                     )}
                   </select>
                   {((!knownReason && !!split.reason) ||
-                    split.reason === "Others") && (
+                    split.reason === 'Others') && (
                     <input
                       disabled={disabled}
                       aria-label={`Custom reason for sub-transaction ${index + 1}`}
                       placeholder="Specify reason"
-                      value={split.reason === "Others" ? "" : split.reason}
+                      value={split.reason === 'Others' ? '' : split.reason}
                       onChange={(event) =>
                         update(split.clientKey, {
-                          reason: event.target.value || "Others",
+                          reason: event.target.value || 'Others',
                         })
                       }
                       className="mt-2 w-full rounded border border-purple-200 bg-white p-2 text-sm"
@@ -212,8 +224,7 @@ export function TransactionBreakdown({
                   <input
                     id={`${prefix}-${split.clientKey}-amount`}
                     type="number"
-                    inputMode="decimal"
-                    min="0.01"
+                    inputMode="text"
                     step="0.01"
                     disabled={locked}
                     value={split.amount}
@@ -222,8 +233,16 @@ export function TransactionBreakdown({
                     }
                     className="w-full rounded border border-gray-200 bg-white p-2 font-mono text-sm disabled:bg-gray-100"
                   />
+                  {Number(split.amount) < 0 && (
+                    <p className="mt-1 text-xs text-red-600">
+                      Deduction · cannot be added to member donations
+                    </p>
+                  )}
                 </div>
               </div>
+              {renderDonationAction && (
+                <div className="mt-3">{renderDonationAction(split)}</div>
+              )}
             </div>
           );
         })}
@@ -232,14 +251,14 @@ export function TransactionBreakdown({
         <div
           role="status"
           aria-live="polite"
-          className={`mt-3 flex flex-wrap justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${remainder === 0 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}
+          className={`mt-3 flex flex-wrap justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${remainder === 0 ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'}`}
         >
           <span>Parent: {formatFinanceAmount(amount)}</span>
           <span>
             {remainder === null
-              ? "Enter valid amounts"
+              ? 'Enter valid amounts'
               : remainder === 0
-                ? "Fully allocated"
+                ? 'Fully allocated'
                 : remainder > 0
                   ? `${formatFinanceAmount(remainder / 100)} remaining`
                   : `${formatFinanceAmount(-remainder / 100)} over allocated`}

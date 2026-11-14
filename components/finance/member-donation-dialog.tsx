@@ -1,14 +1,17 @@
-"use client";
+'use client';
 
 import {
   addTransactionToMemberDonation,
   getMemberDonationYears,
-} from "@/app/actions/finance";
-import { formatFinanceAmount } from "@/libs/finance-transactions";
-import { Modal, ModalBody, ModalHeader } from "flowbite-react";
-import { HeartHandshake, Loader2 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
-import toast from "react-hot-toast";
+} from '@/app/actions/finance';
+import {
+  formatFinanceAmount,
+  FinanceDonationStatus,
+} from '@/libs/finance-transactions';
+import { Modal, ModalBody, ModalHeader } from 'flowbite-react';
+import { HeartHandshake, Loader2 } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
 export type MemberDonationSource = {
   transactionId: string;
@@ -27,14 +30,14 @@ export function MemberDonationDialog({
 }: {
   source: MemberDonationSource;
   onClose: () => void;
-  onCredited: (fiscalLabel: string) => void;
+  onCredited: (fiscalLabel: string, status: FinanceDonationStatus) => void;
 }) {
   const labelId = useId();
   const [years, setYears] = useState<string[]>([]);
-  const [year, setYear] = useState("");
+  const [year, setYear] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [retry, setRetry] = useState(0);
   const submitting = useRef(false);
@@ -42,12 +45,12 @@ export function MemberDonationDialog({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError("");
+    setError('');
     getMemberDonationYears()
       .then((result) => {
         if (cancelled) return;
         if (!result.success) {
-          setError(result.error ?? "Could not load financial years.");
+          setError(result.error ?? 'Could not load financial years.');
           return;
         }
         setYears(result.years);
@@ -57,11 +60,11 @@ export function MemberDonationDialog({
             ? date.getUTCFullYear() - 1
             : date.getUTCFullYear();
         const label = `${start}-${start + 1}`;
-        setYear(result.years.includes(label) ? label : (result.years[0] ?? ""));
+        setYear(result.years.includes(label) ? label : (result.years[0] ?? ''));
       })
       .catch(() => {
         if (!cancelled)
-          setError("Could not load financial years. Please try again.");
+          setError('Could not load financial years. Please try again.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -75,7 +78,7 @@ export function MemberDonationDialog({
     if (submitting.current || !year || !confirmed) return;
     submitting.current = true;
     setSaving(true);
-    setError("");
+    setError('');
     try {
       const result = await addTransactionToMemberDonation({
         transactionId: source.transactionId,
@@ -85,7 +88,7 @@ export function MemberDonationDialog({
         confirmed,
       });
       if (!result.success) {
-        setError(result.error ?? "Could not add donation.");
+        setError(result.error ?? 'Could not add donation.');
         return;
       }
       toast.success(
@@ -93,10 +96,10 @@ export function MemberDonationDialog({
           ? `Already credited to ${result.fiscalLabel}. No amount added again.`
           : `Donation added to ${result.fiscalLabel}.`,
       );
-      onCredited(result.fiscalLabel!);
+      onCredited(result.fiscalLabel!, result.status!);
     } catch {
       setError(
-        "Could not confirm the result. Refresh the page to check the donation status; retrying the same source cannot add it twice.",
+        'Could not confirm the result. Refresh the page to check the donation status; retrying the same source cannot add it twice.',
       );
     } finally {
       submitting.current = false;
@@ -125,10 +128,12 @@ export function MemberDonationDialog({
             {formatFinanceAmount(source.amount)}
           </p>
         </div>
-        <p className="text-sm leading-relaxed text-gray-600">
+        <p className="text-sm leading-relaxed text-gray-200">
           This amount will be added to the member’s existing yearly total. It
           records the allocation of an existing bank credit and does not create
-          another bank transaction or a donation receipt.
+          another bank transaction or a donation receipt. The paid-on date will
+          advance to the transaction date only if that date is newer than the
+          current paid-on date.
         </p>
         <div>
           <label
@@ -206,7 +211,7 @@ export function MemberDonationDialog({
             ) : (
               <HeartHandshake className="h-4 w-4" />
             )}
-            {saving ? "Adding…" : "Add donation"}
+            {saving ? 'Adding…' : 'Add donation'}
           </button>
         </div>
       </ModalBody>
